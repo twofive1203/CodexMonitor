@@ -62,6 +62,8 @@ subscriptions.
 - `account/updated`
 - `app/list/updated`
 - `error`
+- `hook/completed`
+- `hook/started`
 - `item/agentMessage/delta`
 - `item/commandExecution/outputDelta`
 - `item/commandExecution/terminalInteraction`
@@ -123,8 +125,6 @@ events are currently not routed:
 - `deprecationNotice`
 - `fuzzyFileSearch/sessionCompleted`
 - `fuzzyFileSearch/sessionUpdated`
-- `hook/completed`
-- `hook/started`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
 - `model/rerouted`
