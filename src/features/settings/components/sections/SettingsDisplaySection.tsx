@@ -160,16 +160,16 @@ export function SettingsDisplaySection({
 
   return (
     <SettingsSection
-      title="Display & Sound"
-      subtitle="Tune visuals and audio alerts to your preferences."
+      title="显示与声音"
+      subtitle="按你的偏好调整界面显示和声音提醒。"
     >
-      <div className="settings-subsection-title">Display</div>
+      <div className="settings-subsection-title">显示</div>
       <div className="settings-subsection-subtitle">
-        Adjust how the window renders backgrounds and effects.
+        调整窗口背景和视觉效果的显示方式。
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="theme-select">
-          Theme
+          主题
         </label>
         <select
           id="theme-select"
@@ -182,15 +182,15 @@ export function SettingsDisplaySection({
             })
           }
         >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="dim">Dim</option>
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+          <option value="dim">柔和暗色</option>
         </select>
       </div>
       <SettingsToggleRow
-        title="Show remaining Codex limits"
-        subtitle="Display what is left instead of what is used."
+        title="显示 Codex 剩余额度"
+        subtitle="显示剩余额度，而不是已使用额度。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.usageShowRemaining}
@@ -203,8 +203,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Show file path in messages"
-        subtitle="Display the parent path next to file links in messages."
+        title="在消息中显示文件路径"
+        subtitle="在消息里的文件链接旁显示父级路径。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.showMessageFilePath}
@@ -217,8 +217,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Split chat and diff center panes"
-        subtitle="Show chat and diff side by side instead of swapping between them."
+        title="拆分聊天与 Diff 中央面板"
+        subtitle="让聊天和 Diff 并排显示，而不是来回切换。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.splitChatDiffView}
@@ -231,8 +231,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Auto-generate new thread titles"
-        subtitle="Generate a short title from your first message (uses extra tokens)."
+        title="自动生成新会话标题"
+        subtitle="根据第一条消息生成简短标题（会额外消耗 token）。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.threadTitleAutogenerationEnabled}
@@ -245,13 +245,13 @@ export function SettingsDisplaySection({
           }
         />
       </SettingsToggleRow>
-      <div className="settings-subsection-title">Chat</div>
+      <div className="settings-subsection-title">聊天</div>
       <div className="settings-subsection-subtitle">
-        Control how much conversation history is retained per thread.
+        控制每个会话保留多少历史内容。
       </div>
       <SettingsToggleRow
-        title="Unlimited chat history"
-        subtitle="Keep full thread history in memory (may impact performance)."
+        title="无限聊天历史"
+        subtitle="在内存中保留完整会话历史（可能影响性能）。"
       >
         <SettingsToggleSwitch
           pressed={scrollbackUnlimited}
@@ -261,7 +261,7 @@ export function SettingsDisplaySection({
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="chat-scrollback-preset">
-          Scrollback preset
+          历史保留预设
         </label>
         <select
           id="chat-scrollback-preset"
@@ -271,21 +271,20 @@ export function SettingsDisplaySection({
           data-scrollback-control="true"
           disabled={scrollbackUnlimited}
         >
-          <option value="custom">Custom</option>
+          <option value="custom">自定义</option>
           {CHAT_SCROLLBACK_PRESETS.map((value) => (
             <option key={value} value={value}>
-              {value === CHAT_SCROLLBACK_DEFAULT ? `${value} (Default)` : value}
+              {value === CHAT_SCROLLBACK_DEFAULT ? `${value}（默认）` : value}
             </option>
           ))}
         </select>
         <div className="settings-help">
-          Higher values keep more history but may increase memory usage. Use “Sync from
-          server” on a thread to re-fetch older messages.
+          数值越大，保留的历史越多，但也可能增加内存占用。可在会话中使用“从服务端同步”重新获取更早的消息。
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="chat-scrollback-items">
-          Max items per thread
+          每个会话最大条目数
         </label>
         <div className="settings-field-row">
           <input
@@ -326,17 +325,16 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            重置
           </button>
         </div>
         <div className="settings-help">
-          Range: {CHAT_SCROLLBACK_MIN}–{CHAT_SCROLLBACK_MAX}. Counts messages, tool calls,
-          and other conversation items.
+          范围：{CHAT_SCROLLBACK_MIN}–{CHAT_SCROLLBACK_MAX}。统计消息、工具调用和其他会话条目。
         </div>
       </div>
       <SettingsToggleRow
-        title="Reduce transparency"
-        subtitle="Use solid surfaces instead of glass."
+        title="降低透明效果"
+        subtitle="使用实体背景，不使用玻璃效果。"
       >
         <SettingsToggleSwitch
           pressed={reduceTransparency}
@@ -345,7 +343,7 @@ export function SettingsDisplaySection({
       </SettingsToggleRow>
       <div className="settings-toggle-row settings-scale-row">
         <div>
-          <div className="settings-toggle-title">Interface scale</div>
+          <div className="settings-toggle-title">界面缩放</div>
           <div className="settings-toggle-subtitle" title={scaleShortcutTitle}>
             {scaleShortcutText}
           </div>
@@ -357,7 +355,7 @@ export function SettingsDisplaySection({
             inputMode="decimal"
             className="settings-input settings-input--scale"
             value={scaleDraft}
-            aria-label="Interface scale"
+            aria-label="界面缩放"
             onChange={(event) => onSetScaleDraft(event.target.value)}
             onBlur={() => {
               void onCommitScale();
@@ -376,13 +374,13 @@ export function SettingsDisplaySection({
               void onResetScale();
             }}
           >
-            Reset
+            重置
           </button>
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="ui-font-family">
-          UI font family
+          界面字体
         </label>
         <div className="settings-field-row">
           <input
@@ -412,16 +410,16 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            重置
           </button>
         </div>
         <div className="settings-help">
-          Applies to all UI text. Leave empty to use the default system font stack.
+          应用于全部界面文字。留空则使用默认系统字体。
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-family">
-          Code font family
+          代码字体
         </label>
         <div className="settings-field-row">
           <input
@@ -451,14 +449,14 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            重置
           </button>
         </div>
-        <div className="settings-help">Applies to git diffs and other mono-spaced readouts.</div>
+        <div className="settings-help">应用于 Git Diff 和其他等宽文本区域。</div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-size">
-          Code font size
+          代码字号
         </label>
         <div className="settings-field-row">
           <input
@@ -484,16 +482,16 @@ export function SettingsDisplaySection({
               void onCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
             }}
           >
-            Reset
+            重置
           </button>
         </div>
-        <div className="settings-help">Adjusts code and diff text size.</div>
+        <div className="settings-help">调整代码和 Diff 的文字大小。</div>
       </div>
-      <div className="settings-subsection-title">Sounds</div>
-      <div className="settings-subsection-subtitle">Control notification audio alerts.</div>
+      <div className="settings-subsection-title">声音</div>
+      <div className="settings-subsection-subtitle">控制通知声音提醒。</div>
       <SettingsToggleRow
-        title="Notification sounds"
-        subtitle="Play a sound when a long-running agent finishes while the window is unfocused."
+        title="通知音效"
+        subtitle="当窗口未聚焦且长时间运行的智能体完成时播放提示音。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.notificationSoundsEnabled}
@@ -506,8 +504,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="System notifications"
-        subtitle="Show a system notification when a long-running agent finishes while the window is unfocused."
+        title="系统通知"
+        subtitle="当窗口未聚焦且长时间运行的智能体完成时显示系统通知。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.systemNotificationsEnabled}
@@ -520,8 +518,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Sub-agent notifications"
-        subtitle="Include spawned sub-agent threads in system notifications."
+        title="子智能体通知"
+        subtitle="在系统通知中包含派生的子智能体会话。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.subagentSystemNotificationsEnabled}
@@ -540,14 +538,14 @@ export function SettingsDisplaySection({
           className="ghost settings-button-compact"
           onClick={onTestNotificationSound}
         >
-          Test sound
+          测试声音
         </button>
         <button
           type="button"
           className="ghost settings-button-compact"
           onClick={onTestSystemNotification}
         >
-          Test notification
+          测试通知
         </button>
       </div>
     </SettingsSection>

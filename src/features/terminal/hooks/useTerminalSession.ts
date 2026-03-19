@@ -131,7 +131,7 @@ export function useTerminalSession({
   const activeTerminalIdRef = useRef<string | null>(null);
   const pendingFocusRef = useRef(false);
   const [status, setStatus] = useState<TerminalStatus>("idle");
-  const [message, setMessage] = useState("Open a terminal to start a session.");
+  const [message, setMessage] = useState("打开终端以开始会话。");
   const [hasSession, setHasSession] = useState(false);
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const [sessionResetCounter, setSessionResetCounter] = useState(0);
@@ -147,7 +147,7 @@ export function useTerminalSession({
       terminalRef.current?.reset();
       setHasSession(false);
       setStatus("idle");
-      setMessage("Open a terminal to start a session.");
+      setMessage("打开终端以开始会话。");
     }
   }, [readyKey]);
 
@@ -312,14 +312,14 @@ export function useTerminalSession({
     }
     if (!activeWorkspace || !activeTerminalId) {
       setStatus("idle");
-      setMessage("Open a terminal to start a session.");
+      setMessage("打开终端以开始会话。");
       setHasSession(false);
       setReadyKey(null);
       return;
     }
     if (!terminalRef.current || !fitAddonRef.current) {
       setStatus("idle");
-      setMessage("Preparing terminal...");
+      setMessage("正在准备终端...");
       setHasSession(false);
       setReadyKey(null);
       return;
@@ -332,7 +332,7 @@ export function useTerminalSession({
     const rows = terminalRef.current.rows;
     const openSession = async () => {
       setStatus("connecting");
-      setMessage("Starting terminal session...");
+      setMessage("正在启动终端会话...");
       if (!openedSessionsRef.current.has(key)) {
         await openTerminalSession(activeWorkspace.id, activeTerminalId, cols, rows);
         openedSessionsRef.current.add(key);

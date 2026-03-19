@@ -412,8 +412,8 @@ export function useThreadTurnEvents({
       immediateActiveTurnIdByThreadRef.current[threadId] = null;
       setActiveTurnId(threadId, null);
       const message = payload.message
-        ? `Turn failed: ${payload.message}`
-        : "Turn failed.";
+        ? `回合失败：${payload.message}`
+        : "回合失败。";
       pushThreadErrorMessage(threadId, message);
       safeMessageActivity();
     },

@@ -76,9 +76,9 @@ export function LaunchScriptButton({
             onOpenEditor();
           }}
           data-tauri-drag-region="false"
-          aria-label={hasLaunchScript ? "Run launch script" : "Set launch script"}
-          title={hasLaunchScript ? "Run launch script" : "Set launch script"}
-          data-tooltip={hasLaunchScript ? "Run launch script" : "Set launch script"}
+          aria-label={hasLaunchScript ? "运行启动脚本" : "设置启动脚本"}
+          title={hasLaunchScript ? "运行启动脚本" : "设置启动脚本"}
+          data-tooltip={hasLaunchScript ? "运行启动脚本" : "设置启动脚本"}
           data-tooltip-placement="bottom"
         >
           <Play size={14} aria-hidden />
@@ -86,10 +86,10 @@ export function LaunchScriptButton({
       </div>
       {editorOpen && (
         <PopoverSurface className="launch-script-popover" role="dialog">
-          <div className="launch-script-title">Launch script</div>
+          <div className="launch-script-title">启动脚本</div>
           <textarea
             className="launch-script-textarea"
-            placeholder="e.g. npm run dev"
+            placeholder="例如：npm run dev"
             value={draftScript}
             onChange={(event) => onDraftChange(event.target.value)}
             rows={6}
@@ -102,11 +102,11 @@ export function LaunchScriptButton({
               className="ghost"
               onClick={() => {
                 onCloseEditor();
-                onCloseNew?.();
-              }}
-              data-tauri-drag-region="false"
-            >
-              Cancel
+              onCloseNew?.();
+            }}
+            data-tauri-drag-region="false"
+          >
+              取消
             </button>
             {showNew && onOpenNew && (
               <button
@@ -115,7 +115,7 @@ export function LaunchScriptButton({
                 onClick={onOpenNew}
                 data-tauri-drag-region="false"
               >
-                New
+                新建
               </button>
             )}
             <button
@@ -125,12 +125,12 @@ export function LaunchScriptButton({
               disabled={isSaving}
               data-tauri-drag-region="false"
             >
-              {isSaving ? "Saving..." : "Save"}
+              {isSaving ? "保存中..." : "保存"}
             </button>
           </div>
           {showNew && newEditorOpen && onNewDraftChange && onNewDraftIconChange && onCreateNew && (
             <div className="launch-script-new">
-              <div className="launch-script-title">New launch script</div>
+              <div className="launch-script-title">新建启动脚本</div>
               <LaunchScriptIconPicker
                 value={newDraftIcon}
                 onChange={onNewDraftIconChange}
@@ -138,14 +138,14 @@ export function LaunchScriptButton({
               <input
                 className="launch-script-input"
                 type="text"
-                placeholder="Optional label"
+                placeholder="可选标签"
                 value={newDraftLabel}
                 onChange={(event) => onNewDraftLabelChange?.(event.target.value)}
                 data-tauri-drag-region="false"
               />
               <textarea
                 className="launch-script-textarea"
-                placeholder="e.g. npm run dev"
+                placeholder="例如：npm run dev"
                 value={newDraftScript}
                 onChange={(event) => onNewDraftChange(event.target.value)}
                 rows={5}
@@ -159,7 +159,7 @@ export function LaunchScriptButton({
                   onClick={onCloseNew}
                   data-tauri-drag-region="false"
                 >
-                  Cancel
+                  取消
                 </button>
                 <button
                   type="button"
@@ -168,7 +168,7 @@ export function LaunchScriptButton({
                   disabled={isSaving}
                   data-tauri-drag-region="false"
                 >
-                  {isSaving ? "Saving..." : "Create"}
+                  {isSaving ? "保存中..." : "创建"}
                 </button>
               </div>
             </div>

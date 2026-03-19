@@ -58,7 +58,7 @@ function buildUserInputConversationItem(
     entries.push({
       id: "user-input",
       header: "",
-      question: "Input requested",
+      question: "需要输入",
       answers: [],
     });
   }

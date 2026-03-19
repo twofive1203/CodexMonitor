@@ -117,7 +117,7 @@ export const useSettingsOpenAppDrafts = ({
   const handleAddOpenApp = () => {
     const newTarget: OpenAppDraft = {
       id: createOpenAppId(),
-      label: "New App",
+      label: "新应用",
       kind: "app",
       appName: "",
       command: null,

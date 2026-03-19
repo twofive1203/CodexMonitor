@@ -25,7 +25,7 @@ const allowedPersonality = new Set(["friendly", "pragmatic"]);
 const allowedFollowUpMessageBehavior = new Set(["queue", "steer"]);
 const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
-const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
+const DEFAULT_REMOTE_BACKEND_NAME = "主远程配置";
 const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
 
 type RemoteBackendTarget = AppSettings["remoteBackends"][number];
@@ -70,7 +70,7 @@ function normalizeRemoteBackends(settings: AppSettings): {
     usedIds.add(id);
     return {
       id,
-      name: normalizeRemoteName(entry.name, `Remote ${index + 1}`),
+      name: normalizeRemoteName(entry.name, `远程配置 ${index + 1}`),
       provider: normalizeRemoteProvider(entry.provider),
       host: normalizeRemoteHost(entry.host),
       token: normalizeRemoteToken(entry.token),
@@ -171,7 +171,7 @@ function buildDefaultSettings(): AppSettings {
     showMessageFilePath: true,
     chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
     threadTitleAutogenerationEnabled: false,
-    automaticAppUpdateChecksEnabled: true,
+    automaticAppUpdateChecksEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
     codeFontSize: CODE_FONT_SIZE_DEFAULT,

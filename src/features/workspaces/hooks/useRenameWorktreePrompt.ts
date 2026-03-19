@@ -137,7 +137,7 @@ export function useRenameWorktreePrompt({
         prev
           ? {
               ...prev,
-              error: "Branch name is required.",
+              error: "必须填写分支名。",
               isSubmitting: false,
             }
           : prev,

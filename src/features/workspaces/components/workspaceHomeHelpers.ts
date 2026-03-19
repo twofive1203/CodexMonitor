@@ -11,7 +11,7 @@ export const buildIconPath = (workspacePath: string) => {
 };
 
 export const resolveModelLabel = (model: ModelOption | null) =>
-  model?.displayName?.trim() || model?.model?.trim() || "Default model";
+  model?.displayName?.trim() || model?.model?.trim() || "默认模型";
 
 export const buildLabelCounts = (instances: WorkspaceHomeRunInstance[]) => {
   const counts = new Map<string, number>();
@@ -31,12 +31,12 @@ export const buildModelSummary = (
   );
   const selectedModels = models.filter((model) => modelSelections[model.id]);
   if (selectedModels.length === 0) {
-    return "Select models";
+    return "选择模型";
   }
   if (selectedModels.length === 1) {
     const model = selectedModels[0];
     const count = modelSelections[model.id] ?? 1;
     return `${resolveModelLabel(model)} · ${count}x`;
   }
-  return `${selectedModels.length} models · ${totalInstances} runs`;
+  return `${selectedModels.length} 个模型 · ${totalInstances} 次运行`;
 };

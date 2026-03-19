@@ -175,13 +175,13 @@ export function useClonePrompt({
     const copiesFolder = clonePrompt.copiesFolder.trim();
     if (!copyName) {
       setClonePrompt((prev) =>
-        prev ? { ...prev, error: "Copy name is required." } : prev,
+        prev ? { ...prev, error: "必须填写副本名称。" } : prev,
       );
       return;
     }
     if (!copiesFolder) {
       setClonePrompt((prev) =>
-        prev ? { ...prev, error: "Copies folder is required." } : prev,
+        prev ? { ...prev, error: "必须选择副本目录。" } : prev,
       );
       return;
     }

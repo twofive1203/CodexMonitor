@@ -184,7 +184,7 @@ export function useWorkspaceDialogs() {
         prev
           ? {
               ...prev,
-              error: "Enter at least one absolute directory path.",
+              error: "请输入至少一个绝对目录路径。",
             }
           : prev,
       );
@@ -219,43 +219,37 @@ export function useWorkspaceDialogs() {
 
       const lines: string[] = [];
       lines.push(
-        `Added ${result.added.length} workspace${result.added.length === 1 ? "" : "s"}.`,
+        `已添加 ${result.added.length} 个项目。`,
       );
       if (result.skippedExisting.length > 0) {
         lines.push(
-          `Skipped ${result.skippedExisting.length} already added workspace${
-            result.skippedExisting.length === 1 ? "" : "s"
-          }.`,
+          `已跳过 ${result.skippedExisting.length} 个已添加的项目。`,
         );
       }
       if (result.skippedInvalid.length > 0) {
         lines.push(
-          `Skipped ${result.skippedInvalid.length} invalid path${
-            result.skippedInvalid.length === 1 ? "" : "s"
-          } (not a folder).`,
+          `已跳过 ${result.skippedInvalid.length} 个无效路径（不是文件夹）。`,
         );
       }
       if (result.failures.length > 0) {
         lines.push(
-          `Failed to add ${result.failures.length} workspace${
-            result.failures.length === 1 ? "" : "s"
-          }.`,
+          `有 ${result.failures.length} 个项目添加失败。`,
         );
         const details = result.failures
           .slice(0, 3)
           .map(({ path, message: failureMessage }) => `- ${path}: ${failureMessage}`);
         if (result.failures.length > 3) {
-          details.push(`- …and ${result.failures.length - 3} more`);
+          details.push(`- 以及另外 ${result.failures.length - 3} 个`);
         }
         lines.push("");
-        lines.push("Failures:");
+        lines.push("失败详情：");
         lines.push(...details);
       }
 
       const title =
         result.failures.length > 0
-          ? "Some workspaces failed to add"
-          : "Some workspaces were skipped";
+          ? "部分项目添加失败"
+          : "部分项目已跳过";
       await message(lines.join("\n"), {
         title,
         kind: result.failures.length > 0 ? "error" : "warning",
@@ -267,24 +261,22 @@ export function useWorkspaceDialogs() {
   const confirmWorkspaceRemoval = useCallback(
     async (workspaces: WorkspaceInfo[], workspaceId: string) => {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
-      const workspaceName = workspace?.name || "this workspace";
+      const workspaceName = workspace?.name || "该项目";
       const worktreeCount = workspaces.filter(
         (entry) => entry.parentId === workspaceId,
       ).length;
       const detail =
         worktreeCount > 0
-          ? `\n\nThis will also delete ${worktreeCount} worktree${
-              worktreeCount === 1 ? "" : "s"
-            } on disk.`
+          ? `\n\n这还会同时删除磁盘上的 ${worktreeCount} 个工作树。`
           : "";
 
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from CodexMonitor.${detail}`,
+        `确认删除“${workspaceName}”吗？\n\n这会将该项目从 CodexMonitor 中移除。${detail}`,
         {
-          title: "Delete Workspace",
+          title: "删除项目",
           kind: "warning",
-          okLabel: "Delete",
-          cancelLabel: "Cancel",
+          okLabel: "删除",
+          cancelLabel: "取消",
         },
       );
     },
@@ -294,14 +286,14 @@ export function useWorkspaceDialogs() {
   const confirmWorktreeRemoval = useCallback(
     async (workspaces: WorkspaceInfo[], workspaceId: string) => {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
-      const workspaceName = workspace?.name || "this worktree";
+      const workspaceName = workspace?.name || "该工作树";
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from CodexMonitor.`,
+        `确认删除“${workspaceName}”吗？\n\n这会关闭智能体、移除其工作树，并将其从 CodexMonitor 中删除。`,
         {
-          title: "Delete Worktree",
+          title: "删除工作树",
           kind: "warning",
-          okLabel: "Delete",
-          cancelLabel: "Cancel",
+          okLabel: "删除",
+          cancelLabel: "取消",
         },
       );
     },
@@ -311,7 +303,7 @@ export function useWorkspaceDialogs() {
   const showWorkspaceRemovalError = useCallback(async (error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     await message(errorMessage, {
-      title: "Delete workspace failed",
+      title: "删除项目失败",
       kind: "error",
     });
   }, []);
@@ -319,7 +311,7 @@ export function useWorkspaceDialogs() {
   const showWorktreeRemovalError = useCallback(async (error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     await message(errorMessage, {
-      title: "Delete worktree failed",
+      title: "删除工作树失败",
       kind: "error",
     });
   }, []);

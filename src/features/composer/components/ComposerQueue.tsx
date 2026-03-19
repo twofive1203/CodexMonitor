@@ -26,7 +26,7 @@ export function ComposerQueue({
 
   return (
     <div className="composer-queue">
-      <div className="composer-queue-title">Queued</div>
+      <div className="composer-queue-title">已排队</div>
       {pausedReason ? (
         <div className="composer-queue-hint">{pausedReason}</div>
       ) : null}
@@ -37,11 +37,11 @@ export function ComposerQueue({
               {item.text ||
                 (item.images?.length
                   ? item.images.length === 1
-                    ? "Image"
-                    : "Images"
+                    ? "图片"
+                    : "图片"
                   : "")}
               {item.images?.length
-                ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
+                ? ` · ${item.images.length} 张图片`
                 : ""}
             </span>
             <QueueMenuButton
@@ -89,7 +89,7 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
         type="button"
         className={`composer-queue-menu${menu.isOpen ? " is-open" : ""}`}
         onClick={handleToggleMenu}
-        aria-label="Queue item menu"
+        aria-label="队列项菜单"
         aria-haspopup="menu"
         aria-expanded={menu.isOpen}
       >
@@ -97,8 +97,8 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
       </button>
       {menu.isOpen && (
         <PopoverSurface className="composer-queue-item-popover" role="menu">
-          <PopoverMenuItem onClick={handleEdit}>Edit</PopoverMenuItem>
-          <PopoverMenuItem onClick={handleDelete}>Delete</PopoverMenuItem>
+          <PopoverMenuItem onClick={handleEdit}>编辑</PopoverMenuItem>
+          <PopoverMenuItem onClick={handleDelete}>删除</PopoverMenuItem>
         </PopoverSurface>
       )}
     </div>

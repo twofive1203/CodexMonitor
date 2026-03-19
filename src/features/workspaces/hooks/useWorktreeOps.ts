@@ -93,7 +93,7 @@ export function useWorktreeOps({
       }
       const trimmedFolder = copiesFolder.trim();
       if (!trimmedFolder) {
-        throw new Error("Copies folder is required.");
+        throw new Error("必须选择副本目录。");
       }
       onDebug?.({
         id: `${Date.now()}-client-add-clone`,

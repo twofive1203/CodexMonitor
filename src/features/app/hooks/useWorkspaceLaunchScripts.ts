@@ -344,7 +344,7 @@ export function useWorkspaceLaunchScripts({
         setError(message);
         setErrorById((prev) => ({ ...prev, [pending.entryId]: message }));
         pushErrorToast({
-          title: "Launch script error",
+          title: "启动脚本错误",
           message,
         });
       },

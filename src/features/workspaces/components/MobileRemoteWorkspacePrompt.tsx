@@ -37,18 +37,18 @@ export function MobileRemoteWorkspacePrompt({
 
   return (
     <ModalShell
-      ariaLabel="Add remote workspace paths"
+      ariaLabel="添加远程工作区路径"
       className="mobile-remote-workspace-modal"
       cardClassName="mobile-remote-workspace-modal-card"
       onBackdropClick={onCancel}
     >
       <div className="mobile-remote-workspace-modal-content">
-        <div className="ds-modal-title">Add project directories</div>
+        <div className="ds-modal-title">添加项目目录</div>
         <div className="ds-modal-subtitle">
-          Enter directories on the connected server.
+          输入已连接服务器上的目录。
         </div>
         <label className="ds-modal-label" htmlFor="mobile-remote-workspace-paths">
-          Paths
+          路径
         </label>
         <textarea
           id="mobile-remote-workspace-paths"
@@ -61,11 +61,11 @@ export function MobileRemoteWorkspacePrompt({
           wrap="off"
         />
         <div className="mobile-remote-workspace-modal-hint">
-          One path per line. Comma and semicolon separators also work. You can use `~/...`.
+          每行一个路径，也支持用逗号或分号分隔。可以使用 `~/...`。
         </div>
         {recentPaths.length > 0 && (
           <div className="mobile-remote-workspace-modal-recent">
-            <div className="mobile-remote-workspace-modal-recent-title">Recently added</div>
+            <div className="mobile-remote-workspace-modal-recent-title">最近添加</div>
             <div className="mobile-remote-workspace-modal-recent-list">
               {recentPaths.map((path) => (
                 <button
@@ -88,10 +88,10 @@ export function MobileRemoteWorkspacePrompt({
         {error && <div className="ds-modal-error">{error}</div>}
         <div className="ds-modal-actions">
           <button className="ghost ds-modal-button" onClick={onCancel} type="button">
-            Cancel
+            取消
           </button>
           <button className="primary ds-modal-button" onClick={onConfirm} type="button">
-            Add
+            添加
           </button>
         </div>
       </div>

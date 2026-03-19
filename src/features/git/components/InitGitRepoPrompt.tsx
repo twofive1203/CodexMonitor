@@ -43,7 +43,7 @@ export function InitGitRepoPrompt({
   const validationError = useMemo(() => {
     const trimmed = branch.trim();
     if (!trimmed) {
-      return "Branch name is required.";
+      return "必须填写分支名。";
     }
     return validateBranchName(branch);
   }, [branch]);
@@ -54,10 +54,10 @@ export function InitGitRepoPrompt({
     }
     const trimmed = repoName.trim();
     if (!trimmed) {
-      return "Repository name is required.";
+      return "必须填写仓库名。";
     }
     if (/\s/.test(trimmed)) {
-      return "Repository name cannot contain spaces.";
+      return "仓库名不能包含空格。";
     }
     return null;
   }, [createRemote, repoName]);
@@ -68,20 +68,20 @@ export function InitGitRepoPrompt({
   return (
     <ModalShell
       className="git-init-modal"
-      ariaLabel="Initialize Git"
+      ariaLabel="初始化 Git"
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title git-init-modal-title">Initialize Git</div>
+      <div className="ds-modal-title git-init-modal-title">初始化 Git</div>
       <div className="ds-modal-subtitle git-init-modal-subtitle">
-        Create a new repository under "{workspaceName}" and make an initial commit.
+        在“{workspaceName}”下创建新仓库并生成首次提交。
       </div>
 
       <label className="ds-modal-label git-init-modal-label" htmlFor="git-init-branch">
-        Initial branch
+        初始分支
       </label>
       <input
         id="git-init-branch"
@@ -117,14 +117,14 @@ export function InitGitRepoPrompt({
           onChange={(event) => onCreateRemoteChange(event.target.checked)}
         />
         <span className="git-init-modal-checkbox-text">
-          Create GitHub repository and set up <code>origin</code>
+          创建 GitHub 仓库并配置 <code>origin</code>
         </span>
       </label>
 
       {createRemote && (
         <div className="git-init-modal-remote">
           <label className="ds-modal-label git-init-modal-label" htmlFor="git-init-repo-name">
-            GitHub repo
+            GitHub 仓库
           </label>
           <input
             id="git-init-repo-name"
@@ -154,11 +154,11 @@ export function InitGitRepoPrompt({
             <input
               type="checkbox"
               className="git-init-modal-checkbox"
-              checked={isPrivate}
-              disabled={isBusy}
-              onChange={(event) => onPrivateChange(event.target.checked)}
-            />
-            <span className="git-init-modal-checkbox-text">Private repo</span>
+            checked={isPrivate}
+            disabled={isBusy}
+            onChange={(event) => onPrivateChange(event.target.checked)}
+          />
+            <span className="git-init-modal-checkbox-text">私有仓库</span>
           </label>
         </div>
       )}
@@ -176,7 +176,7 @@ export function InitGitRepoPrompt({
           onClick={onCancel}
           disabled={isBusy}
         >
-          Cancel
+          取消
         </button>
         <button
           type="button"
@@ -184,7 +184,7 @@ export function InitGitRepoPrompt({
           onClick={onConfirm}
           disabled={!canSubmit}
         >
-          {isBusy ? "Initializing..." : "Initialize"}
+          {isBusy ? "初始化中..." : "初始化"}
         </button>
       </div>
     </ModalShell>

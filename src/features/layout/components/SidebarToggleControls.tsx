@@ -27,9 +27,9 @@ export function SidebarCollapseButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onCollapseSidebar}
       data-tauri-drag-region="false"
-      aria-label="Hide threads sidebar"
-      title="Hide threads sidebar"
-      data-tooltip="Hide threads sidebar"
+      aria-label="隐藏会话侧栏"
+      title="隐藏会话侧栏"
+      data-tooltip="隐藏会话侧栏"
       data-tooltip-placement="bottom"
     >
       <PanelLeftClose size={14} aria-hidden />
@@ -51,9 +51,9 @@ export function RightPanelCollapseButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onCollapseRightPanel}
       data-tauri-drag-region="false"
-      aria-label="Hide git sidebar"
-      title="Hide git sidebar"
-      data-tooltip="Hide git sidebar"
+      aria-label="隐藏 Git 侧栏"
+      title="隐藏 Git 侧栏"
+      data-tooltip="隐藏 Git 侧栏"
       data-tooltip-placement="bottom"
     >
       <PanelRightClose size={14} aria-hidden />
@@ -75,9 +75,9 @@ export function RightPanelExpandButton({
       className="ghost main-header-action ds-tooltip-trigger"
       onClick={onExpandRightPanel}
       data-tauri-drag-region="false"
-      aria-label="Show git sidebar"
-      title="Show git sidebar"
-      data-tooltip="Show git sidebar"
+      aria-label="显示 Git 侧栏"
+      title="显示 Git 侧栏"
+      data-tooltip="显示 Git 侧栏"
       data-tooltip-placement="bottom"
     >
       <PanelRightOpen size={14} aria-hidden />
@@ -102,9 +102,9 @@ export function TitlebarExpandControls({
             className="ghost main-header-action ds-tooltip-trigger"
             onClick={onExpandSidebar}
             data-tauri-drag-region="false"
-            aria-label="Show threads sidebar"
-            title="Show threads sidebar"
-            data-tooltip="Show threads sidebar"
+            aria-label="显示会话侧栏"
+            title="显示会话侧栏"
+            data-tooltip="显示会话侧栏"
             data-tooltip-placement="bottom"
           >
             <PanelLeftOpen size={14} aria-hidden />

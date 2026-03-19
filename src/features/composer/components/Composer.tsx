@@ -652,25 +652,26 @@ export const Composer = memo(function Composer({
       />
       {isProcessing && composerFollowUpHintEnabled && (
         <div className="composer-followup-hint" role="status" aria-live="polite">
-          <div className="composer-followup-title">Follow-up behavior</div>
+          <div className="composer-followup-title">后续消息行为</div>
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
               <>
-                Default: Queue (Steer unavailable). Both Enter and {followUpShortcutLabel} will
-                queue this message.
+                默认：排队（引导不可用）。按 Enter 或 {followUpShortcutLabel} 都会把这条消息加入队列。
               </>
             ) : (
               <>
-                Default: {effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue"}. Press{" "}
-                {followUpShortcutLabel} to{" "}
-                {oppositeFollowUpIntent === "steer" ? "steer" : "queue"} this message.
+                默认：
+                {effectiveFollowUpBehavior === "steer" ? "引导" : "排队"}。按{" "}
+                {followUpShortcutLabel}
+                可将这条消息设为
+                {oppositeFollowUpIntent === "steer" ? "引导" : "排队"}。
               </>
             )}
           </div>
         </div>
       )}
       {contextActions.length > 0 ? (
-        <div className="composer-context-actions" role="toolbar" aria-label="Review tools">
+        <div className="composer-context-actions" role="toolbar" aria-label="审查工具">
           {contextActions.map((action) => (
             <button
               key={action.id}

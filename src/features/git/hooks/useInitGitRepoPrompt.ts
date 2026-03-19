@@ -133,7 +133,7 @@ export function useInitGitRepoPrompt({
     const trimmedBranch = prompt.branch.trim();
     const validationError =
       trimmedBranch.length === 0
-        ? "Branch name is required."
+        ? "必须填写分支名。"
         : validateBranchName(prompt.branch);
     if (validationError) {
       setInitGitRepoPrompt((prev) =>
@@ -146,13 +146,13 @@ export function useInitGitRepoPrompt({
     if (prompt.createRemote) {
       if (!trimmedRepo) {
         setInitGitRepoPrompt((prev) =>
-          prev ? { ...prev, error: "Repository name is required." } : prev,
+          prev ? { ...prev, error: "必须填写仓库名。" } : prev,
         );
         return;
       }
       if (/\s/.test(trimmedRepo)) {
         setInitGitRepoPrompt((prev) =>
-          prev ? { ...prev, error: "Repository name cannot contain spaces." } : prev,
+          prev ? { ...prev, error: "仓库名不能包含空格。" } : prev,
         );
         return;
       }
@@ -173,7 +173,7 @@ export function useInitGitRepoPrompt({
 
     if (initOutcome !== "initialized") {
       setInitGitRepoPrompt((prev) =>
-        prev ? { ...prev, error: prev.error ?? "Failed to initialize Git repository." } : prev,
+        prev ? { ...prev, error: prev.error ?? "初始化 Git 仓库失败。" } : prev,
       );
       return;
     }

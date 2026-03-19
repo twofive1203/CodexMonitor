@@ -82,7 +82,7 @@ export function WorktreeSection({
   onShowWorktreeMenu,
   onToggleExpanded,
   onLoadOlderThreads,
-  sectionLabel = "Worktrees",
+  sectionLabel = "工作树",
   sectionIcon,
   className,
 }: WorktreeSectionProps) {

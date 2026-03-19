@@ -58,11 +58,11 @@ export function useWorkspaceFromUrlPrompt({ onSubmit }: UseWorkspaceFromUrlPromp
     const targetFolderName = prompt.targetFolderName.trim() || null;
 
     if (!url) {
-      setPrompt((prev) => (prev ? { ...prev, error: "Remote Git URL is required." } : prev));
+      setPrompt((prev) => (prev ? { ...prev, error: "必须填写远程 Git 地址。" } : prev));
       return;
     }
     if (!destinationPath) {
-      setPrompt((prev) => (prev ? { ...prev, error: "Destination folder is required." } : prev));
+      setPrompt((prev) => (prev ? { ...prev, error: "必须选择目标目录。" } : prev));
       return;
     }
 

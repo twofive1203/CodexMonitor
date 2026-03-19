@@ -63,12 +63,12 @@ export function CommitButton({
         disabled={!canCommit}
         title={
           !hasMessage
-            ? "Enter a commit message"
+            ? "请输入提交信息"
             : !hasChanges
-              ? "No changes to commit"
+              ? "没有可提交的改动"
               : hasStagedFiles
-                ? "Commit staged changes"
-                : "Commit all unstaged changes"
+                ? "提交已暂存改动"
+                : "提交全部未暂存改动"
         }
       >
         {commitLoading ? (
@@ -88,7 +88,7 @@ export function CommitButton({
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
-        <span>{commitLoading ? "Committing..." : "Commit"}</span>
+        <span>{commitLoading ? "提交中..." : "提交"}</span>
       </button>
     </div>
   );
@@ -129,8 +129,8 @@ export function SidebarError({
         type="button"
         className="ghost icon-button sidebar-error-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss error"
-        title="Dismiss error"
+        aria-label="关闭错误提示"
+        title="关闭错误提示"
       >
         <X size={12} aria-hidden />
       </button>
@@ -203,7 +203,7 @@ function DiffFileRow({
           <span className="diff-sep">/</span>
           <span className="diff-del">-{file.deletions}</span>
         </span>
-        <div className="diff-row-actions" role="group" aria-label="File actions">
+        <div className="diff-row-actions" role="group" aria-label="文件操作">
           {showStage && (
             <button
               type="button"
@@ -212,9 +212,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onStageFile?.(file.path);
               }}
-              data-tooltip="Stage Changes"
+              data-tooltip="暂存改动"
               data-tooltip-align="end"
-              aria-label="Stage file"
+              aria-label="暂存文件"
             >
               <Plus size={12} aria-hidden />
             </button>
@@ -227,9 +227,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onUnstageFile?.(file.path);
               }}
-              data-tooltip="Unstage Changes"
+              data-tooltip="取消暂存"
               data-tooltip-align="end"
-              aria-label="Unstage file"
+              aria-label="取消暂存文件"
             >
               <Minus size={12} aria-hidden />
             </button>
@@ -242,9 +242,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onDiscardFile?.(file.path);
               }}
-              data-tooltip="Discard Changes"
+              data-tooltip="丢弃改动"
               data-tooltip-align="end"
-              aria-label="Discard changes"
+              aria-label="丢弃改动"
             >
               <RotateCcw size={12} aria-hidden />
             </button>
@@ -329,7 +329,7 @@ export function DiffSection({
           {title} ({files.length})
         </span>
         {showSectionActions && (
-          <div className="diff-section-actions" role="group" aria-label={`${title} actions`}>
+          <div className="diff-section-actions" role="group" aria-label={`${title}操作`}>
             {canApplyWorktree && (
               <button
                 type="button"
@@ -338,9 +338,9 @@ export function DiffSection({
                   void onApplyWorktreeChanges?.();
                 }}
                 disabled={worktreeApplyLoading || worktreeApplySuccess}
-                data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
+                data-tooltip={worktreeApplyTitle ?? "应用到父工作区"}
                 data-tooltip-align="end"
-                aria-label="Apply worktree changes"
+                aria-label="应用工作树改动"
               >
                 <WorktreeApplyIcon success={worktreeApplySuccess} />
               </button>
@@ -352,9 +352,9 @@ export function DiffSection({
                 onClick={() => {
                   void onReviewUncommittedChanges?.();
                 }}
-                data-tooltip="Review Uncommitted Changes"
+                data-tooltip="审查未提交改动"
                 data-tooltip-align="end"
-                aria-label="Review uncommitted changes"
+                aria-label="审查未提交改动"
               >
                 <MagicSparkleIcon size={12} />
               </button>
@@ -374,9 +374,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Stage All Changes"
+                data-tooltip="全部暂存"
                 data-tooltip-align="end"
-                aria-label="Stage all changes"
+                aria-label="全部暂存"
               >
                 <Plus size={12} aria-hidden />
               </button>
@@ -392,9 +392,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Unstage All Changes"
+                data-tooltip="全部取消暂存"
                 data-tooltip-align="end"
-                aria-label="Unstage all changes"
+                aria-label="全部取消暂存"
               >
                 <Minus size={12} aria-hidden />
               </button>
@@ -406,9 +406,9 @@ export function DiffSection({
                 onClick={() => {
                   void onDiscardFiles?.(filePaths);
                 }}
-                data-tooltip="Discard All Changes"
+                data-tooltip="全部丢弃"
                 data-tooltip-align="end"
-                aria-label="Discard all changes"
+                aria-label="全部丢弃"
               >
                 <RotateCcw size={12} aria-hidden />
               </button>
@@ -470,11 +470,11 @@ export function GitLogEntryRow({
         }
       }}
     >
-      <div className="git-log-summary">{entry.summary || "No message"}</div>
+      <div className="git-log-summary">{entry.summary || "无提交信息"}</div>
       <div className="git-log-meta">
         <span className="git-log-sha">{entry.sha.slice(0, 7)}</span>
         <span className="git-log-sep">·</span>
-        <span className="git-log-author">{entry.author || "Unknown"}</span>
+        <span className="git-log-author">{entry.author || "未知"}</span>
         <span className="git-log-sep">·</span>
         <span className="git-log-date">{formatRelativeTime(entry.timestamp * 1000)}</span>
       </div>

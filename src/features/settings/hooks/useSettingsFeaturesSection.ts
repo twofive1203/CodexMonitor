@@ -155,7 +155,7 @@ export const useSettingsFeaturesSection = ({
       await revealItemInDir(configPath);
     } catch (error) {
       setOpenConfigError(
-        error instanceof Error ? error.message : "Unable to open config.",
+        error instanceof Error ? error.message : "无法打开配置文件。",
       );
     }
   }, []);
@@ -210,7 +210,7 @@ export const useSettingsFeaturesSection = ({
         setFeatureError(
           error instanceof Error
             ? error.message
-            : "Unable to load Codex feature flags.",
+            : "无法加载 Codex 功能开关。",
         );
       } finally {
         if (active) {
@@ -270,7 +270,7 @@ export const useSettingsFeaturesSection = ({
           setFeatureError(
             error instanceof Error
               ? error.message
-              : `Unable to update feature "${feature.name}".`,
+              : `无法更新功能“${feature.name}”。`,
           );
         } finally {
           setFeatureUpdatingKey((current) =>

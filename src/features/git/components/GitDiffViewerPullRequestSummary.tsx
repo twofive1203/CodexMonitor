@@ -30,7 +30,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   const prUpdatedLabel = pullRequest.updatedAt
     ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
     : null;
-  const prAuthor = pullRequest.author?.login ?? "unknown";
+  const prAuthor = pullRequest.author?.login ?? "未知";
   const prBody = pullRequest.body?.trim() ?? "";
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -59,7 +59,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   }, [pullRequest.number]);
 
   return (
-    <section className="diff-viewer-pr" aria-label="Pull request summary">
+    <section className="diff-viewer-pr" aria-label="PR 概览">
       <div className="diff-viewer-pr-header">
         <div className="diff-viewer-pr-header-row">
           <div className="diff-viewer-pr-title">
@@ -74,7 +74,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                 type="button"
                 className="ghost diff-viewer-pr-jump"
                 onClick={onJumpToFirstFile}
-                aria-label="Jump to first file"
+                aria-label="跳转到第一个文件"
               >
                 <span className="diff-viewer-pr-jump-add">
                   +{diffStats.additions}
@@ -89,7 +89,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
               <button
                 type="button"
                 className="ghost diff-viewer-pr-checkout"
-                aria-label={`Checkout PR #${pullRequest.number} branch`}
+                aria-label={`检出 PR #${pullRequest.number} 分支`}
                 disabled={isCheckingOut}
                 onClick={() => {
                   setIsCheckingOut(true);
@@ -98,7 +98,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                   });
                 }}
               >
-                {isCheckingOut ? "Checking out..." : "Checkout Branch"}
+                {isCheckingOut ? "检出中..." : "检出分支"}
               </button>
             ) : null}
           </div>
@@ -116,7 +116,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             {pullRequest.baseRefName} ← {pullRequest.headRefName}
           </span>
           {pullRequest.isDraft && (
-            <span className="diff-viewer-pr-pill">Draft</span>
+            <span className="diff-viewer-pr-pill">草稿</span>
           )}
         </div>
       </div>
@@ -127,15 +127,14 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             className="diff-viewer-pr-markdown markdown"
           />
         ) : (
-          <div className="diff-viewer-pr-empty">No description provided.</div>
+          <div className="diff-viewer-pr-empty">暂无描述。</div>
         )}
       </div>
       <div className="diff-viewer-pr-timeline">
         <div className="diff-viewer-pr-timeline-header">
-          <span className="diff-viewer-pr-timeline-title">Activity</span>
+          <span className="diff-viewer-pr-timeline-title">活动</span>
           <span className="diff-viewer-pr-timeline-count">
-            {sortedComments.length} comment
-            {sortedComments.length === 1 ? "" : "s"}
+            {sortedComments.length} 条评论
           </span>
           {hiddenCommentCount > 0 && (
             <button
@@ -143,7 +142,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
               className="ghost diff-viewer-pr-timeline-button"
               onClick={() => setIsTimelineExpanded(true)}
             >
-              Show all
+              展开全部
             </button>
           )}
           {isTimelineExpanded &&
@@ -153,14 +152,14 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                 className="ghost diff-viewer-pr-timeline-button"
                 onClick={() => setIsTimelineExpanded(false)}
               >
-                Collapse
+                收起
               </button>
             )}
         </div>
         <div className="diff-viewer-pr-timeline-list">
           {pullRequestCommentsLoading && (
             <div className="diff-viewer-pr-timeline-state">
-              Loading comments…
+              正在加载评论...
             </div>
           )}
           {pullRequestCommentsError && (
@@ -172,13 +171,12 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             !pullRequestCommentsError &&
             !sortedComments.length && (
               <div className="diff-viewer-pr-timeline-state">
-                No comments yet.
+                暂无评论。
               </div>
             )}
           {hiddenCommentCount > 0 && !isTimelineExpanded && (
             <div className="diff-viewer-pr-timeline-divider">
-              {hiddenCommentCount} earlier comment
-              {hiddenCommentCount === 1 ? "" : "s"}
+              更早的 {hiddenCommentCount} 条评论
             </div>
           )}
           {visibleComments.map((comment) => {
@@ -204,7 +202,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                     />
                   ) : (
                     <div className="diff-viewer-pr-timeline-text">
-                      No comment body.
+                      评论内容为空。
                     </div>
                   )}
                 </div>

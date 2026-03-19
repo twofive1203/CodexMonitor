@@ -38,8 +38,8 @@ export function useUiScaleShortcuts({
     return isMacPlatform() ? "Cmd" : "Ctrl";
   }, []);
 
-  const scaleShortcutTitle = `${scaleShortcutLabel}+ and ${scaleShortcutLabel}-, ${scaleShortcutLabel}+0 to reset.`;
-  const scaleShortcutText = `Shortcuts: ${scaleShortcutLabel}+ and ${scaleShortcutLabel}-, ${scaleShortcutLabel}+0 to reset.`;
+  const scaleShortcutTitle = `${scaleShortcutLabel}+ 和 ${scaleShortcutLabel}- 可调整缩放，${scaleShortcutLabel}+0 可重置。`;
+  const scaleShortcutText = `快捷键：${scaleShortcutLabel}+ 和 ${scaleShortcutLabel}- 可调整缩放，${scaleShortcutLabel}+0 可重置。`;
 
   const saveQueueRef = useRef(Promise.resolve());
   const queueSaveSettings = useCallback(

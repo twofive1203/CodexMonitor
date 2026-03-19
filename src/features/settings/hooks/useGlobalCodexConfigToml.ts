@@ -6,7 +6,7 @@ export function useGlobalCodexConfigToml() {
     key: "global-config",
     read: readGlobalCodexConfigToml,
     write: writeGlobalCodexConfigToml,
-    readErrorTitle: "Couldn’t load global config.toml",
-    writeErrorTitle: "Couldn’t save global config.toml",
+    readErrorTitle: "无法加载全局 config.toml",
+    writeErrorTitle: "无法保存全局 config.toml",
   });
 }

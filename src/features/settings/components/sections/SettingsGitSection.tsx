@@ -31,11 +31,11 @@ export function SettingsGitSection({
   return (
     <SettingsSection
       title="Git"
-      subtitle="Manage how diffs are loaded in the Git sidebar."
+      subtitle="管理 Git 侧边栏中 Diff 的加载方式。"
     >
       <SettingsToggleRow
-        title="Preload git diffs"
-        subtitle="Make viewing git diff faster."
+        title="预加载 Git Diff"
+        subtitle="加快查看 Git Diff 的速度。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.preloadGitDiffs}
@@ -48,8 +48,8 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Ignore whitespace changes"
-        subtitle="Hides whitespace-only changes in local and commit diffs."
+        title="忽略空白变更"
+        subtitle="在本地 Diff 和提交 Diff 中隐藏仅空白字符的改动。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
@@ -62,10 +62,9 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <div className="settings-field">
-        <div className="settings-field-label">Commit message prompt</div>
+        <div className="settings-field-label">提交信息提示词</div>
         <div className="settings-help">
-          Used when generating commit messages. Include <code>{"{diff}"}</code> to insert the
-          git diff.
+          生成提交信息时会使用该提示词。包含 <code>{"{diff}"}</code> 可插入 Git Diff。
         </div>
         <textarea
           className="settings-agents-textarea"
@@ -83,7 +82,7 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            Reset
+            重置
           </button>
           <button
             type="button"
@@ -93,18 +92,17 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            {commitMessagePromptSaving ? "Saving..." : "Save"}
+            {commitMessagePromptSaving ? "保存中..." : "保存"}
           </button>
         </div>
       </div>
       {models.length > 0 && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="commit-message-model-select">
-            Commit message model
+            提交信息模型
           </label>
           <div className="settings-help">
-            The model used when generating commit messages. Leave on default to use the
-            workspace model.
+            生成提交信息时使用的模型。保留默认时会使用工作区模型。
           </div>
           <select
             id="commit-message-model-select"
@@ -118,7 +116,7 @@ export function SettingsGitSection({
               });
             }}
           >
-            <option value="">Default</option>
+            <option value="">默认</option>
             {models.map((model) => (
               <option key={model.id} value={model.model}>
                 {model.displayName?.trim() || model.model}

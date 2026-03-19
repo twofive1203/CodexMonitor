@@ -104,18 +104,18 @@ function buildReviewThreadTitle(target: ReviewTarget): string | null {
     const shortSha = target.sha.trim().slice(0, 7);
     const title = target.title?.trim() ?? "";
     if (shortSha && title) {
-      return clampThreadName(`Review ${shortSha}: ${title}`);
+      return clampThreadName(`审查 ${shortSha}：${title}`);
     }
     if (shortSha) {
-      return clampThreadName(`Review ${shortSha}`);
+      return clampThreadName(`审查 ${shortSha}`);
     }
-    return clampThreadName("Review Commit");
+    return clampThreadName("审查提交");
   }
   if (target.type === "baseBranch") {
-    return clampThreadName(`Review ${target.branch}`);
+    return clampThreadName(`审查 ${target.branch}`);
   }
   if (target.type === "uncommittedChanges") {
-    return "Review Working Tree";
+    return "审查工作区改动";
   }
   return null;
 }
@@ -354,7 +354,7 @@ export function useThreadMessaging({
           if (requestMode !== "steer") {
             markProcessing(threadId, false);
             setActiveTurnId(threadId, null);
-            pushThreadErrorMessage(threadId, `Turn failed to start: ${rpcError}`);
+            pushThreadErrorMessage(threadId, `回合启动失败：${rpcError}`);
             safeMessageActivity();
             return { status: "blocked" };
           }
@@ -364,7 +364,7 @@ export function useThreadMessaging({
           }
           pushThreadErrorMessage(
             threadId,
-            `Turn steer failed: ${rpcError}`,
+            `回合跟进失败：${rpcError}`,
           );
           safeMessageActivity();
           return { status: "steer_failed" };
@@ -385,7 +385,7 @@ export function useThreadMessaging({
         if (!turnId) {
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, "Turn failed to start.");
+          pushThreadErrorMessage(threadId, "回合启动失败。");
           safeMessageActivity();
           return { status: "blocked" };
         }
@@ -410,7 +410,7 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           requestMode === "steer"
-            ? `Turn steer failed: ${errorMessage}`
+            ? `回合跟进失败：${errorMessage}`
             : errorMessage,
         );
         safeMessageActivity();
@@ -517,7 +517,7 @@ export function useThreadMessaging({
     dispatch({
       type: "addAssistantMessage",
       threadId: activeThreadId,
-      text: "Session stopped.",
+      text: "会话已停止。",
     });
     if (!activeTurnId) {
       pendingInterruptsRef.current.add(activeThreadId);
@@ -768,37 +768,43 @@ export function useThreadMessaging({
         "id" in collaborationMode.settings
           ? String(collaborationMode.settings.id ?? "")
           : "";
+      const accessLabel =
+        accessMode === "read-only"
+          ? "只读"
+          : accessMode === "full-access"
+            ? "完全访问"
+            : "当前工作区";
 
       const lines = [
-        "Session status:",
-        `- Model: ${model ?? "default"}`,
-        `- Fast mode: ${serviceTier === "fast" ? "on" : "off"}`,
-        `- Reasoning effort: ${effort ?? "default"}`,
-        `- Access: ${accessMode ?? "current"}`,
-        `- Collaboration: ${collabId || "off"}`,
+        "会话状态：",
+        `- 模型：${model ?? "默认"}`,
+        `- 快速模式：${serviceTier === "fast" ? "开启" : "关闭"}`,
+        `- 推理强度：${effort ?? "默认"}`,
+        `- 访问权限：${accessLabel}`,
+        `- 协作模式：${collabId || "关闭"}`,
       ];
 
       if (typeof primaryUsed === "number") {
         const reset = resetLabel(primaryReset);
         lines.push(
-          `- Session usage: ${Math.round(primaryUsed)}%${
-            reset ? ` (resets ${reset})` : ""
+          `- 会话用量：${Math.round(primaryUsed)}%${
+            reset ? `（${reset} 重置）` : ""
           }`,
         );
       }
       if (typeof secondaryUsed === "number") {
         const reset = resetLabel(secondaryReset);
         lines.push(
-          `- Weekly usage: ${Math.round(secondaryUsed)}%${
-            reset ? ` (resets ${reset})` : ""
+          `- 周用量：${Math.round(secondaryUsed)}%${
+            reset ? `（${reset} 重置）` : ""
           }`,
         );
       }
       if (credits?.hasCredits) {
         if (credits.unlimited) {
-          lines.push("- Credits: unlimited");
+          lines.push("- 点数：不限");
         } else if (credits.balance) {
-          lines.push(`- Credits: ${credits.balance}`);
+          lines.push(`- 点数：${credits.balance}`);
         }
       }
 
@@ -842,9 +848,9 @@ export function useThreadMessaging({
       let message = "";
 
       if (action === "invalid") {
-        message = "Usage: /fast, /fast on, /fast off, or /fast status.";
+        message = "用法：/fast、/fast on、/fast off 或 /fast status。";
       } else if (action === "status") {
-        message = `Fast mode is ${isEnabled ? "on" : "off"}.`;
+        message = `快速模式当前${isEnabled ? "已开启" : "已关闭"}。`;
       } else {
         nextTier =
           action === "on"
@@ -855,7 +861,7 @@ export function useThreadMessaging({
                 ? null
                 : "fast";
         onSelectServiceTier?.(nextTier);
-        message = `Fast mode ${nextTier === "fast" ? "enabled" : "disabled"}.`;
+        message = `快速模式已${nextTier === "fast" ? "开启" : "关闭"}。`;
       }
 
       const timestamp = Date.now();
@@ -901,15 +907,15 @@ export function useThreadMessaging({
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
 
-        const lines: string[] = ["MCP tools:"];
+        const lines: string[] = ["MCP 工具："];
         if (data.length === 0) {
-          lines.push("- No MCP servers configured.");
+          lines.push("- 未配置 MCP 服务器。");
         } else {
           const servers = [...data].sort((a, b) =>
             String(a.name ?? "").localeCompare(String(b.name ?? "")),
           );
           for (const server of servers) {
-            const name = String(server.name ?? "unknown");
+            const name = String(server.name ?? "未知");
             const authStatus = server.authStatus ?? server.auth_status ?? null;
             const authLabel =
               typeof authStatus === "string"
@@ -919,7 +925,7 @@ export function useThreadMessaging({
                     "status" in authStatus
                   ? String((authStatus as { status?: unknown }).status ?? "")
                   : "";
-            lines.push(`- ${name}${authLabel ? ` (auth: ${authLabel})` : ""}`);
+            lines.push(`- ${name}${authLabel ? `（认证：${authLabel}）` : ""}`);
 
             const toolsRecord =
               server.tools && typeof server.tools === "object"
@@ -935,8 +941,8 @@ export function useThreadMessaging({
               .sort((a, b) => a.localeCompare(b));
             lines.push(
               toolNames.length > 0
-                ? `  tools: ${toolNames.join(", ")}`
-                : "  tools: none",
+                ? `  工具：${toolNames.join(", ")}`
+                : "  工具：无",
             );
 
             const resources = Array.isArray(server.resources)
@@ -948,7 +954,7 @@ export function useThreadMessaging({
                 ? server.resource_templates.length
                 : 0;
             if (resources > 0 || templates > 0) {
-              lines.push(`  resources: ${resources}, templates: ${templates}`);
+              lines.push(`  资源：${resources}，模板：${templates}`);
             }
           }
         }
@@ -962,11 +968,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Failed to load MCP status.";
+          error instanceof Error ? error.message : "加载 MCP 状态失败。";
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `MCP tools:\n- ${message}`,
+          text: `MCP 工具：\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -1005,26 +1011,26 @@ export function useThreadMessaging({
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
 
-        const lines: string[] = ["Apps:"];
+        const lines: string[] = ["应用："];
         if (data.length === 0) {
-          lines.push("- No apps available.");
+          lines.push("- 没有可用应用。");
         } else {
           const apps = [...data].sort((a, b) =>
             String(a.name ?? "").localeCompare(String(b.name ?? "")),
           );
           for (const app of apps) {
-            const name = String(app.name ?? app.id ?? "unknown");
+            const name = String(app.name ?? app.id ?? "未知");
             const appId = String(app.id ?? "");
             const isAccessible = Boolean(
               app.isAccessible ?? app.is_accessible ?? false,
             );
-            const status = isAccessible ? "connected" : "can be installed";
+            const status = isAccessible ? "已连接" : "可安装";
             const description =
               typeof app.description === "string" && app.description.trim().length > 0
                 ? app.description.trim()
                 : "";
             lines.push(
-              `- ${name}${appId ? ` (${appId})` : ""} — ${status}${description ? `: ${description}` : ""}`,
+              `- ${name}${appId ? ` (${appId})` : ""} - ${status}${description ? `：${description}` : ""}`,
             );
 
             const installUrl =
@@ -1034,7 +1040,7 @@ export function useThreadMessaging({
                   ? app.install_url
                   : "";
             if (!isAccessible && installUrl) {
-              lines.push(`  install: ${installUrl}`);
+              lines.push(`  安装：${installUrl}`);
             }
           }
         }
@@ -1048,11 +1054,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Failed to load apps.";
+          error instanceof Error ? error.message : "加载应用列表失败。";
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `Apps:\n- ${message}`,
+          text: `应用：\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -1133,7 +1139,7 @@ export function useThreadMessaging({
           threadId,
           error instanceof Error
             ? error.message
-            : "Failed to start context compaction.",
+            : "启动上下文压缩失败。",
         );
       } finally {
         safeMessageActivity();

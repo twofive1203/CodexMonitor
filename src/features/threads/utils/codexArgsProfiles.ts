@@ -505,7 +505,7 @@ export function buildCodexArgsOptions(input: {
 }): CodexArgsOption[] {
   const seen = new Set<string>();
   const options: CodexArgsOption[] = [
-    { value: "", codexArgs: null, label: "Default" },
+    { value: "", codexArgs: null, label: "默认" },
   ];
 
   const candidates = [

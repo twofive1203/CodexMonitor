@@ -117,7 +117,7 @@ const MessageImageGrid = memo(function MessageImageGrid({
           type="button"
           className="message-image-thumb"
           onClick={() => onOpen(index)}
-          aria-label={`Open image ${index + 1}`}
+          aria-label={`打开图片 ${index + 1}`}
         >
           <img src={image.src} alt={image.label} loading="lazy" />
         </button>
@@ -176,7 +176,7 @@ const ImageLightbox = memo(function ImageLightbox({
           type="button"
           className="message-image-lightbox-close"
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label="关闭图片预览"
         >
           <X size={16} aria-hidden />
         </button>
@@ -344,9 +344,9 @@ export const WorkingIndicator = memo(function WorkingIndicator({
         <div className="working">
           <span className="working-spinner" aria-hidden />
           <div className="working-timer">
-            <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
-          </div>
-          <span className="working-text">{reasoningLabel || "Working…"}</span>
+          <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
+        </div>
+          <span className="working-text">{reasoningLabel || "处理中…"}</span>
         </div>
       )}
       {!isThinking && lastDurationMs !== null && hasItems && (
@@ -354,8 +354,8 @@ export const WorkingIndicator = memo(function WorkingIndicator({
           <span className="turn-complete-line" aria-hidden />
           <span className="turn-complete-label">
             {showPollingFetchStatus
-              ? `New message will be fetched in ${pollCountdownSeconds} seconds`
-              : `Done in ${formatDurationMs(lastDurationMs)}`}
+              ? `${pollCountdownSeconds} 秒后拉取新消息`
+              : `${formatDurationMs(lastDurationMs)} 完成`}
           </span>
           <span className="turn-complete-line" aria-hidden />
         </div>
@@ -559,7 +559,7 @@ export const ReviewRow = memo(function ReviewRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: ReviewRowProps) {
-  const title = item.state === "started" ? "Review started" : "Review completed";
+  const title = item.state === "started" ? "审查已开始" : "审查已完成";
   return (
     <div className="item-card review">
       <div className="review-header">
@@ -567,7 +567,7 @@ export const ReviewRow = memo(function ReviewRow({
         <span
           className={`review-badge ${item.state === "started" ? "active" : "done"}`}
         >
-          Review
+          审查
         </span>
       </div>
       {item.text && (
@@ -606,8 +606,8 @@ export const UserInputRow = memo(function UserInputRow({
 }: UserInputRowProps) {
   const first = item.questions[0];
   const previewQuestion =
-    first?.question?.trim() || first?.header?.trim() || "Input requested";
-  const firstAnswer = first?.answers[0]?.trim() || "No answer provided";
+    first?.question?.trim() || first?.header?.trim() || "需要输入";
+  const firstAnswer = first?.answers[0]?.trim() || "未提供答案";
   const previewAnswer =
     first && first.answers.length > 1
       ? `${firstAnswer} +${first.answers.length - 1}`
@@ -621,7 +621,7 @@ export const UserInputRow = memo(function UserInputRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle answered input details"
+        aria-label="切换已回答输入详情"
       />
       <div className="tool-inline-content">
         <button
@@ -631,16 +631,16 @@ export const UserInputRow = memo(function UserInputRow({
           aria-expanded={isExpanded}
         >
           <Check className="tool-inline-icon completed" size={14} aria-hidden />
-          <span className="tool-inline-label">answered:</span>
+          <span className="tool-inline-label">已回答：</span>
           <span className="tool-inline-value user-input-inline-preview">
             {previewQuestion}: {previewAnswer}
-            {extraQuestions > 0 ? ` +${extraQuestions} more` : ""}
+            {extraQuestions > 0 ? ` +${extraQuestions} 项` : ""}
           </span>
         </button>
         {isExpanded && (
           <div className="user-input-inline-details">
             {item.questions.map((question, index) => {
-              const title = question.question || question.header || `Question ${index + 1}`;
+              const title = question.question || question.header || `问题 ${index + 1}`;
               return (
                 <div
                   key={`${question.id}-${index}`}
@@ -660,7 +660,7 @@ export const UserInputRow = memo(function UserInputRow({
                     </div>
                   ) : (
                     <div className="user-input-inline-empty-answer">
-                      No answer provided.
+                      未提供答案。
                     </div>
                   )}
                 </div>
@@ -750,16 +750,16 @@ export const ToolRow = memo(function ToolRow({
       event.preventDefault();
       event.stopPropagation();
       const output = (summary.output ?? "").trim();
-      if (!output) {
-        return;
-      }
+        if (!output) {
+          return;
+        }
       setIsExportingPlan(true);
       try {
         await exportMarkdownFile(output, buildPlanExportFileName(item.id));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to export plan.";
+        const message = error instanceof Error ? error.message : "无法导出计划。";
         pushErrorToast({
-          title: "Plan export failed",
+          title: "计划导出失败",
           message,
         });
       } finally {
@@ -776,7 +776,7 @@ export const ToolRow = memo(function ToolRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle tool details"
+        aria-label="切换工具详情"
       />
       <div className="tool-inline-content">
         <button
@@ -817,7 +817,7 @@ export const ToolRow = memo(function ToolRow({
         )}
         {isExpanded && isCommand && item.detail && (
           <div className="tool-inline-detail tool-inline-muted">
-            cwd: {item.detail}
+            当前目录：{item.detail}
           </div>
         )}
         {isExpanded && isFileChange && hasChanges && (
@@ -878,7 +878,7 @@ export const ToolRow = memo(function ToolRow({
               onClick={handlePlanExport}
               disabled={isExportingPlan}
             >
-              {isExportingPlan ? "Exporting..." : "Export .md"}
+              {isExportingPlan ? "导出中..." : "导出 .md"}
             </button>
           </div>
         )}
@@ -888,7 +888,7 @@ export const ToolRow = memo(function ToolRow({
 });
 
 export const ExploreRow = memo(function ExploreRow({ item }: ExploreRowProps) {
-  const title = item.status === "exploring" ? "Exploring" : "Explored";
+  const title = item.status === "exploring" ? "探索中" : "已探索";
   return (
     <div className="tool-inline explore-inline">
       <div className="tool-inline-bar-toggle" aria-hidden />

@@ -214,8 +214,8 @@ export function usePullRequestComposer({
       return [
         {
           id: "commit-review",
-          label: "Review Commit",
-          title: `Review commit ${shortSha}`,
+          label: "审查提交",
+          title: `审查提交 ${shortSha}`,
           onSelect: async () => {
             await startReview(reviewCommand);
           },

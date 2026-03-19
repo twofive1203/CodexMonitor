@@ -45,17 +45,17 @@ export function useMainAppShellProps({
       }`}
       title={
         topbar.remoteThreadConnectionState === "live"
-          ? "Receiving live thread events"
+          ? "正在接收实时会话事件"
           : topbar.remoteThreadConnectionState === "polling"
-            ? "Connected, syncing thread state by polling"
-            : "Disconnected from backend"
+            ? "已连接，正在通过轮询同步会话状态"
+            : "与后端断开连接"
       }
     >
       {topbar.remoteThreadConnectionState === "live"
-        ? "Live"
+        ? "实时"
         : topbar.remoteThreadConnectionState === "polling"
-          ? "Polling"
-          : "Disconnected"}
+          ? "轮询中"
+          : "已断开"}
     </span>
   ) : null;
 

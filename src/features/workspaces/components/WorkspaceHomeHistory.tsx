@@ -84,11 +84,11 @@ export function WorkspaceHomeHistory({
     <>
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent runs</div>
+          <div className="workspace-home-section-title">最近运行</div>
         </div>
         {runs.length === 0 ? (
           <div className="workspace-home-empty">
-            Start a run to see its instances tracked here.
+            开始一次运行后，这里会显示实例记录。
           </div>
         ) : (
           <div className="workspace-home-run-grid">
@@ -101,10 +101,9 @@ export function WorkspaceHomeHistory({
                     <div>
                       <div className="workspace-home-run-title">{run.title}</div>
                       <div className="workspace-home-run-meta">
-                        {run.mode === "local" ? "Local" : "Worktree"} · {run.instances.length} instance
-                        {run.instances.length === 1 ? "" : "s"}
-                        {run.status === "failed" && " · Failed"}
-                        {run.status === "partial" && " · Partial"}
+                        {run.mode === "local" ? "本地" : "工作树"} · {run.instances.length} 个实例
+                        {run.status === "failed" && " · 失败"}
+                        {run.status === "partial" && " · 部分完成"}
                       </div>
                     </div>
                     <div className="workspace-home-run-time">
@@ -121,7 +120,7 @@ export function WorkspaceHomeHistory({
                       ))}
                       {run.instanceErrors.length > 2 && (
                         <div className="workspace-home-run-error-item">
-                          +{run.instanceErrors.length - 2} more
+                          另有 {run.instanceErrors.length - 2} 条
                         </div>
                       )}
                     </div>
@@ -136,13 +135,13 @@ export function WorkspaceHomeHistory({
                     />
                   ) : run.status === "failed" ? (
                     <div className="workspace-home-empty">
-                      No instances were started.
+                      尚未启动实例。
                     </div>
                   ) : (
                     <div className="workspace-home-empty workspace-home-pending">
                       <span className="working-spinner" aria-hidden />
                       <span className="workspace-home-pending-text">
-                        Instances are preparing...
+                        实例准备中...
                       </span>
                     </div>
                   )}
@@ -155,21 +154,20 @@ export function WorkspaceHomeHistory({
 
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent threads</div>
+          <div className="workspace-home-section-title">最近会话</div>
         </div>
         {recentThreadInstances.length === 0 ? (
           <div className="workspace-home-empty">
-            Threads from the sidebar will appear here.
+            侧边栏中的会话会显示在这里。
           </div>
         ) : (
           <div className="workspace-home-run-grid">
             <div className="workspace-home-run-card">
               <div className="workspace-home-run-header">
                 <div>
-                  <div className="workspace-home-run-title">Agents activity</div>
+                  <div className="workspace-home-run-title">智能体活动</div>
                   <div className="workspace-home-run-meta">
-                    {recentThreadInstances.length} thread
-                    {recentThreadInstances.length === 1 ? "" : "s"}
+                    {recentThreadInstances.length} 个会话
                   </div>
                 </div>
                 {recentThreadsUpdatedAt ? (

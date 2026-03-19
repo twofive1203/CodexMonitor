@@ -6,7 +6,7 @@ export function useGlobalAgentsMd() {
     key: "global-agents",
     read: readGlobalAgentsMd,
     write: writeGlobalAgentsMd,
-    readErrorTitle: "Couldn’t load global AGENTS.md",
-    writeErrorTitle: "Couldn’t save global AGENTS.md",
+    readErrorTitle: "无法加载全局 AGENTS.md",
+    writeErrorTitle: "无法保存全局 AGENTS.md",
   });
 }

@@ -64,7 +64,7 @@ export function WorkspaceCard({
                   onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "Show agents" : "Hide agents"}
+                aria-label={isCollapsed ? "显示智能体" : "隐藏智能体"}
                 aria-expanded={!isCollapsed}
               >
                 <span className="workspace-toggle-icon">›</span>
@@ -92,7 +92,7 @@ export function WorkspaceCard({
                 );
               }}
               data-tauri-drag-region="false"
-              aria-label="Add agent options"
+              aria-label="添加智能体选项"
               aria-expanded={addMenuOpen}
             >
               +
@@ -102,13 +102,13 @@ export function WorkspaceCard({
         {!workspace.connected && (
           <span
             className="connect"
-            title="Connect workspace context to the shared Codex server"
+            title="连接项目上下文到共享 Codex 服务"
             onClick={(event) => {
               event.stopPropagation();
               onConnectWorkspace(workspace);
             }}
           >
-            connect
+            连接
           </span>
         )}
       </div>

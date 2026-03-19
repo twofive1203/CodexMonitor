@@ -60,17 +60,17 @@ function formatCompactNumber(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
   }
-  if (value >= 1_000_000_000) {
-    const scaled = value / 1_000_000_000;
-    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}b`;
+  if (value >= 100_000_000) {
+    const scaled = value / 100_000_000;
+    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}亿`;
   }
-  if (value >= 1_000_000) {
-    const scaled = value / 1_000_000;
-    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}m`;
+  if (value >= 10_000) {
+    const scaled = value / 10_000;
+    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}万`;
   }
   if (value >= 1_000) {
     const scaled = value / 1_000;
-    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}k`;
+    return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}千`;
   }
   return String(value);
 }
@@ -79,7 +79,7 @@ function formatCount(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return new Intl.NumberFormat().format(value);
+  return new Intl.NumberFormat("zh-CN").format(value);
 }
 
 function formatDuration(valueMs: number | null | undefined) {
@@ -91,12 +91,12 @@ function formatDuration(valueMs: number | null | undefined) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return `${hours}小时 ${minutes}分钟`;
   }
   if (totalMinutes > 0) {
-    return `${totalMinutes}m`;
+    return `${totalMinutes}分钟`;
   }
-  return `${totalSeconds}s`;
+  return `${totalSeconds}秒`;
 }
 
 function formatDurationCompact(valueMs: number | null | undefined) {
@@ -106,13 +106,13 @@ function formatDurationCompact(valueMs: number | null | undefined) {
   const totalMinutes = Math.max(0, Math.round(valueMs / 60000));
   if (totalMinutes >= 60) {
     const hours = totalMinutes / 60;
-    return `${hours.toFixed(hours >= 10 ? 0 : 1)}h`;
+    return `${hours.toFixed(hours >= 10 ? 0 : 1)}小时`;
   }
   if (totalMinutes > 0) {
-    return `${totalMinutes}m`;
+    return `${totalMinutes}分钟`;
   }
   const seconds = Math.max(0, Math.round(valueMs / 1000));
-  return `${seconds}s`;
+  return `${seconds}秒`;
 }
 
 function formatDayLabel(value: string | null | undefined) {
@@ -127,21 +127,21 @@ function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
     day: "numeric",
   }).format(date);
 }
 
 function formatWeekRange(days: LocalUsageDay[]) {
   if (days.length === 0) {
-    return "No usage data";
+    return "暂无用量数据";
   }
   const first = days[0];
   const last = days[days.length - 1];
   const firstLabel = formatDayLabel(first?.day);
   const lastLabel = formatDayLabel(last?.day);
-  return first?.day === last?.day ? firstLabel : `${firstLabel} to ${lastLabel}`;
+  return first?.day === last?.day ? firstLabel : `${firstLabel} 至 ${lastLabel}`;
 }
 
 function isUsageDayActive(day: LocalUsageDay) {
@@ -162,12 +162,12 @@ function formatPlanType(value: string | null | undefined) {
 
 function formatAccountTypeLabel(value: AccountSnapshot["type"] | null | undefined) {
   if (value === "chatgpt") {
-    return "ChatGPT account";
+    return "ChatGPT 账号";
   }
   if (value === "apikey") {
-    return "API key";
+    return "API 密钥";
   }
-  return "Connected account";
+  return "已连接账号";
 }
 
 function formatWindowDuration(valueMins: number | null | undefined) {
@@ -176,13 +176,13 @@ function formatWindowDuration(valueMins: number | null | undefined) {
   }
   if (valueMins >= 60 * 24) {
     const days = Math.round(valueMins / (60 * 24));
-    return `${days} day${days === 1 ? "" : "s"} window`;
+    return `${days}天窗口`;
   }
   if (valueMins >= 60) {
     const hours = Math.round(valueMins / 60);
-    return `${hours}h window`;
+    return `${hours}小时窗口`;
   }
-  return `${Math.round(valueMins)}m window`;
+  return `${Math.round(valueMins)}分钟窗口`;
 }
 
 function buildWindowCaption(
@@ -298,8 +298,8 @@ export function Home({
   const chartRangeLabel = formatWeekRange(chartDays);
   const chartRangeAriaLabel =
     chartDays.length > 0
-      ? `Usage week ${chartDays[0]?.day} to ${chartDays[chartDays.length - 1]?.day}`
-      : "Usage week";
+      ? `用量周期 ${chartDays[0]?.day} 至 ${chartDays[chartDays.length - 1]?.day}`
+      : "用量周期";
   let longestStreak = 0;
   let runningStreak = 0;
   for (const day of usageDays) {
@@ -312,121 +312,121 @@ export function Home({
   }
 
   const longestStreakCard: HomeStatCard = {
-    label: "Longest streak",
+    label: "最长连续活跃",
     value: longestStreak > 0 ? formatDayCount(longestStreak) : "--",
     caption:
       longestStreak > 0
-        ? "Across current usage range"
-        : "No active streak yet",
+        ? "基于当前统计范围"
+        : "暂无连续活跃记录",
     compact: true,
   };
   const activeDaysCard: HomeStatCard = {
-    label: "Active days",
+    label: "活跃天数",
     value: last7Days.length > 0 ? `${last7ActiveDays} / ${last7Days.length}` : "--",
     caption:
       usageDays.length > 0
-        ? `${last30ActiveDays} / ${usageDays.length} in current range`
-        : "No activity yet",
+        ? `${last30ActiveDays} / ${usageDays.length}（当前范围）`
+        : "暂无活动",
     compact: true,
   };
   const usageCards: HomeStatCard[] =
     usageMetric === "tokens"
       ? [
           {
-            label: "Today",
+            label: "今日",
             value: formatCompactNumber(latestUsageDay?.totalTokens ?? 0),
-            suffix: "tokens",
+            suffix: "令牌",
             caption: latestUsageDay
-              ? `${formatDayLabel(latestUsageDay.day)} · ${formatCount(
+              ? `${formatDayLabel(latestUsageDay.day)} · 输入 ${formatCount(
                   latestUsageDay.inputTokens,
-                )} in / ${formatCount(latestUsageDay.outputTokens)} out`
-              : "Latest available day",
+                )} / 输出 ${formatCount(latestUsageDay.outputTokens)}`
+              : "最近可用日期",
           },
           {
-            label: "Last 7 days",
+            label: "最近 7 天",
             value: formatCompactNumber(usageTotals?.last7DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Avg ${formatCompactNumber(usageTotals?.averageDailyTokens)} / day`,
+            suffix: "令牌",
+            caption: `日均 ${formatCompactNumber(usageTotals?.averageDailyTokens)}`,
           },
           {
-            label: "Last 30 days",
+            label: "最近 30 天",
             value: formatCompactNumber(usageTotals?.last30DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Total ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
+            suffix: "令牌",
+            caption: `总计 ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
           },
           {
-            label: "Cache hit rate",
+            label: "缓存命中率",
             value: usageTotals
               ? `${usageTotals.cacheHitRatePercent.toFixed(1)}%`
               : "--",
-            caption: "Last 7 days",
+            caption: "最近 7 天",
           },
           {
-            label: "Cached tokens",
+            label: "缓存节省令牌",
             value: formatCompactNumber(last7Cached),
-            suffix: "saved",
+            suffix: "已节省",
             caption:
               last7Input > 0
-                ? `${((last7Cached / last7Input) * 100).toFixed(1)}% of prompt tokens`
-                : "Last 7 days",
+                ? `占提示词令牌的 ${((last7Cached / last7Input) * 100).toFixed(1)}%`
+                : "最近 7 天",
           },
           {
-            label: "Avg / run",
+            label: "平均每次",
             value:
               averageTokensPerRun === null
                 ? "--"
                 : formatCompactNumber(averageTokensPerRun),
-            suffix: "tokens",
+            suffix: "令牌",
             caption:
               last7AgentRuns > 0
-                ? `${formatCount(last7AgentRuns)} runs in last 7 days`
-                : "No runs yet",
+                ? `最近 7 天共 ${formatCount(last7AgentRuns)} 次运行`
+                : "暂无运行",
           },
           {
-            label: "Peak day",
+            label: "峰值日",
             value: formatDayLabel(usageTotals?.peakDay),
-            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} tokens`,
+            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} 令牌`,
           },
         ]
       : [
           {
-            label: "Last 7 days",
+            label: "最近 7 天",
             value: formatDurationCompact(last7AgentMs),
-            suffix: "agent time",
-            caption: `Avg ${formatDurationCompact(averageDailyAgentMs)} / day`,
+            suffix: "运行时长",
+            caption: `日均 ${formatDurationCompact(averageDailyAgentMs)}`,
           },
           {
-            label: "Last 30 days",
+            label: "最近 30 天",
             value: formatDurationCompact(last30AgentMs),
-            suffix: "agent time",
-            caption: `Total ${formatDuration(last30AgentMs)}`,
+            suffix: "运行时长",
+            caption: `总计 ${formatDuration(last30AgentMs)}`,
           },
           {
-            label: "Runs",
+            label: "运行次数",
             value: formatCount(last7AgentRuns),
-            suffix: "runs",
-            caption: `Last 30 days: ${formatCount(last30AgentRuns)} runs`,
+            suffix: "次",
+            caption: `最近 30 天共 ${formatCount(last30AgentRuns)} 次`,
           },
           {
-            label: "Avg / run",
+            label: "平均每次",
             value: formatDurationCompact(averageRunDurationMs),
             caption:
               last7AgentRuns > 0
-                ? `Across ${formatCount(last7AgentRuns)} runs`
-                : "No runs yet",
+                ? `基于 ${formatCount(last7AgentRuns)} 次运行`
+                : "暂无运行",
           },
           {
-            label: "Avg / active day",
+            label: "平均每个活跃日",
             value: formatDurationCompact(averageActiveDayAgentMs),
             caption:
               last7ActiveDays > 0
-                ? `${formatCount(last7ActiveDays)} active days in last 7`
-                : "No active days yet",
+                ? `最近 7 天活跃 ${formatCount(last7ActiveDays)} 天`
+                : "暂无活跃日",
           },
           {
-            label: "Peak day",
+            label: "峰值日",
             value: formatDayLabel(peakAgentDayLabel),
-            caption: `${formatDurationCompact(peakAgentTimeMs)} agent time`,
+            caption: `${formatDurationCompact(peakAgentTimeMs)} 运行时长`,
           },
         ];
   const usageInsights = [longestStreakCard, activeDaysCard];
@@ -437,24 +437,24 @@ export function Home({
 
   if (usagePercentLabels.sessionPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Session left" : "Session usage",
+      label: usageShowRemaining ? "会话剩余" : "会话使用",
       value: `${usagePercentLabels.sessionPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.sessionResetLabel,
         accountRateLimits?.primary?.windowDurationMins,
-        "Current window",
+        "当前窗口",
       ),
     });
   }
 
   if (usagePercentLabels.showWeekly && usagePercentLabels.weeklyPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Weekly left" : "Weekly usage",
+      label: usageShowRemaining ? "每周剩余" : "每周使用",
       value: `${usagePercentLabels.weeklyPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.weeklyResetLabel,
         accountRateLimits?.secondary?.windowDurationMins,
-        "Longer window",
+        "更长周期",
       ),
     });
   }
@@ -463,22 +463,22 @@ export function Home({
     accountCards.push(
       accountRateLimits.credits.unlimited
         ? {
-            label: "Credits",
-            value: "Unlimited",
-            caption: "Available balance",
+            label: "点数",
+            value: "不限",
+            caption: "可用余额",
           }
         : {
-            label: "Credits",
+            label: "点数",
             value: creditsBalance ?? "--",
-            suffix: creditsBalance ? "credits" : null,
-            caption: "Available balance",
+            suffix: creditsBalance ? "点" : null,
+            caption: "可用余额",
           },
     );
   }
 
   if (planLabel) {
     accountCards.push({
-      label: "Plan",
+      label: "套餐",
       value: planLabel,
       caption: formatAccountTypeLabel(accountInfo?.type),
     });
@@ -486,7 +486,7 @@ export function Home({
 
   const accountMeta = accountInfo?.email ?? null;
   const updatedLabel = localUsageSnapshot
-    ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+    ? `更新于 ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
     : null;
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
@@ -496,12 +496,12 @@ export function Home({
       <div className="home-hero">
         <div className="home-title">Codex Monitor</div>
         <div className="home-subtitle">
-          Orchestrate agents across your local projects.
+          跨本地项目统一调度智能体。
         </div>
       </div>
       <div className="home-latest">
         <div className="home-latest-header">
-          <div className="home-latest-label">Latest agents</div>
+          <div className="home-latest-label">最新智能体</div>
         </div>
         {latestAgentRuns.length > 0 ? (
           <div className="home-latest-grid">
@@ -524,16 +524,16 @@ export function Home({
                   </div>
                 </div>
                 <div className="home-latest-message">
-                  {run.message.trim() || "Agent replied."}
+                  {run.message.trim() || "智能体已回复。"}
                 </div>
                 {run.isProcessing && (
-                  <div className="home-latest-status">Running</div>
+                  <div className="home-latest-status">运行中</div>
                 )}
               </button>
             ))}
           </div>
         ) : isLoadingLatestAgents ? (
-          <div className="home-latest-grid home-latest-grid-loading" aria-label="Loading agents">
+          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载智能体">
             {Array.from({ length: 3 }).map((_, index) => (
               <div className="home-latest-card home-latest-card-skeleton" key={index}>
                 <div className="home-latest-card-header">
@@ -547,9 +547,9 @@ export function Home({
           </div>
         ) : (
           <div className="home-latest-empty">
-            <div className="home-latest-empty-title">No agent activity yet</div>
+            <div className="home-latest-empty-title">暂无智能体活动</div>
             <div className="home-latest-empty-subtitle">
-              Start a thread to see the latest responses here.
+              开始一个会话后，最新回复会显示在这里。
             </div>
           </div>
         )}
@@ -563,7 +563,7 @@ export function Home({
           <span className="home-icon" aria-hidden>
             +
           </span>
-          Add Workspaces
+          添加项目
         </button>
         <button
           className="home-button secondary home-add-workspace-from-url-button"
@@ -573,12 +573,12 @@ export function Home({
           <span className="home-icon" aria-hidden>
             ⤓
           </span>
-          Add Workspace from URL
+          通过 URL 添加项目
         </button>
       </div>
       <div className="home-usage">
         <div className="home-section-header">
-          <div className="home-section-title">Usage snapshot</div>
+          <div className="home-section-title">用量概览</div>
           <div className="home-section-meta-row">
             {updatedLabel && <div className="home-section-meta">{updatedLabel}</div>}
             <button
@@ -590,8 +590,8 @@ export function Home({
               }
               onClick={onRefreshLocalUsage}
               disabled={isLoadingLocalUsage}
-              aria-label="Refresh usage"
-              title="Refresh usage"
+              aria-label="刷新用量"
+              title="刷新用量"
             >
               <RefreshCw
                 className={
@@ -606,7 +606,7 @@ export function Home({
         </div>
         <div className="home-usage-controls">
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">Workspace</span>
+            <span className="home-usage-control-label">项目</span>
             <div className="home-usage-select-wrap">
               <select
                 className="home-usage-select"
@@ -616,7 +616,7 @@ export function Home({
                 }
                 disabled={usageWorkspaceOptions.length === 0}
               >
-                <option value="">All workspaces</option>
+                <option value="">全部项目</option>
                 {usageWorkspaceOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
@@ -626,8 +626,8 @@ export function Home({
             </div>
           </div>
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">View</span>
-            <div className="home-usage-toggle" role="group" aria-label="Usage view">
+            <span className="home-usage-control-label">视图</span>
+            <div className="home-usage-toggle" role="group" aria-label="用量视图">
               <button
                 type="button"
                 className={
@@ -638,7 +638,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("tokens")}
                 aria-pressed={usageMetric === "tokens"}
               >
-                Tokens
+                令牌
               </button>
               <button
                 type="button"
@@ -650,7 +650,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("time")}
                 aria-pressed={usageMetric === "time"}
               >
-                Time
+                时长
               </button>
             </div>
           </div>
@@ -671,9 +671,9 @@ export function Home({
           </div>
         ) : showUsageEmpty ? (
           <div className="home-usage-empty">
-            <div className="home-usage-empty-title">No usage data yet</div>
+            <div className="home-usage-empty-title">暂无用量数据</div>
             <div className="home-usage-empty-subtitle">
-              Run a Codex session to start tracking local usage.
+              运行一次 Codex 会话后，这里会开始统计本地用量。
             </div>
             {localUsageError && (
               <div className="home-usage-error">{localUsageError}</div>
@@ -708,8 +708,8 @@ export function Home({
                       type="button"
                       className="home-usage-chart-button"
                       onClick={() => setChartWeekOffset((current) => current + 1)}
-                      aria-label="Show previous week"
-                      title="Show previous week"
+                      aria-label="查看上一周"
+                      title="查看上一周"
                     >
                       <ChevronLeft aria-hidden />
                     </button>
@@ -718,8 +718,8 @@ export function Home({
                     type="button"
                     className="home-usage-chart-button"
                     onClick={() => setChartWeekOffset((current) => Math.max(0, current - 1))}
-                    aria-label="Show next week"
-                    title="Show next week"
+                    aria-label="查看下一周"
+                    title="查看下一周"
                     disabled={!canShowNewerWeek}
                   >
                     <ChevronRight aria-hidden />
@@ -736,8 +736,8 @@ export function Home({
                   );
                   const tooltip =
                     usageMetric === "tokens"
-                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} tokens`
-                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} agent time`;
+                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} 令牌`
+                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} 运行时长`;
                   return (
                     <div
                       className="home-usage-bar"
@@ -773,9 +773,9 @@ export function Home({
             </div>
             <div className="home-usage-models">
               <div className="home-usage-models-label">
-                Top models
+                热门模型
                 {usageMetric === "time" && (
-                  <span className="home-usage-models-hint">Tokens</span>
+                  <span className="home-usage-models-hint">令牌</span>
                 )}
               </div>
               <div className="home-usage-models-list">
@@ -784,7 +784,7 @@ export function Home({
                     <span
                       className="home-usage-model-chip"
                       key={model.model}
-                      title={`${model.model}: ${formatCount(model.tokens)} tokens`}
+                      title={`${model.model}：${formatCount(model.tokens)} 令牌`}
                     >
                       {model.model}
                       <span className="home-usage-model-share">
@@ -793,7 +793,7 @@ export function Home({
                     </span>
                   ))
                 ) : (
-                  <span className="home-usage-model-empty">No models yet</span>
+                  <span className="home-usage-model-empty">暂无模型数据</span>
                 )}
               </div>
               {localUsageError && (
@@ -805,7 +805,7 @@ export function Home({
         {accountCards.length > 0 && (
           <div className="home-account">
             <div className="home-section-header">
-              <div className="home-section-title">Account limits</div>
+              <div className="home-section-title">账号限额</div>
               {accountMeta && (
                 <div className="home-section-meta-row">
                   <div className="home-section-meta">{accountMeta}</div>
@@ -836,5 +836,5 @@ function formatDayCount(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `${value} day${value === 1 ? "" : "s"}`;
+  return `${value}天`;
 }

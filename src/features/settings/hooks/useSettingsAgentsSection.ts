@@ -111,7 +111,7 @@ export const useSettingsAgentsSection = ({
       const response = await getAgentsSettings();
       setSettings(response);
     } catch (refreshError) {
-      setError(toErrorMessage(refreshError, "Unable to load agents settings."));
+      setError(toErrorMessage(refreshError, "无法加载智能体设置。"));
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +138,7 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (updateError) {
-        setError(toErrorMessage(updateError, "Unable to update agents core settings."));
+        setError(toErrorMessage(updateError, "无法更新智能体核心设置。"));
         return false;
       } finally {
         setIsUpdatingCore(false);
@@ -193,7 +193,7 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (createError) {
-        setError(toErrorMessage(createError, "Unable to create agent."));
+        setError(toErrorMessage(createError, "无法创建智能体。"));
         return false;
       } finally {
         setCreatingAgent(false);
@@ -217,7 +217,7 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (updateError) {
-        setError(toErrorMessage(updateError, "Unable to update agent."));
+        setError(toErrorMessage(updateError, "无法更新智能体。"));
         return false;
       } finally {
         setUpdatingAgentName((current) =>
@@ -240,7 +240,7 @@ export const useSettingsAgentsSection = ({
         setSettings(response);
         return true;
       } catch (deleteError) {
-        setError(toErrorMessage(deleteError, "Unable to delete agent."));
+        setError(toErrorMessage(deleteError, "无法删除智能体。"));
         return false;
       } finally {
         setDeletingAgentName((current) => (current === input.name ? null : current));
@@ -255,7 +255,7 @@ export const useSettingsAgentsSection = ({
     try {
       return await readAgentConfigToml(agentName);
     } catch (readError) {
-      setError(toErrorMessage(readError, "Unable to read agent config file."));
+      setError(toErrorMessage(readError, "无法读取智能体配置文件。"));
       return null;
     } finally {
       setReadingConfigAgentName((current) =>
@@ -273,7 +273,7 @@ export const useSettingsAgentsSection = ({
         await refresh();
         return true;
       } catch (writeError) {
-        setError(toErrorMessage(writeError, "Unable to write agent config file."));
+        setError(toErrorMessage(writeError, "无法写入智能体配置文件。"));
         return false;
       } finally {
         setWritingConfigAgentName((current) =>
@@ -293,15 +293,15 @@ export const useSettingsAgentsSection = ({
       const descriptionSeed = seed.description.trim();
       const developerInstructionsSeed = seed.developerInstructions.trim();
       if (!sourceWorkspaceId || !sourceWorkspaceName) {
-        setError("Add a workspace before generating agent configuration.");
+        setError("请先添加工作区，再生成智能体配置。");
         return null;
       }
 
       const promptSeed = [
-        nameSeed ? `Agent name:\n${nameSeed}` : null,
-        descriptionSeed ? `Description seed:\n${descriptionSeed}` : null,
+        nameSeed ? `智能体名称：\n${nameSeed}` : null,
+        descriptionSeed ? `描述种子：\n${descriptionSeed}` : null,
         developerInstructionsSeed
-          ? `Developer instructions seed:\n${developerInstructionsSeed}`
+          ? `开发者指令种子：\n${developerInstructionsSeed}`
           : null,
       ]
         .filter((value): value is string => Boolean(value))
@@ -310,7 +310,7 @@ export const useSettingsAgentsSection = ({
       const effectivePromptSeed =
         promptSeed.length > 0
           ? promptSeed
-          : "Create a practical custom coding agent configuration.";
+          : "生成一个实用的自定义编码智能体配置。";
 
       setGeneratingDescriptionTarget(target);
       setError(null);
@@ -322,7 +322,7 @@ export const useSettingsAgentsSection = ({
         const nextDescription = generated.description.trim();
         const nextInstructions = generated.developerInstructions.trim();
         if (!nextDescription && !nextInstructions) {
-          setError("Generated agent configuration was empty.");
+          setError("生成的智能体配置为空。");
           return null;
         }
         return {
@@ -330,7 +330,7 @@ export const useSettingsAgentsSection = ({
           developerInstructions: nextInstructions,
         };
       } catch (generateError) {
-        setError(toErrorMessage(generateError, "Unable to generate agent configuration."));
+        setError(toErrorMessage(generateError, "无法生成智能体配置。"));
         return null;
       } finally {
         setGeneratingDescriptionTarget((current) =>

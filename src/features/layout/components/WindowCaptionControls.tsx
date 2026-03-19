@@ -95,11 +95,11 @@ export function WindowCaptionControls() {
   };
 
   return (
-    <div className="window-caption-controls" role="group" aria-label="Window controls">
+    <div className="window-caption-controls" role="group" aria-label="窗口控制">
       <button
         type="button"
         className="window-caption-control"
-        aria-label="Minimize window"
+        aria-label="最小化窗口"
         data-tauri-drag-region="false"
         onClick={handleMinimize}
       >
@@ -108,7 +108,7 @@ export function WindowCaptionControls() {
       <button
         type="button"
         className="window-caption-control"
-        aria-label={isMaximized ? "Restore window" : "Maximize window"}
+        aria-label={isMaximized ? "还原窗口" : "最大化窗口"}
         data-tauri-drag-region="false"
         onClick={handleToggleMaximize}
       >
@@ -117,7 +117,7 @@ export function WindowCaptionControls() {
       <button
         type="button"
         className="window-caption-control window-caption-control-close"
-        aria-label="Close window"
+        aria-label="关闭窗口"
         data-tauri-drag-region="false"
         onClick={handleClose}
       >

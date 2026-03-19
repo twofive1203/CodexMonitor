@@ -90,7 +90,7 @@ export function ThreadRow({
       }}
     >
       <span className={`thread-status ${statusClass}`} aria-hidden />
-      {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
+      {isPinned && <span className="thread-pin-icon" aria-label="已置顶">📌</span>}
       <span className="thread-name">{thread.name}</span>
       <div className="thread-meta">
         {workspaceLabel && <span className="thread-workspace-label">{workspaceLabel}</span>}
@@ -109,7 +109,7 @@ export function ThreadRow({
               onToggleSubagents?.(workspaceId, thread.id);
             }}
             data-tauri-drag-region="false"
-            aria-label={subagentsExpanded ? "Hide sub-agents" : "Show sub-agents"}
+            aria-label={subagentsExpanded ? "隐藏子智能体" : "显示子智能体"}
             aria-expanded={subagentsExpanded}
           >
             <span className="thread-subagent-time-label">{relativeTime ?? ""}</span>

@@ -79,7 +79,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   const isAdded = status === "A";
   const isDeleted = status === "D";
   const isModified = !isAdded && !isDeleted;
-  const placeholderLabel = "Image preview unavailable.";
+  const placeholderLabel = "无法预览图片。";
   const renderPlaceholder = () => (
     <div className="image-diff-placeholder">
       <ImageOff className="image-diff-placeholder-icon" aria-hidden />
@@ -104,8 +104,8 @@ export const ImageDiffCard = memo(function ImageDiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title="丢弃此文件的变更"
+            aria-label="丢弃此文件的变更"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -123,7 +123,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
-                  alt="Previous version"
+                  alt="旧版本"
                   className="image-diff-preview"
                 />
               ) : (
@@ -135,7 +135,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
-                  alt="Current version"
+                  alt="当前版本"
                   className="image-diff-preview"
                 />
               ) : (
@@ -151,7 +151,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
-                  alt="New image"
+                  alt="新图片"
                   className="image-diff-preview"
                 />
               ) : (
@@ -167,7 +167,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
-                  alt="Deleted image"
+                  alt="已删除图片"
                   className="image-diff-preview"
                 />
               ) : (

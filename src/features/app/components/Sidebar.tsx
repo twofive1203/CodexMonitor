@@ -290,9 +290,9 @@ export const Sidebar = memo(function Sidebar({
   const accountButtonLabel = accountEmail
     ? accountEmail
     : accountInfo?.type === "apikey"
-      ? "API key"
-      : "Sign in to Codex";
-  const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
+      ? "API 密钥"
+      : "登录 Codex";
+  const accountActionLabel = accountEmail ? "切换账号" : "登录";
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
@@ -814,8 +814,8 @@ export const Sidebar = memo(function Sidebar({
             className="sidebar-search-input"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search projects"
-            aria-label="Search projects"
+            placeholder="搜索项目"
+            aria-label="搜索项目"
             data-tauri-drag-region="false"
             autoFocus
           />
@@ -825,7 +825,7 @@ export const Sidebar = memo(function Sidebar({
             type="button"
             className="sidebar-search-clear"
             onClick={() => setSearchQuery("")}
-            aria-label="Clear search"
+            aria-label="清除搜索"
             data-tauri-drag-region="false"
           >
             <X size={12} aria-hidden />
@@ -840,10 +840,10 @@ export const Sidebar = memo(function Sidebar({
       >
         <div
           className={`workspace-drop-overlay-text${
-            workspaceDropText === "Adding Project..." ? " is-busy" : ""
+            workspaceDropText === "正在添加项目..." ? " is-busy" : ""
           }`}
         >
-          {workspaceDropText === "Drop Project Here" && (
+          {workspaceDropText === "将项目拖到这里" && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
           {workspaceDropText}
@@ -860,7 +860,7 @@ export const Sidebar = memo(function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="workspace-group-header">
-                <div className="workspace-group-label">Pinned</div>
+                <div className="workspace-group-label">已置顶</div>
               </div>
               <PinnedThreadList
                 rows={pinnedThreadRows}
@@ -881,13 +881,13 @@ export const Sidebar = memo(function Sidebar({
             ? groupedWorkspacesForRender.length > 0 && (
                 <div className="workspace-group">
                   <div className="workspace-group-header workspace-group-header-all-threads">
-                    <div className="workspace-group-label">All threads</div>
+                    <div className="workspace-group-label">全部会话</div>
                     <button
                       className="ghost all-threads-add"
                       onClick={handleAllThreadsAddMenuToggle}
                       data-tauri-drag-region="false"
-                      aria-label="New thread in project"
-                      title="New thread in project"
+                      aria-label="在项目中新建会话"
+                      title="在项目中新建会话"
                       aria-expanded={allThreadsAddMenuOpen}
                       disabled={projectOptionsForNewThread.length === 0}
                     >
@@ -1032,7 +1032,7 @@ export const Sidebar = memo(function Sidebar({
                                   }}
                                   icon={<Plus aria-hidden />}
                                 >
-                                  New agent
+                                  新建智能体
                                 </PopoverMenuItem>
                                 <PopoverMenuItem
                                   className="workspace-add-option"
@@ -1043,7 +1043,7 @@ export const Sidebar = memo(function Sidebar({
                                   }}
                                   icon={<GitBranch aria-hidden />}
                                 >
-                                  New worktree agent
+                                  新建工作树智能体
                                 </PopoverMenuItem>
                                 <PopoverMenuItem
                                   className="workspace-add-option"
@@ -1054,7 +1054,7 @@ export const Sidebar = memo(function Sidebar({
                                   }}
                                   icon={<Copy aria-hidden />}
                                 >
-                                  New clone agent
+                                  新建克隆智能体
                                 </PopoverMenuItem>
                               </PopoverSurface>,
                               document.body,
@@ -1075,7 +1075,7 @@ export const Sidebar = memo(function Sidebar({
                               }}
                             >
                               <span className={`thread-status ${draftStatusClass}`} aria-hidden />
-                              <span className="thread-name">New Agent</span>
+                              <span className="thread-name">新建智能体</span>
                             </div>
                           )}
                           {visibleClones.length > 0 && (
@@ -1105,7 +1105,7 @@ export const Sidebar = memo(function Sidebar({
                               onShowWorktreeMenu={showCloneMenu}
                               onToggleExpanded={handleToggleExpanded}
                               onLoadOlderThreads={onLoadOlderThreads}
-                              sectionLabel="Clone agents"
+                              sectionLabel="克隆智能体"
                               sectionIcon={
                                 <Copy className="worktree-header-icon" aria-hidden />
                               }
@@ -1173,15 +1173,15 @@ export const Sidebar = memo(function Sidebar({
           {!groupedWorkspacesForRender.length && (
             <div className="empty">
               {isSearchActive
-                ? "No projects match your search."
-                : "Add a workspace to start."}
+                ? "没有匹配搜索的项目。"
+                : "请先添加一个工作区。"}
             </div>
           )}
           {isThreadsOnlyMode &&
             groupedWorkspacesForRender.length > 0 &&
             flatThreadRows.length === 0 &&
             pinnedThreadRows.length === 0 && (
-              <div className="empty">No threads yet.</div>
+              <div className="empty">还没有会话。</div>
             )}
         </div>
       </div>

@@ -137,6 +137,25 @@ const fileTitle = (path: string) => {
   return parts.length ? parts[parts.length - 1] : path;
 };
 
+function formatSuggestionGroupLabel(group: AutocompleteItem["group"]) {
+  if (group === "Files") {
+    return "文件";
+  }
+  if (group === "Skills") {
+    return "技能";
+  }
+  if (group === "Apps") {
+    return "应用";
+  }
+  if (group === "Prompts") {
+    return "提示词";
+  }
+  if (group === "Slash") {
+    return "斜杠命令";
+  }
+  return "";
+}
+
 export function ComposerInput({
   text,
   disabled,
@@ -346,19 +365,19 @@ export function ComposerInput({
         ? !onCancelDictation
         : !dictationEnabled || !onToggleDictation));
   const micAriaLabel = allowOpenDictationSettings
-    ? "Open dictation settings"
+    ? "打开听写设置"
     : isDictationProcessing
-      ? "Cancel transcription"
+      ? "取消转写"
       : isDictating
-        ? "Stop dictation"
-        : "Start dictation";
+        ? "停止听写"
+        : "开始听写";
   const micTitle = allowOpenDictationSettings
-    ? "Dictation disabled. Open settings"
+    ? "听写已禁用，打开设置"
     : isDictationProcessing
-      ? "Cancel transcription"
+      ? "取消转写"
       : isDictating
-        ? "Stop dictation"
-        : "Start dictation";
+        ? "停止听写"
+        : "开始听写";
   const handleMicClick = useCallback(() => {
     if (isDictationProcessing) {
       if (disabled || !onCancelDictation) {
@@ -451,8 +470,8 @@ export function ComposerInput({
             className="composer-attach"
             onClick={onAddAttachment}
             disabled={disabled || !onAddAttachment}
-            aria-label="Add image"
-            title="Add image"
+            aria-label="添加图片"
+            title="添加图片"
           >
             <ImagePlus size={14} aria-hidden />
           </button>
@@ -467,8 +486,8 @@ export function ComposerInput({
               disabled={disabled}
               aria-expanded={mobileActionsOpen}
               aria-haspopup="menu"
-              aria-label="More actions"
-              title="More actions"
+              aria-label="更多操作"
+              title="更多操作"
             >
               <Plus size={14} aria-hidden />
             </button>
@@ -479,7 +498,7 @@ export function ComposerInput({
                   disabled={disabled || !onAddAttachment}
                   icon={<ImagePlus size={14} />}
                 >
-                  Add image
+                  添加图片
                 </PopoverMenuItem>
                 {onToggleExpand && (
                   <PopoverMenuItem
@@ -493,7 +512,7 @@ export function ComposerInput({
                       )
                     }
                   >
-                    {isExpanded ? "Collapse input" : "Expand input"}
+                    {isExpanded ? "收起输入框" : "展开输入框"}
                   </PopoverMenuItem>
                 )}
                 {(onToggleDictation || onOpenDictationSettings || onCancelDictation) && (
@@ -520,8 +539,8 @@ export function ComposerInput({
             ref={textareaRef}
             placeholder={
               disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                ? "审查进行中，完成后会重新启用对话。"
+                : "让 Codex 帮你处理事情..."
             }
             value={text}
             onChange={handleTextareaChange}
@@ -623,7 +642,9 @@ export function ComposerInput({
                 return (
                   <div key={item.id}>
                     {showGroup && (
-                      <div className="composer-suggestion-section">{item.group}</div>
+                      <div className="composer-suggestion-section">
+                        {formatSuggestionGroupLabel(item.group)}
+                      </div>
                     )}
                     <button
                       type="button"
@@ -698,8 +719,8 @@ export function ComposerInput({
           }`}
           onClick={onToggleExpand}
           disabled={disabled}
-          aria-label={isExpanded ? "Collapse input" : "Expand input"}
-          title={isExpanded ? "Collapse input" : "Expand input"}
+          aria-label={isExpanded ? "收起输入框" : "展开输入框"}
+          title={isExpanded ? "收起输入框" : "展开输入框"}
         >
           {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
         </button>
@@ -729,8 +750,8 @@ export function ComposerInput({
         }`}
         onClick={handleActionClick}
         disabled={(disabled && !canStop) || isDictationBusy || (!canStop && !canSend)}
-        aria-label={canStop ? "Stop" : sendLabel}
-        title={canStop ? "Stop" : sendLabel}
+        aria-label={canStop ? "停止" : sendLabel}
+        title={canStop ? "停止" : sendLabel}
       >
         {canStop ? (
           <>

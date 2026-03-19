@@ -77,7 +77,7 @@ export function WorkspaceHomeRunControls({
   const selectedModelLabel = resolveModelLabel(selectedModel);
   const modelSummary = buildModelSummary(models, modelSelections);
   const showRunMode = (workspaceKind ?? "main") !== "worktree";
-  const runModeLabel = runMode === "local" ? "Local" : "Worktree";
+  const runModeLabel = runMode === "local" ? "本地" : "工作树";
   const RunModeIcon = runMode === "local" ? Laptop : GitBranch;
   const toggleRunModeMenu = useCallback(() => {
     toggleRunModeOpen();
@@ -100,7 +100,7 @@ export function WorkspaceHomeRunControls({
               type="button"
               className="ghost open-app-action"
               onClick={toggleRunModeMenu}
-              aria-label="Select run mode"
+              aria-label="选择运行模式"
               data-tauri-drag-region="false"
             >
               <span className="open-app-label">
@@ -112,7 +112,7 @@ export function WorkspaceHomeRunControls({
           isOpen={runModeOpen}
           onToggle={toggleRunModeMenu}
           toggleClassName="ghost open-app-toggle"
-          toggleAriaLabel="Toggle run mode menu"
+          toggleAriaLabel="切换运行模式菜单"
           toggleIcon={<ChevronDown size={14} aria-hidden />}
           popoverClassName="open-app-dropdown workspace-home-dropdown"
           popoverRole="menu"
@@ -127,7 +127,7 @@ export function WorkspaceHomeRunControls({
             icon={<Laptop className="workspace-home-mode-icon" aria-hidden />}
             active={runMode === "local"}
           >
-            Local
+            本地
           </PopoverMenuItem>
           <PopoverMenuItem
             className="open-app-option"
@@ -139,7 +139,7 @@ export function WorkspaceHomeRunControls({
             icon={<GitBranch className="workspace-home-mode-icon" aria-hidden />}
             active={runMode === "worktree"}
           >
-            Worktree
+            工作树
           </PopoverMenuItem>
         </SplitActionMenu>
       )}
@@ -153,7 +153,7 @@ export function WorkspaceHomeRunControls({
             type="button"
             className="ghost open-app-action"
             onClick={toggleModelsMenu}
-            aria-label="Select models"
+            aria-label="选择模型"
             data-tauri-drag-region="false"
           >
             <span className="open-app-label">
@@ -164,14 +164,14 @@ export function WorkspaceHomeRunControls({
         isOpen={modelsOpen}
         onToggle={toggleModelsMenu}
         toggleClassName="ghost open-app-toggle"
-        toggleAriaLabel="Toggle models menu"
+        toggleAriaLabel="切换模型菜单"
         toggleIcon={<ChevronDown size={14} aria-hidden />}
         popoverClassName="open-app-dropdown workspace-home-dropdown workspace-home-model-dropdown"
         popoverRole="menu"
       >
         {models.length === 0 && (
           <div className="workspace-home-empty">
-            Connect this workspace to load available models.
+            连接此项目后即可加载可用模型。
           </div>
         )}
         {models.map((model) => {
@@ -244,7 +244,7 @@ export function WorkspaceHomeRunControls({
             </span>
             <select
               className="composer-select composer-select--model"
-              aria-label="Collaboration mode"
+              aria-label="协作模式"
               value={selectedCollaborationModeId ?? ""}
               onChange={(event) => onSelectCollaborationMode(event.target.value || null)}
               disabled={isSubmitting}
@@ -290,12 +290,12 @@ export function WorkspaceHomeRunControls({
           </span>
           <select
             className="composer-select composer-select--effort"
-            aria-label="Thinking mode"
+            aria-label="思考模式"
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
             disabled={isSubmitting || !reasoningSupported}
           >
-            {reasoningOptions.length === 0 && <option value="">Default</option>}
+            {reasoningOptions.length === 0 && <option value="">默认</option>}
             {reasoningOptions.map((effortOption) => (
               <option key={effortOption} value={effortOption}>
                 {effortOption}

@@ -488,7 +488,7 @@ export function useWorkspaceHome({
             activate: false,
           });
           if (!threadId) {
-            throw new Error("Failed to start a local thread.");
+            throw new Error("启动本地会话失败。");
           }
           seedThreadCodexParams?.(activeWorkspace.id, threadId, {
             modelId: selectedModelId,
@@ -511,7 +511,7 @@ export function useWorkspaceHome({
             workspaceId: activeWorkspace.id,
             threadId,
             modelId: selectedModelId ?? null,
-            modelLabel: resolveModelLabel(model, "Default model"),
+            modelLabel: resolveModelLabel(model, "默认模型"),
             sequence: 1,
           });
         } catch (error) {

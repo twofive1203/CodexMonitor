@@ -896,7 +896,7 @@ export default function MainApp() {
   });
 
   const ensureLaunchTerminal = useCallback(
-    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", "Launch"),
+    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", "启动"),
     [ensureTerminalWithTitle],
   );
 
@@ -942,7 +942,7 @@ export default function MainApp() {
       return ensureTerminalWithTitle(
         workspaceId,
         `launch:${entry.id}`,
-        title || `Launch ${label}`,
+        title || `启动：${label}`,
       );
     },
     restartLaunchSession: restartTerminalSession,

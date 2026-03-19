@@ -23,7 +23,7 @@ function isRemoteServerConfigured(settings: AppSettings): boolean {
 }
 
 function defaultMobileSetupMessage(): string {
-  return "Enter your desktop Tailscale host and token, then run Connect & test.";
+  return "请输入桌面端的 Tailscale 主机和令牌，然后点击“连接并测试”。";
 }
 
 function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: number): AppSettings {

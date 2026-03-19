@@ -112,7 +112,7 @@ export function useAppShellOrchestration({
     showGitDetail,
     isThreadOpen,
     dropOverlayActive: isWorkspaceDropActive,
-    dropOverlayText: "Drop Project Here",
+    dropOverlayText: "将项目拖到这里",
     appClassName,
     appStyle,
   };

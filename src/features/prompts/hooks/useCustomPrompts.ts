@@ -120,7 +120,7 @@ export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsO
 
   const requireWorkspaceId = useCallback(() => {
     if (!workspaceId) {
-      throw new Error("No workspace selected.");
+      throw new Error("尚未选择项目。");
     }
     return workspaceId;
   }, [workspaceId]);

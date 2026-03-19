@@ -310,7 +310,7 @@ export function useThreads({
         dispatch({
           type: "addAssistantMessage",
           threadId: parentId,
-          text: `Detached review started. [Open review thread](/thread/${childId})`,
+          text: `独立审查已开始。[打开审查会话](/thread/${childId})`,
         });
       }
 
@@ -368,7 +368,7 @@ export function useThreads({
         dispatch({
           type: "addAssistantMessage",
           threadId: parentId,
-          text: `Detached review completed. [Open review thread](/thread/${threadId})`,
+          text: `独立审查已完成。[打开审查会话](/thread/${threadId})`,
         });
       }
       if (parentId !== activeThreadId) {

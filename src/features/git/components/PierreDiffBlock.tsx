@@ -82,7 +82,7 @@ export function PierreDiffBlock({
   );
 
   if (!diff.trim()) {
-    return <div className="diff-viewer-placeholder">Diff unavailable.</div>;
+    return <div className="diff-viewer-placeholder">无法显示差异。</div>;
   }
 
   return (

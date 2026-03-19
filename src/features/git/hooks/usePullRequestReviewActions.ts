@@ -13,10 +13,10 @@ import { pushErrorToast } from "@services/toasts";
 import { buildPullRequestReviewPrompt } from "@utils/pullRequestReviewPrompt";
 
 const REVIEW_ACTIONS: PullRequestReviewAction[] = [
-  { id: "pr-review-full", label: "Review PR", intent: "full" },
-  { id: "pr-review-risks", label: "Risk Scan", intent: "risks" },
-  { id: "pr-review-tests", label: "Test Plan", intent: "tests" },
-  { id: "pr-review-summary", label: "Summarize", intent: "summary" },
+  { id: "pr-review-full", label: "审查 PR", intent: "full" },
+  { id: "pr-review-risks", label: "风险扫描", intent: "risks" },
+  { id: "pr-review-tests", label: "测试计划", intent: "tests" },
+  { id: "pr-review-summary", label: "总结", intent: "summary" },
 ];
 
 type UsePullRequestReviewActionsOptions = {
@@ -92,7 +92,7 @@ export function usePullRequestReviewActions({
             activate: activateThread,
           });
         if (!reviewThreadId) {
-          throw new Error("Failed to start a review thread.");
+          throw new Error("启动审查会话失败。");
         }
 
         const prompt = buildPullRequestReviewPrompt({
@@ -110,7 +110,7 @@ export function usePullRequestReviewActions({
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         pushErrorToast({
-          title: "PR review failed",
+          title: "PR 审查失败",
           message,
         });
         return null;

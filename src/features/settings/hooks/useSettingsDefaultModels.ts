@@ -17,7 +17,7 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   connectedWorkspaceCount: 0,
 };
 
-const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
+const CONFIG_MODEL_DESCRIPTION = "在 CODEX_HOME/config.toml 中配置";
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -138,7 +138,7 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
               {
                 id: configModel,
                 model: configModel,
-                displayName: `${configModel} (config)`,
+                displayName: `${configModel}（配置）`,
                 description: CONFIG_MODEL_DESCRIPTION,
                 supportedReasoningEfforts: [],
                 defaultReasoningEffort: null,

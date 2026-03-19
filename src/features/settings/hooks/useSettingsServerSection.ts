@@ -96,7 +96,7 @@ const createRemoteBackendId = () =>
 
 const buildFallbackRemoteBackend = (settings: AppSettings): RemoteBackendTarget => ({
   id: settings.activeRemoteBackendId ?? "remote-default",
-  name: "Primary remote",
+  name: "主远程配置",
   provider: "tcp",
   host: settings.remoteBackendHost,
   token: settings.remoteBackendToken,
@@ -118,15 +118,15 @@ const getActiveRemoteBackend = (settings: AppSettings): RemoteBackendTarget => {
 const validateRemoteHost = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "Host is required.";
+    return "主机地址不能为空。";
   }
   const match = trimmed.match(/^([^:\s]+|\[[^\]]+\]):([0-9]{1,5})$/);
   if (!match) {
-    return "Use host:port (for example `macbook.tailnet.ts.net:4732`).";
+    return "请使用 host:port 格式，例如 `macbook.tailnet.ts.net:4732`。";
   }
   const port = Number(match[2]);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    return "Port must be between 1 and 65535.";
+    return "端口必须在 1 到 65535 之间。";
   }
   return null;
 };
@@ -134,10 +134,10 @@ const validateRemoteHost = (value: string): string | null => {
 const buildNextRemoteName = (remoteBackends: RemoteBackendTarget[]) => {
   const normalized = new Set(remoteBackends.map((entry) => entry.name.trim().toLowerCase()));
   let index = remoteBackends.length + 1;
-  let candidate = `Remote ${index}`;
+  let candidate = `远程配置 ${index}`;
   while (normalized.has(candidate.toLowerCase())) {
     index += 1;
-    candidate = `Remote ${index}`;
+    candidate = `远程配置 ${index}`;
   }
   return candidate;
 };
@@ -196,7 +196,7 @@ export const useSettingsServerSection = ({
     index: number,
   ): RemoteBackendTarget => ({
     id: entry.id?.trim() || `remote-${index + 1}`,
-    name: entry.name?.trim() || `Remote ${index + 1}`,
+    name: entry.name?.trim() || `远程配置 ${index + 1}`,
     provider: "tcp",
     host: entry.host?.trim() || DEFAULT_REMOTE_HOST,
     token: entry.token?.trim() ? entry.token.trim() : null,
@@ -289,7 +289,7 @@ export const useSettingsServerSection = ({
     setRemoteHostError(null);
     setRemoteHostDraft(normalizedHost);
     await updateActiveRemoteBackend({ host: normalizedHost });
-    setRemoteStatus("Remote host saved.");
+    setRemoteStatus("远程主机已保存。");
     return true;
   };
 
@@ -298,7 +298,7 @@ export const useSettingsServerSection = ({
     const active = getActiveRemoteBackend(latestSettings);
     const nextName = remoteNameDraft.trim();
     if (!nextName) {
-      const message = "Name is required.";
+      const message = "名称不能为空。";
       setRemoteNameError(message);
       setRemoteStatus(message, true);
       return;
@@ -307,7 +307,7 @@ export const useSettingsServerSection = ({
       (entry) => entry.id !== active.id && entry.name.trim().toLowerCase() === nextName.toLowerCase(),
     );
     if (duplicate) {
-      const message = `A remote named "${nextName}" already exists.`;
+      const message = `名为“${nextName}”的远程配置已存在。`;
       setRemoteNameError(message);
       setRemoteStatus(message, true);
       return;
@@ -315,7 +315,7 @@ export const useSettingsServerSection = ({
     setRemoteNameError(null);
     setRemoteNameDraft(nextName);
     await updateActiveRemoteBackend({ name: nextName });
-    setRemoteStatus(`Saved remote name "${nextName}".`);
+    setRemoteStatus(`远程名称“${nextName}”已保存。`);
   };
 
   const handleCommitRemoteHost = async () => {
@@ -326,7 +326,7 @@ export const useSettingsServerSection = ({
     const nextToken = remoteTokenDraft.trim() ? remoteTokenDraft.trim() : null;
     setRemoteTokenDraft(nextToken ?? "");
     await updateActiveRemoteBackend({ token: nextToken });
-    setRemoteStatus("Remote token saved.");
+    setRemoteStatus("远程令牌已保存。");
   };
 
   const handleSelectRemoteBackend = async (id: string) => {
@@ -337,7 +337,7 @@ export const useSettingsServerSection = ({
       return;
     }
     await persistRemoteBackends(candidates, id);
-    setRemoteStatus(`Active remote set to "${selected.name}".`);
+    setRemoteStatus(`当前远程配置已切换为“${selected.name}”。`);
   };
 
   const handleAddRemoteBackend = async (draft: AddRemoteBackendDraft) => {
@@ -345,7 +345,7 @@ export const useSettingsServerSection = ({
     const existingBackends = getConfiguredRemoteBackends(latestSettings);
     const nextName = draft.name.trim();
     if (!nextName) {
-      const message = "Name is required.";
+      const message = "名称不能为空。";
       setRemoteStatus(message, true);
       throw new Error(message);
     }
@@ -353,7 +353,7 @@ export const useSettingsServerSection = ({
       (entry) => entry.name.trim().toLowerCase() === nextName.toLowerCase(),
     );
     if (duplicate) {
-      const message = `A remote named "${nextName}" already exists.`;
+      const message = `名为“${nextName}”的远程配置已存在。`;
       setRemoteStatus(message, true);
       throw new Error(message);
     }
@@ -365,7 +365,7 @@ export const useSettingsServerSection = ({
     }
     const nextToken = draft.token.trim() ? draft.token.trim() : null;
     if (!nextToken) {
-      const message = "Remote backend token is required.";
+      const message = "远程后端令牌不能为空。";
       setRemoteStatus(message, true);
       throw new Error(message);
     }
@@ -396,7 +396,6 @@ export const useSettingsServerSection = ({
 
       const workspaces = await listWorkspaces();
       const workspaceCount = workspaces.length;
-      const workspaceWord = workspaceCount === 1 ? "workspace" : "workspaces";
       const connectedBackends = candidateBackends.map((entry) =>
         entry.id === nextId ? { ...entry, lastConnectedAtMs: Date.now() } : entry,
       );
@@ -408,7 +407,7 @@ export const useSettingsServerSection = ({
       await onUpdateAppSettings(connectedSettings);
       latestSettingsRef.current = connectedSettings;
       setRemoteStatus(
-        `Added "${nextName}" and connected. ${workspaceCount} ${workspaceWord} reachable on the remote backend.`,
+        `已添加并连接“${nextName}”。远程后端当前可访问 ${workspaceCount} 个工作区。`,
       );
       await onMobileConnectSuccess?.();
     } catch (error) {
@@ -420,7 +419,7 @@ export const useSettingsServerSection = ({
           // Keep the original connection error surfaced below.
         }
       }
-      const message = formatErrorMessage(error, "Unable to connect to the new remote backend.");
+      const message = formatErrorMessage(error, "无法连接新的远程后端。");
       setRemoteStatus(message, true);
       throw new Error(message);
     }
@@ -453,14 +452,18 @@ export const useSettingsServerSection = ({
     nextBackends[index] = nextBackends[targetIndex];
     nextBackends[targetIndex] = entry;
     await persistRemoteBackends(nextBackends);
-    setRemoteStatus(`Moved "${entry.name}" ${direction}.`);
+    setRemoteStatus(
+      direction === "up"
+        ? `已将“${entry.name}”上移。`
+        : `已将“${entry.name}”下移。`,
+    );
   };
 
   const handleDeleteRemoteBackend = async (id: string) => {
     const latestSettings = latestSettingsRef.current;
     const existingBackends = getConfiguredRemoteBackends(latestSettings);
     if (existingBackends.length <= 1) {
-      setRemoteStatus("You need at least one remote.", true);
+      setRemoteStatus("至少需要保留一个远程配置。", true);
       return;
     }
     const index = existingBackends.findIndex((entry) => entry.id === id);
@@ -474,7 +477,7 @@ export const useSettingsServerSection = ({
         ? remaining[Math.min(index, remaining.length - 1)]?.id ?? remaining[0]?.id ?? null
         : latestSettings.activeRemoteBackendId;
     await persistRemoteBackends(remaining, nextActiveId);
-    setRemoteStatus(`Deleted "${removed.name}".`);
+    setRemoteStatus(`已删除“${removed.name}”。`);
   };
 
   const handleMobileConnectTest = () => {
@@ -484,7 +487,7 @@ export const useSettingsServerSection = ({
 
       if (!nextToken) {
         setMobileConnectStatusError(true);
-        setMobileConnectStatusText("Remote backend token is required.");
+        setMobileConnectStatusText("远程后端令牌不能为空。");
         return;
       }
 
@@ -509,20 +512,19 @@ export const useSettingsServerSection = ({
 
         const workspaces = await listWorkspaces();
         const workspaceCount = workspaces.length;
-        const workspaceWord = workspaceCount === 1 ? "workspace" : "workspaces";
         try {
           await updateActiveRemoteBackend({ lastConnectedAtMs: Date.now() });
         } catch {
           // Keep successful connectivity outcome even if timestamp persistence fails.
         }
         setMobileConnectStatusText(
-          `Connected. ${workspaceCount} ${workspaceWord} reachable on the remote backend.`,
+          `连接成功。远程后端当前可访问 ${workspaceCount} 个工作区。`,
         );
         await onMobileConnectSuccess?.();
       } catch (error) {
         setMobileConnectStatusError(true);
         setMobileConnectStatusText(
-          error instanceof Error ? error.message : "Unable to connect to remote backend.",
+          error instanceof Error ? error.message : "无法连接远程后端。",
         );
       } finally {
         setMobileConnectBusy(false);
@@ -547,7 +549,7 @@ export const useSettingsServerSection = ({
         setTailscaleStatus(status);
       } catch (error) {
         setTailscaleStatusError(
-          formatErrorMessage(error, "Unable to load Tailscale status."),
+          formatErrorMessage(error, "无法加载 Tailscale 状态。"),
         );
       } finally {
         setTailscaleStatusBusy(false);
@@ -564,7 +566,7 @@ export const useSettingsServerSection = ({
         setTailscaleCommandPreview(preview);
       } catch (error) {
         setTailscaleCommandError(
-          formatErrorMessage(error, "Unable to build Tailscale daemon command."),
+          formatErrorMessage(error, "无法生成 Tailscale 守护进程命令。"),
         );
       } finally {
         setTailscaleCommandBusy(false);
@@ -595,7 +597,7 @@ export const useSettingsServerSection = ({
             ? error.message
             : typeof error === "string"
               ? error
-              : "Unable to update mobile access daemon status.";
+              : "无法更新移动端访问守护进程状态。";
         setTcpDaemonStatus((prev) => ({
           state: "error",
           pid: null,

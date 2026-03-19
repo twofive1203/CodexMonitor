@@ -17,19 +17,19 @@ export function PlanReadyFollowupMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="Plan ready"
+        aria-label="计划已就绪"
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Plan ready</div>
+          <div className="request-user-input-title">计划已就绪</div>
         </div>
         <div className="request-user-input-body">
           <section className="request-user-input-question">
             <div className="request-user-input-question-text">
-              Start building from this plan, or describe changes to the plan.
+              按这个计划开始执行，或描述你希望调整的内容。
             </div>
             <textarea
               className="request-user-input-notes"
-              placeholder="Describe what you want to change in the plan..."
+              placeholder="描述你希望如何调整这个计划..."
               value={changes}
               onChange={(event) => setChanges(event.target.value)}
               rows={3}
@@ -49,10 +49,10 @@ export function PlanReadyFollowupMessage({
             }}
             disabled={!trimmed}
           >
-            Send changes
+            发送修改
           </button>
           <button type="button" className="primary" onClick={onAccept}>
-            Implement this plan
+            按此计划执行
           </button>
         </div>
       </div>

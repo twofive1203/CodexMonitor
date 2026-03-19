@@ -37,8 +37,8 @@ const MODIFIER_LABELS_OTHER: Record<string, string> = {
 };
 
 const KEY_LABELS: Record<string, string> = {
-  " ": "Space",
-  space: "Space",
+  " ": "空格",
+  space: "空格",
   escape: "Esc",
   arrowup: "↑",
   arrowdown: "↓",
@@ -47,19 +47,19 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 const ACCELERATOR_KEYS: Record<string, string> = {
-  " ": "Space",
-  space: "Space",
+  " ": "空格",
+  space: "空格",
   escape: "Esc",
   esc: "Esc",
-  enter: "Enter",
-  return: "Enter",
+  enter: "回车",
+  return: "回车",
   tab: "Tab",
-  backspace: "Backspace",
-  delete: "Delete",
-  arrowup: "Up",
-  arrowdown: "Down",
-  arrowleft: "Left",
-  arrowright: "Right",
+  backspace: "退格",
+  delete: "删除",
+  arrowup: "上",
+  arrowdown: "下",
+  arrowleft: "左",
+  arrowright: "右",
 };
 
 const MODIFIER_KEYS = new Set(["shift", "control", "alt", "meta"]);
@@ -101,7 +101,7 @@ export function parseShortcut(value: string | null | undefined): ShortcutDefinit
 
 export function formatShortcut(value: string | null | undefined): string {
   if (!value) {
-    return "Not set";
+    return "未设置";
   }
   const parsed = parseShortcut(value);
   if (!parsed) {

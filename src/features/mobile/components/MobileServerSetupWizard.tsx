@@ -32,28 +32,27 @@ export function MobileServerSetupWizard({
       className="mobile-setup-wizard-overlay"
       cardClassName="mobile-setup-wizard-card"
       onBackdropClick={onClose}
-      ariaLabel="Mobile server setup"
+      ariaLabel="移动端服务设置"
     >
       <div className="mobile-setup-wizard-header">
         <button
           type="button"
           className="ghost icon-button mobile-setup-wizard-close"
           onClick={onClose}
-          aria-label="Close mobile setup"
+          aria-label="关闭移动端设置"
         >
           <X aria-hidden />
         </button>
-        <div className="mobile-setup-wizard-kicker">Mobile Setup Required</div>
-        <h2 className="mobile-setup-wizard-title">Connect to your desktop backend</h2>
+        <div className="mobile-setup-wizard-kicker">需要完成移动端设置</div>
+        <h2 className="mobile-setup-wizard-title">连接桌面端后端</h2>
         <p className="mobile-setup-wizard-subtitle">
-          Complete this setup before using the app. Use the same connection details configured on
-          your desktop CodexMonitor server settings.
+          使用应用前请先完成此设置。请使用与你桌面端 CodexMonitor 服务设置中相同的连接信息。
         </p>
       </div>
 
       <div className="mobile-setup-wizard-body">
         <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-host">
-          Tailscale host
+          Tailscale 主机
         </label>
         <input
           id="mobile-setup-host"
@@ -65,14 +64,14 @@ export function MobileServerSetupWizard({
         />
 
         <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-token">
-          Remote backend token
+          远程后端令牌
         </label>
         <input
           id="mobile-setup-token"
           type="password"
           className="mobile-setup-wizard-input"
           value={remoteTokenDraft}
-          placeholder="Token"
+          placeholder="令牌"
           onChange={(event) => onRemoteTokenChange(event.target.value)}
           disabled={busy || checking}
         />
@@ -83,7 +82,7 @@ export function MobileServerSetupWizard({
           onClick={onConnectTest}
           disabled={busy || checking}
         >
-          {checking ? "Checking..." : busy ? "Connecting..." : "Connect & test"}
+          {checking ? "检查中..." : busy ? "连接中..." : "连接并测试"}
         </button>
 
         {statusMessage ? (
@@ -99,7 +98,7 @@ export function MobileServerSetupWizard({
         ) : null}
 
         <div className="mobile-setup-wizard-hint">
-          Use the Tailscale host from desktop Server settings and keep the desktop daemon running.
+          请使用桌面端服务设置中的 Tailscale 主机，并保持桌面端守护进程持续运行。
         </div>
       </div>
     </ModalShell>
