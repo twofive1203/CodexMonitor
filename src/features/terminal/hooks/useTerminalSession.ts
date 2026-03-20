@@ -69,6 +69,20 @@ function shouldIgnoreTerminalError(error: unknown) {
   );
 }
 
+/**
+ * 生成终端面板展示用的启动失败文案。
+ *
+ * `error`：终端启动过程中抛出的原始异常对象。
+ */
+function formatTerminalStartupError(error: unknown) {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const message = rawMessage.trim();
+  if (!message || message === "[object Object]") {
+    return "终端会话启动失败。";
+  }
+  return `终端会话启动失败：${message}`;
+}
+
 function getTerminalAppearance(container: HTMLElement | null): TerminalAppearance {
   if (typeof window === "undefined") {
     return {
@@ -338,7 +352,7 @@ export function useTerminalSession({
         openedSessionsRef.current.add(key);
       }
       setStatus("ready");
-      setMessage("Terminal ready.");
+      setMessage("终端已就绪。");
       setHasSession(true);
       setReadyKey(key);
       if (renderedKeyRef.current !== key) {
@@ -351,7 +365,7 @@ export function useTerminalSession({
 
     openSession().catch((error) => {
       setStatus("error");
-      setMessage("Failed to start terminal session.");
+      setMessage(formatTerminalStartupError(error));
       onDebug?.(buildErrorDebugEntry("terminal open error", error));
     });
   }, [

@@ -14,6 +14,7 @@ struct HttpServerContext {
     state: Arc<DaemonState>,
     config: Arc<DaemonConfig>,
     events: broadcast::Sender<DaemonEvent>,
+    terminal_events: broadcast::Sender<terminal::WebTerminalEvent>,
     static_dir: Option<PathBuf>,
 }
 
@@ -62,10 +63,12 @@ pub(super) async fn serve(
     events: broadcast::Sender<DaemonEvent>,
     static_dir: Option<PathBuf>,
 ) -> Result<(), String> {
+    let (terminal_events, _) = broadcast::channel::<terminal::WebTerminalEvent>(256);
     let context = HttpServerContext {
         state,
         config,
         events,
+        terminal_events,
         static_dir,
     };
     let app: Router = routes::build_router(context);

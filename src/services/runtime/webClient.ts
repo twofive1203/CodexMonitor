@@ -6,6 +6,11 @@ import {
 } from "./capabilities";
 import type { RuntimeEventName, RuntimeSubscribeOptions } from "./events";
 import type { RuntimeClient, RuntimeUnsubscribe } from "./tauriClient";
+import {
+  disconnectWebTerminalClient,
+  invokeWebTerminalCommand,
+  subscribeWebTerminalEvent,
+} from "./webTerminalClient";
 
 type WebBootstrapPayload = {
   app?: {
@@ -23,10 +28,13 @@ type SessionState = {
 };
 
 const SESSION_EVENT_NAME = "codexmonitor:web-session-changed";
-const WEBSOCKET_EVENT_NAMES = new Set<RuntimeEventName>([
-  "app-server-event",
-  "terminal-output",
-  "terminal-exit",
+const WEBSOCKET_EVENT_NAMES = new Set<RuntimeEventName>(["app-server-event"]);
+const TERMINAL_EVENT_NAMES = new Set<RuntimeEventName>(["terminal-output", "terminal-exit"]);
+const TERMINAL_COMMANDS = new Set([
+  "terminal_open",
+  "terminal_write",
+  "terminal_resize",
+  "terminal_close",
 ]);
 
 let sessionState: SessionState = {
@@ -237,6 +245,7 @@ async function requestJson<T>(
   if (response.status === 401) {
     resetBootstrapCache();
     disconnectSocket();
+    disconnectWebTerminalClient("session required");
     setSessionState({
       resolved: true,
       authenticated: false,
@@ -345,6 +354,9 @@ async function invokeWebRuntime<T>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
+  if (TERMINAL_COMMANDS.has(command)) {
+    return invokeWebTerminalCommand<T>(command, args);
+  }
   if (command === "get_app_settings" && bootstrapHydration.settings && bootstrapCache) {
     bootstrapHydration.settings = false;
     return cloneJson(bootstrapCache.settings) as T;
@@ -455,6 +467,11 @@ async function subscribeWebRuntime<T>(
   onEvent: (payload: T) => void,
   options?: RuntimeSubscribeOptions,
 ): Promise<RuntimeUnsubscribe> {
+  if (TERMINAL_EVENT_NAMES.has(eventName)) {
+    return subscribeWebTerminalEvent(eventName, (payload) => {
+      onEvent(payload as T);
+    }, options);
+  }
   const current = listeners.get(eventName) ?? new Set<(payload: unknown) => void>();
   const wrapped = (payload: unknown) => {
     onEvent(payload as T);
@@ -514,6 +531,7 @@ export async function logoutWebSession() {
   }).catch(() => undefined);
   resetBootstrapCache();
   disconnectSocket();
+  disconnectWebTerminalClient("session logged out");
   setSessionState({
     resolved: true,
     authenticated: false,

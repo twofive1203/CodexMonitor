@@ -6,14 +6,14 @@ use super::ws;
 use super::HttpServerContext;
 use crate::types::BackendMode;
 use axum::{
-    Json, Router,
     extract::{Request, State},
-    http::{HeaderMap, HeaderValue, StatusCode, Uri, header::SET_COOKIE},
+    http::{header::SET_COOKIE, HeaderMap, HeaderValue, StatusCode, Uri},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
+    Json, Router,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tower_http::services::ServeDir;
 
 #[derive(Deserialize)]
@@ -41,7 +41,7 @@ fn web_capabilities() -> Value {
         "dictation": false,
         "revealInDir": false,
         "openAppIcon": false,
-        "terminal": false,
+        "terminal": true,
     })
 }
 
@@ -83,10 +83,7 @@ async fn login(
     response
 }
 
-async fn logout(
-    State(context): State<HttpServerContext>,
-    headers: HeaderMap,
-) -> Response {
+async fn logout(State(context): State<HttpServerContext>, headers: HeaderMap) -> Response {
     if let Some(session_id) = get_cookie(&headers, WEB_SESSION_COOKIE_NAME) {
         context.state.invalidate_web_session(&session_id).await;
     }
@@ -97,10 +94,7 @@ async fn logout(
     response
 }
 
-async fn bootstrap(
-    State(context): State<HttpServerContext>,
-    headers: HeaderMap,
-) -> Response {
+async fn bootstrap(State(context): State<HttpServerContext>, headers: HeaderMap) -> Response {
     if let Err(response) = require_session(&context, &headers).await {
         return response;
     }
@@ -196,6 +190,7 @@ pub(super) fn build_router(context: HttpServerContext) -> Router {
         .route("/api/bootstrap", get(bootstrap))
         .route("/api/rpc", post(rpc))
         .route("/api/ws/events", get(ws::events))
+        .route("/api/ws/terminal", get(ws::terminal))
         .route("/", get(index))
         .fallback(get(fallback))
         .with_state(context.clone());

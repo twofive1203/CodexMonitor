@@ -25,6 +25,8 @@ mod rules;
 mod shared;
 #[path = "../storage.rs"]
 mod storage;
+#[path = "codex_monitor_daemon/terminal.rs"]
+mod terminal;
 #[path = "codex_monitor_daemon/transport.rs"]
 mod transport;
 #[allow(dead_code)]
@@ -159,6 +161,7 @@ struct DaemonState {
     data_dir: PathBuf,
     workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    terminal_sessions: Mutex<HashMap<String, Arc<shared::terminal_core::TerminalSession>>>,
     storage_path: PathBuf,
     settings_path: PathBuf,
     app_settings: Mutex<AppSettings>,
@@ -192,6 +195,7 @@ impl DaemonState {
             data_dir: config.data_dir.clone(),
             workspaces: Mutex::new(workspaces),
             sessions: Mutex::new(HashMap::new()),
+            terminal_sessions: Mutex::new(HashMap::new()),
             storage_path,
             settings_path,
             app_settings: Mutex::new(app_settings),
@@ -823,8 +827,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -2049,9 +2052,14 @@ fn main() {
             let web_config = Arc::clone(&config);
             let web_events = events_tx.clone();
             tokio::spawn(async move {
-                if let Err(err) =
-                    http::serve(web_listener, web_state, web_config, web_events, web_static_dir)
-                        .await
+                if let Err(err) = http::serve(
+                    web_listener,
+                    web_state,
+                    web_config,
+                    web_events,
+                    web_static_dir,
+                )
+                .await
                 {
                     eprintln!("web listener stopped: {err}");
                 }
