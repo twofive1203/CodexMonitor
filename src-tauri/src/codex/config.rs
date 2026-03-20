@@ -45,10 +45,10 @@ pub(crate) fn write_apps_enabled(enabled: bool) -> Result<(), String> {
 pub(crate) fn write_feature_enabled(feature_key: &str, enabled: bool) -> Result<(), String> {
     let key = feature_key.trim();
     if key.is_empty() {
-        return Err("feature key is empty".to_string());
+        return Err("功能键不能为空。".to_string());
     }
     if key.eq_ignore_ascii_case("collab") {
-        return Err("feature key `collab` is no longer supported; use `multi_agent`".to_string());
+        return Err("功能键 `collab` 已不再支持，请改用 `multi_agent`。".to_string());
     }
     write_feature_flag(key, enabled)
 }
@@ -87,7 +87,7 @@ pub(crate) fn config_toml_path() -> Option<PathBuf> {
 pub(crate) fn read_config_model(codex_home: Option<PathBuf>) -> Result<Option<String>, String> {
     let root = codex_home.or_else(resolve_default_codex_home);
     let Some(root) = root else {
-        return Err("Unable to resolve CODEX_HOME".to_string());
+        return Err("无法解析 CODEX_HOME 目录。".to_string());
     };
     let (_, document) = config_toml_core::load_global_config_document(&root)?;
     Ok(config_toml_core::read_top_level_string(&document, "model"))

@@ -50,20 +50,20 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
 
   const compactEmptyCodexNode = (
     <div className="compact-empty">
-      <h3>No workspace selected</h3>
-      <p>Choose a project to start chatting.</p>
+      <h3>未选择工作区</h3>
+      <p>请选择一个项目开始对话。</p>
       <button className="ghost" onClick={options.compactNavProps.onGoProjects}>
-        Go to Projects
+        前往项目列表
       </button>
     </div>
   );
 
   const compactEmptyGitNode = (
     <div className="compact-empty">
-      <h3>No workspace selected</h3>
-      <p>Select a project to inspect diffs.</p>
+      <h3>未选择工作区</h3>
+      <p>请选择一个项目查看差异。</p>
       <button className="ghost" onClick={options.compactNavProps.onGoProjects}>
-        Go to Projects
+        前往项目列表
       </button>
     </div>
   );
@@ -78,7 +78,7 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
         className={`compact-git-switch-button${compactGitDiffActive ? "" : " active"}`}
         onClick={options.compactNavProps.onBackFromDiff}
       >
-        Files
+        文件
       </button>
       <button
         type="button"
@@ -86,7 +86,7 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
         onClick={options.compactNavProps.onShowSelectedDiff}
         disabled={!options.compactNavProps.hasActiveGitDiffs}
       >
-        Diff
+        差异
       </button>
     </div>
   );

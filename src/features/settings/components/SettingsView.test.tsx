@@ -97,7 +97,7 @@ const baseSettings: AppSettings = {
   remoteBackends: [
     {
       id: "remote-default",
-      name: "Primary remote",
+      name: "主远程连接",
       provider: "tcp",
       host: "127.0.0.1:4732",
       token: null,
@@ -226,7 +226,7 @@ const renderDisplaySection = (
     onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces: [],
-    ungroupedLabel: "Ungrouped",
+    ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
     onDeleteWorkspace: vi.fn(),
@@ -248,7 +248,7 @@ const renderDisplaySection = (
   };
 
   render(<SettingsView {...props} />);
-  fireEvent.click(screen.getByRole("button", { name: "Display & Sound" }));
+  fireEvent.click(screen.getByRole("button", { name: "显示与声音" }));
 
   return { onUpdateAppSettings, onToggleTransparency };
 };
@@ -270,7 +270,7 @@ const renderComposerSection = (
     onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces: [],
-    ungroupedLabel: "Ungrouped",
+    ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
     onDeleteWorkspace: vi.fn(),
@@ -319,7 +319,7 @@ const renderAboutSection = (
     onToggleAutomaticAppUpdateChecks,
     workspaceGroups: [],
     groupedWorkspaces: [],
-    ungroupedLabel: "Ungrouped",
+    ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
     onDeleteWorkspace: vi.fn(),
@@ -341,7 +341,7 @@ const renderAboutSection = (
   };
 
   render(<SettingsView {...props} />);
-  fireEvent.click(screen.getByRole("button", { name: "About" }));
+  fireEvent.click(screen.getByRole("button", { name: "关于" }));
 
   return { onUpdateAppSettings, onToggleAutomaticAppUpdateChecks };
 };
@@ -390,13 +390,13 @@ const renderFeaturesSection = (
     onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces: [
-      {
-        id: null,
-        name: "Ungrouped",
-        workspaces: [workspace({ id: "w-features", name: "Features Workspace", connected: true })],
-      },
-    ],
-    ungroupedLabel: "Ungrouped",
+        {
+          id: null,
+          name: "未分组",
+          workspaces: [workspace({ id: "w-features", name: "Features Workspace", connected: true })],
+        },
+      ],
+    ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
     onDeleteWorkspace: vi.fn(),
@@ -469,7 +469,7 @@ const renderEnvironmentsSection = (
       [
         {
           id: null,
-          name: "Ungrouped",
+          name: "未分组",
           workspaces: [
             workspace({
               id: "w1",
@@ -482,7 +482,7 @@ const renderEnvironmentsSection = (
           ],
         },
       ],
-    ungroupedLabel: "Ungrouped",
+    ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
     onDeleteWorkspace: vi.fn(),
@@ -513,7 +513,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const select = screen.getByLabelText("Theme");
+    const select = screen.getByLabelText("主题");
     fireEvent.change(select, { target: { value: "dark" } });
 
     await waitFor(() => {
@@ -528,7 +528,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Codex limits")
+      .getByText("显示 Codex 剩余额度")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -553,7 +553,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show file path in messages")
+      .getByText("在消息中显示文件路径")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected file path visibility row");
@@ -578,7 +578,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Split chat and diff center panes")
+      .getByText("拆分聊天与差异中央面板")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected split center panes row");
@@ -601,7 +601,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onToggleTransparency, reduceTransparency: false });
 
     const row = screen
-      .getByText("Reduce transparency")
+      .getByText("降低透明效果")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected reduce transparency row");
@@ -623,7 +623,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const scaleInput = screen.getByLabelText("Interface scale");
+    const scaleInput = screen.getByLabelText("界面缩放");
 
     fireEvent.change(scaleInput, { target: { value: "500%" } });
     fireEvent.blur(scaleInput);
@@ -648,7 +648,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const uiFontInput = screen.getByLabelText("UI font family");
+    const uiFontInput = screen.getByLabelText("界面字体");
     fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
     fireEvent.blur(uiFontInput);
 
@@ -658,7 +658,7 @@ describe("SettingsView Display", () => {
       );
     });
 
-    const codeFontInput = screen.getByLabelText("Code font family");
+    const codeFontInput = screen.getByLabelText("代码字体");
     fireEvent.change(codeFontInput, {
       target: { value: "JetBrains Mono, monospace" },
     });
@@ -675,7 +675,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const resetButtons = screen.getAllByRole("button", { name: "Reset" });
+    const resetButtons = screen.getAllByRole("button", { name: "重置" });
     fireEvent.click(resetButtons[1]);
     fireEvent.click(resetButtons[2]);
 
@@ -697,7 +697,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const slider = screen.getByLabelText("Code font size");
+    const slider = screen.getByLabelText("代码字号");
     fireEvent.change(slider, { target: { value: "14" } });
 
     await waitFor(() => {
@@ -715,7 +715,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Notification sounds")
+      .getByText("通知音效")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected notification sounds row");
@@ -737,7 +737,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Sub-agent notifications")
+      .getByText("子智能体通知")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected sub-agent notifications row");
@@ -761,7 +761,7 @@ describe("SettingsView About", () => {
     });
 
     const row = screen
-      .getByText("Automatically check for app updates")
+      .getByText("自动检查应用更新")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected automatic app update checks row");
@@ -780,13 +780,13 @@ describe("SettingsView Environments", () => {
     renderEnvironmentsSection({ onUpdateWorkspaceSettings });
 
     expect(
-      screen.getByText("Environments", { selector: ".settings-section-title" }),
+      screen.getByText("环境", { selector: ".settings-section-title" }),
     ).toBeTruthy();
     const textarea = screen.getByPlaceholderText("pnpm install");
     expect((textarea as HTMLTextAreaElement).value).toBe("echo one");
 
     fireEvent.change(textarea, { target: { value: "echo updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
@@ -802,7 +802,7 @@ describe("SettingsView Environments", () => {
 
     const textarea = screen.getByPlaceholderText("pnpm install");
     fireEvent.change(textarea, { target: { value: "   \n\t" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
@@ -823,7 +823,7 @@ describe("SettingsView Environments", () => {
     try {
       renderEnvironmentsSection();
 
-      fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+      fireEvent.click(screen.getByRole("button", { name: "复制" }));
 
       await waitFor(() => {
         expect(writeText).toHaveBeenCalledWith("echo one");
@@ -847,7 +847,7 @@ describe("SettingsView Codex section", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={vi.fn()}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -876,7 +876,7 @@ describe("SettingsView Codex section", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Review mode"), {
+    fireEvent.change(screen.getByLabelText("评审模式"), {
       target: { value: "detached" },
     });
 
@@ -893,7 +893,7 @@ describe("SettingsView Codex section", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={vi.fn()}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -926,11 +926,11 @@ describe("SettingsView Codex section", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Stop daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "启动守护进程" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "停止守护进程" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "刷新状态" })).toBeTruthy();
+      expect(screen.getByLabelText("远程后端主机")).toBeTruthy();
+      expect(screen.getByLabelText("远程后端令牌")).toBeTruthy();
     });
   });
 
@@ -968,7 +968,7 @@ describe("SettingsView Codex section", () => {
         <SettingsView
           workspaceGroups={[]}
           groupedWorkspaces={[]}
-          ungroupedLabel="Ungrouped"
+          ungroupedLabel="未分组"
           onClose={vi.fn()}
           onMoveWorkspace={vi.fn()}
           onDeleteWorkspace={vi.fn()}
@@ -1001,18 +1001,16 @@ describe("SettingsView Codex section", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
-        expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Connect & test" })).toBeTruthy();
+        expect(screen.getByLabelText("远程后端主机")).toBeTruthy();
+        expect(screen.getByLabelText("远程后端令牌")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "连接并测试" })).toBeTruthy();
       });
 
       expect(screen.queryByLabelText("Backend mode")).toBeNull();
-      expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "启动守护进程" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "检测 Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
-      expect(
-        screen.getByText(/get the tailscale hostname and token from your desktop/i),
-      ).toBeTruthy();
+      expect(screen.getByText(/Tailscale 主机名和令牌/)).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
         Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
@@ -1071,7 +1069,7 @@ describe("SettingsView Codex section", () => {
         <SettingsView
           workspaceGroups={[]}
           groupedWorkspaces={[]}
-          ungroupedLabel="Ungrouped"
+          ungroupedLabel="未分组"
           onClose={vi.fn()}
           onMoveWorkspace={vi.fn()}
           onDeleteWorkspace={vi.fn()}
@@ -1122,12 +1120,12 @@ describe("SettingsView Codex section", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByRole("list", { name: "Saved remotes" })).toBeTruthy();
-        expect(screen.getByLabelText("Remote name")).toBeTruthy();
+        expect(screen.getByRole("list", { name: "已保存的远程配置" })).toBeTruthy();
+        expect(screen.getByLabelText("远程名称")).toBeTruthy();
       });
-      expect(screen.getAllByText(/Last connected: Never/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/上次连接：\s*从未/).length).toBeGreaterThan(0);
 
-      fireEvent.click(screen.getByRole("button", { name: "Use Office Mac remote" }));
+      fireEvent.click(screen.getByRole("button", { name: "使用远程配置 Office Mac" }));
 
       await waitFor(() => {
         expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -1141,36 +1139,36 @@ describe("SettingsView Codex section", () => {
       });
 
       onUpdateAppSettings.mockClear();
-      fireEvent.change(screen.getByLabelText("Remote name"), {
+      fireEvent.change(screen.getByLabelText("远程名称"), {
         target: { value: "Home Mac" },
       });
-      fireEvent.blur(screen.getByLabelText("Remote name"));
+      fireEvent.blur(screen.getByLabelText("远程名称"));
 
       await waitFor(() => {
         expect(
-          screen.getAllByText('A remote named "Home Mac" already exists.').length,
+          screen.getAllByText('名为“Home Mac”的远程配置已存在。').length,
         ).toBeGreaterThan(0);
       });
 
       onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      expect(screen.getByRole("dialog", { name: "Add remote" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "添加远程配置" }));
+      expect(screen.getByRole("dialog", { name: "添加远程配置" })).toBeTruthy();
       expect(onUpdateAppSettings).toHaveBeenCalledTimes(0);
 
-      fireEvent.click(screen.getByRole("button", { name: "Close add remote modal" }));
-      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "关闭添加远程配置弹窗" }));
+      expect(screen.queryByRole("dialog", { name: "添加远程配置" })).toBeNull();
 
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      fireEvent.change(screen.getByLabelText("New remote name"), {
+      fireEvent.click(screen.getByRole("button", { name: "添加远程配置" }));
+      fireEvent.change(screen.getByLabelText("新远程名称"), {
         target: { value: "Travel Mac" },
       });
-      fireEvent.change(screen.getByLabelText("New remote host"), {
+      fireEvent.change(screen.getByLabelText("新远程主机"), {
         target: { value: "travel-mac.tailnet.ts.net:4732" },
       });
-      fireEvent.change(screen.getByLabelText("New remote token"), {
+      fireEvent.change(screen.getByLabelText("新远程令牌"), {
         target: { value: "token-travel" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
+      fireEvent.click(screen.getByRole("button", { name: "连接并添加" }));
 
       await waitFor(() => {
         expect(onUpdateAppSettings).toHaveBeenCalledTimes(2);
@@ -1186,22 +1184,22 @@ describe("SettingsView Codex section", () => {
         (entry) => entry.id === connectedSettings.activeRemoteBackendId,
       );
       expect(connectedEntry?.lastConnectedAtMs).toEqual(expect.any(Number));
-      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "添加远程配置" })).toBeNull();
       expect(listWorkspacesMock).toHaveBeenCalled();
 
       onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      fireEvent.change(screen.getByLabelText("New remote token"), {
+      fireEvent.click(screen.getByRole("button", { name: "添加远程配置" }));
+      fireEvent.change(screen.getByLabelText("新远程令牌"), {
         target: { value: "" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
+      fireEvent.click(screen.getByRole("button", { name: "连接并添加" }));
 
       await waitFor(() => {
-        expect(screen.getByText("Remote backend token is required.")).toBeTruthy();
+        expect(screen.getByText("远程后端令牌不能为空。")).toBeTruthy();
       });
 
       onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Move Home Mac down" }));
+      fireEvent.click(screen.getByRole("button", { name: "下移 Home Mac" }));
 
       await waitFor(() => {
         expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
@@ -1210,8 +1208,8 @@ describe("SettingsView Codex section", () => {
       });
 
       onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Delete Office Mac" }));
-      fireEvent.click(screen.getByRole("button", { name: "Delete remote" }));
+      fireEvent.click(screen.getByRole("button", { name: "删除 Office Mac" }));
+      fireEvent.click(screen.getByRole("button", { name: "删除远程配置" }));
 
       await waitFor(() => {
         expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
@@ -1288,11 +1286,11 @@ describe("SettingsView Codex defaults", () => {
         groupedWorkspaces={[
           {
             id: null,
-            name: "Ungrouped",
+            name: "未分组",
             workspaces: [workspace({ id: "w1", name: "Workspace", connected: true })],
           },
         ]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={vi.fn()}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1321,9 +1319,9 @@ describe("SettingsView Codex defaults", () => {
       />,
     );
 
-    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
+    const modelSelect = screen.getByLabelText("模型") as HTMLSelectElement;
     const effortSelect = screen.getByLabelText(
-      "Reasoning effort",
+      "推理强度",
     ) as HTMLSelectElement;
 
     await waitFor(() => {
@@ -1385,11 +1383,11 @@ describe("SettingsView Codex defaults", () => {
         groupedWorkspaces={[
           {
             id: null,
-            name: "Ungrouped",
+            name: "未分组",
             workspaces: [workspace({ id: "w1", name: "Workspace", connected: true })],
           },
         ]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={vi.fn()}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1418,9 +1416,9 @@ describe("SettingsView Codex defaults", () => {
       />,
     );
 
-    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
+    const modelSelect = screen.getByLabelText("模型") as HTMLSelectElement;
     const effortSelect = screen.getByLabelText(
-      "Reasoning effort",
+      "推理强度",
     ) as HTMLSelectElement;
 
     await waitFor(() => {
@@ -1456,7 +1454,7 @@ describe("SettingsView Features", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({ onUpdateAppSettings });
 
-    fireEvent.change(screen.getByLabelText("Personality"), {
+    fireEvent.change(screen.getByLabelText("人格风格"), {
       target: { value: "pragmatic" },
     });
 
@@ -1472,8 +1470,8 @@ describe("SettingsView Features", () => {
       appSettings: { steerEnabled: true },
     });
 
-    await screen.findByText("Background terminal");
-    expect(screen.queryByText("Steer mode")).toBeNull();
+    await screen.findByText("统一执行");
+    expect(screen.queryByText("引导")).toBeNull();
   });
 
   it("hides steer mode when returned as an experimental feature", async () => {
@@ -1505,9 +1503,9 @@ describe("SettingsView Features", () => {
     });
 
     await screen.findByText(
-      "Use Responses API WebSocket transport for OpenAI by default.",
+      "默认对 OpenAI 使用 Responses API WebSocket 传输。",
     );
-    expect(screen.queryByText("Steer mode")).toBeNull();
+    expect(screen.queryByText("引导")).toBeNull();
   });
 
   it("toggles background terminal in stable features", async () => {
@@ -1517,7 +1515,7 @@ describe("SettingsView Features", () => {
       appSettings: { unifiedExecEnabled: true },
     });
 
-    const terminalTitle = await screen.findByText("Background terminal");
+    const terminalTitle = await screen.findByText("统一执行");
     const terminalRow = terminalTitle.closest(".settings-toggle-row");
     expect(terminalRow).not.toBeNull();
 
@@ -1550,7 +1548,7 @@ describe("SettingsView Features", () => {
     });
 
     await screen.findByText(
-      "Use Responses API WebSocket transport for OpenAI by default.",
+      "默认对 OpenAI 使用 Responses API WebSocket 传输。",
     );
   });
 });
@@ -1565,7 +1563,7 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    const hintTitle = await screen.findByText("Show follow-up hint while processing");
+    const hintTitle = await screen.findByText("处理中显示后续提示");
     const hintRow = hintTitle.closest(".settings-toggle-row");
     expect(hintRow).not.toBeNull();
     fireEvent.click(within(hintRow as HTMLElement).getByRole("button"));
@@ -1587,7 +1585,7 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "Steer" }));
+    fireEvent.click(screen.getByRole("radio", { name: "引导" }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -1606,11 +1604,11 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    const steerOption = screen.getByRole("radio", { name: "Steer" });
+    const steerOption = screen.getByRole("radio", { name: "引导" });
     expect(steerOption.hasAttribute("disabled")).toBe(true);
     expect(
       screen.getByText(
-        "Steer is unavailable in the current Codex config. Follow-ups will queue.",
+        "当前 Codex 配置下无法使用引导模式，后续消息会自动进入排队。",
       ),
     ).not.toBeNull();
 
@@ -1671,7 +1669,7 @@ describe("SettingsView mobile layout", () => {
         <SettingsView
           workspaceGroups={[]}
           groupedWorkspaces={[]}
-          ungroupedLabel="Ungrouped"
+          ungroupedLabel="未分组"
           onClose={vi.fn()}
           onMoveWorkspace={vi.fn()}
           onDeleteWorkspace={vi.fn()}
@@ -1708,18 +1706,18 @@ describe("SettingsView mobile layout", () => {
 
       fireEvent.click(
         within(rendered.container).getByRole("button", {
-          name: "Display & Sound",
+          name: "显示与声音",
         }),
       );
 
       await waitFor(() => {
         expect(
           within(rendered.container).getByRole("button", {
-            name: "Back to settings sections",
+            name: "返回设置分区",
           }),
         ).toBeTruthy();
         expect(
-          within(rendered.container).getByText("Display & Sound", {
+          within(rendered.container).getByText("显示与声音", {
             selector: ".settings-mobile-detail-title",
           }),
         ).toBeTruthy();
@@ -1727,7 +1725,7 @@ describe("SettingsView mobile layout", () => {
 
       fireEvent.click(
         within(rendered.container).getByRole("button", {
-          name: "Back to settings sections",
+          name: "返回设置分区",
         }),
       );
 
@@ -1774,7 +1772,7 @@ describe("SettingsView Shortcuts", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={onClose}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1818,7 +1816,7 @@ describe("SettingsView Shortcuts", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={onClose}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1860,7 +1858,7 @@ describe("SettingsView Shortcuts", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={onClose}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1906,7 +1904,7 @@ describe("SettingsView Shortcuts", () => {
       <SettingsView
         workspaceGroups={[]}
         groupedWorkspaces={[]}
-        ungroupedLabel="Ungrouped"
+        ungroupedLabel="未分组"
         onClose={vi.fn()}
         onMoveWorkspace={vi.fn()}
         onDeleteWorkspace={vi.fn()}
@@ -1934,47 +1932,47 @@ describe("SettingsView Shortcuts", () => {
       />,
     );
 
-    const searchInput = screen.getByLabelText("Search shortcuts");
-    expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
-    expect(screen.getByText("Cycle model")).toBeTruthy();
+    const searchInput = screen.getByLabelText("搜索快捷键");
+    expect(screen.getByText("切换终端面板")).toBeTruthy();
+    expect(screen.getByText("切换模型")).toBeTruthy();
 
     await act(async () => {
-      fireEvent.change(searchInput, { target: { value: "navigation" } });
+      fireEvent.change(searchInput, { target: { value: "导航" } });
     });
     await waitFor(() => {
-      expect(screen.getByText("Next workspace")).toBeTruthy();
-      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
-    });
-
-    await act(async () => {
-      fireEvent.change(searchInput, { target: { value: "sidebars" } });
-    });
-    await waitFor(() => {
-      expect(screen.getByText("Toggle projects sidebar")).toBeTruthy();
-      expect(screen.queryByText("Next workspace")).toBeNull();
+      expect(screen.getByText("下一个工作区")).toBeTruthy();
+      expect(screen.queryByText("切换终端面板")).toBeNull();
     });
 
     await act(async () => {
-      fireEvent.change(searchInput, { target: { value: "new shortcut while focused" } });
+      fireEvent.change(searchInput, { target: { value: "侧边栏" } });
     });
     await waitFor(() => {
-      expect(screen.getByText("Cycle model")).toBeTruthy();
-      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
+      expect(screen.getByText("切换项目侧边栏")).toBeTruthy();
+      expect(screen.queryByText("下一个工作区")).toBeNull();
+    });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "聚焦输入框" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("切换模型")).toBeTruthy();
+      expect(screen.queryByText("切换终端面板")).toBeNull();
     });
 
     await act(async () => {
       fireEvent.change(searchInput, { target: { value: "no-such-shortcut" } });
     });
     await waitFor(() => {
-      expect(screen.getByText('No shortcuts match "no-such-shortcut".')).toBeTruthy();
+      expect(screen.getByText('未找到匹配的快捷键："no-such-shortcut"')).toBeTruthy();
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+      fireEvent.click(screen.getByRole("button", { name: "清空" }));
     });
     await waitFor(() => {
-      expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
-      expect(screen.queryByText('No shortcuts match "no-such-shortcut".')).toBeNull();
+      expect(screen.getByText("切换终端面板")).toBeTruthy();
+      expect(screen.queryByText('未找到匹配的快捷键："no-such-shortcut"')).toBeNull();
     });
   });
 });

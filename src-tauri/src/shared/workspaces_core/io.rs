@@ -188,7 +188,7 @@ pub(crate) async fn open_workspace_in_core(
     let output = if let Some(command) = command {
         let trimmed = command.trim();
         if trimmed.is_empty() {
-            return Err("Missing app or command".to_string());
+            return Err("缺少应用或命令。".to_string());
         }
         let launch_args =
             build_launch_args(&path, &args, line, column, command_launch_strategy(trimmed));
@@ -226,11 +226,11 @@ pub(crate) async fn open_workspace_in_core(
 
         cmd.output()
             .await
-            .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+            .map_err(|error| format!("无法打开应用（{target_label}）：{error}"))?
     } else if let Some(app) = app {
         let trimmed = app.trim();
         if trimmed.is_empty() {
-            return Err("Missing app or command".to_string());
+            return Err("缺少应用或命令。".to_string());
         }
         let app_strategy = app_launch_strategy(trimmed);
 
@@ -247,7 +247,7 @@ pub(crate) async fn open_workspace_in_core(
                 cmd.args(&launch_args);
                 cmd.output()
                     .await
-                    .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+                    .map_err(|error| format!("无法打开应用（{target_label}）：{error}"))?
             } else {
                 let mut cmd = tokio_command("open");
                 cmd.arg("-a").arg(trimmed).arg(&path);
@@ -256,7 +256,7 @@ pub(crate) async fn open_workspace_in_core(
                 }
                 cmd.output()
                     .await
-                    .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+                    .map_err(|error| format!("无法打开应用（{target_label}）：{error}"))?
             }
         }
 
@@ -267,10 +267,10 @@ pub(crate) async fn open_workspace_in_core(
             cmd.args(&launch_args);
             cmd.output()
                 .await
-                .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+                .map_err(|error| format!("无法打开应用（{target_label}）：{error}"))?
         }
     } else {
-        return Err("Missing app or command".to_string());
+        return Err("缺少应用或命令。".to_string());
     };
 
     if output.status.success() {
@@ -280,8 +280,8 @@ pub(crate) async fn open_workspace_in_core(
     let exit_detail = output
         .status
         .code()
-        .map(|code| format!("exit code {code}"))
-        .unwrap_or_else(|| "terminated by signal".to_string());
+        .map(|code| format!("退出码 {code}"))
+        .unwrap_or_else(|| "被信号终止".to_string());
     let mut details = Vec::new();
     if let Some(stderr) = output_snippet(&output.stderr) {
         details.push(format!("stderr: {stderr}"));
@@ -291,12 +291,10 @@ pub(crate) async fn open_workspace_in_core(
     }
 
     if details.is_empty() {
-        Err(format!(
-            "Failed to open app ({target_label} returned {exit_detail})."
-        ))
+        Err(format!("无法打开应用（{target_label}，{exit_detail}）。"))
     } else {
         Err(format!(
-            "Failed to open app ({target_label} returned {exit_detail}; {}).",
+            "无法打开应用（{target_label}，{exit_detail}；{}）。",
             details.join("; ")
         ))
     }

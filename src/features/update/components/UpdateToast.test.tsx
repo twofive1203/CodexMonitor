@@ -28,12 +28,12 @@ describe("UpdateToast", () => {
     const region = screen.getByRole("region");
     expect(region.getAttribute("aria-live")).toBe("polite");
     expect(screen.getByRole("status")).toBeTruthy();
-    expect(screen.getAllByText("Update")).toHaveLength(2);
+    expect(screen.getAllByText("更新")).toHaveLength(2);
     expect(screen.getByText("v1.2.3")).toBeTruthy();
-    expect(screen.getByText("A new version is available.")).toBeTruthy();
+    expect(screen.getByText("发现新版本。")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Later" }));
-    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    fireEvent.click(screen.getByRole("button", { name: "稍后" }));
+    fireEvent.click(screen.getByRole("button", { name: "更新" }));
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledTimes(1);
@@ -49,7 +49,7 @@ describe("UpdateToast", () => {
       <UpdateToast state={state} onUpdate={vi.fn()} onDismiss={vi.fn()} />,
     );
 
-    expect(screen.getByText(/Downloading update/)).toBeTruthy();
+    expect(screen.getByText("正在下载更新...")).toBeTruthy();
     expect(screen.getByText("500 B / 1000 B")).toBeTruthy();
     const fill = container.querySelector(".update-toast-progress-fill");
     expect(fill).toBeTruthy();
@@ -71,11 +71,11 @@ describe("UpdateToast", () => {
       <UpdateToast state={state} onUpdate={onUpdate} onDismiss={onDismiss} />,
     );
 
-    expect(screen.getByText("Update failed.")).toBeTruthy();
+    expect(screen.getByText("更新失败。")).toBeTruthy();
     expect(screen.getByText("Network error")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledTimes(1);
@@ -90,8 +90,8 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(scoped.getByText("You’re up to date.")).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    expect(scoped.getByText("当前已是最新版本。")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "关闭" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
@@ -114,9 +114,9 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(scoped.getByText("What's New")).toBeTruthy();
-    expect(scoped.getByText(/Loading release notes/i)).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    expect(scoped.getByText("更新内容")).toBeTruthy();
+    expect(scoped.getByText("更新成功，正在加载发布说明...")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "关闭" }));
     expect(onDismissPostUpdateNotice).toHaveBeenCalledTimes(1);
   });
 
@@ -145,10 +145,10 @@ describe("UpdateToast", () => {
     expect(scoped.getByText("Highlights")).toBeTruthy();
     expect(scoped.getByText("Added release notes toast")).toBeTruthy();
 
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "在 GitHub 查看" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
 
-    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    fireEvent.click(scoped.getByRole("button", { name: "关闭" }));
     expect(onDismissPostUpdateNotice).toHaveBeenCalledTimes(1);
   });
 
@@ -172,10 +172,10 @@ describe("UpdateToast", () => {
     const scoped = within(container);
 
     expect(
-      scoped.getByText("Updated to v1.2.3. Release notes could not be loaded."),
+      scoped.getByText("已更新到 v1.2.3，暂时无法加载发布说明。"),
     ).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
+    fireEvent.click(scoped.getByRole("button", { name: "在 GitHub 查看" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
-    expect(scoped.queryByText("A new version is available.")).toBeNull();
+    expect(scoped.queryByText("发现新版本。")).toBeNull();
   });
 });

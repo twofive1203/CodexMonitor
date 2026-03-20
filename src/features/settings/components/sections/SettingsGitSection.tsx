@@ -31,11 +31,11 @@ export function SettingsGitSection({
   return (
     <SettingsSection
       title="Git"
-      subtitle="管理 Git 侧边栏中 Diff 的加载方式。"
+      subtitle="管理 Git 侧边栏中差异的加载方式。"
     >
       <SettingsToggleRow
-        title="预加载 Git Diff"
-        subtitle="加快查看 Git Diff 的速度。"
+        title="预加载 Git 差异"
+        subtitle="加快查看 Git 差异的速度。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.preloadGitDiffs}
@@ -49,7 +49,7 @@ export function SettingsGitSection({
       </SettingsToggleRow>
       <SettingsToggleRow
         title="忽略空白变更"
-        subtitle="在本地 Diff 和提交 Diff 中隐藏仅空白字符的改动。"
+        subtitle="在本地差异和提交差异中隐藏仅空白字符的改动。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
@@ -64,7 +64,7 @@ export function SettingsGitSection({
       <div className="settings-field">
         <div className="settings-field-label">提交信息提示词</div>
         <div className="settings-help">
-          生成提交信息时会使用该提示词。包含 <code>{"{diff}"}</code> 可插入 Git Diff。
+          生成提交信息时会使用该提示词。包含 <code>{"{diff}"}</code> 可插入 Git 差异。
         </div>
         <textarea
           className="settings-agents-textarea"

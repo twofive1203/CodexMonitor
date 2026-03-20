@@ -59,7 +59,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   }, [pullRequest.number]);
 
   return (
-    <section className="diff-viewer-pr" aria-label="PR 概览">
+    <section className="diff-viewer-pr" aria-label="拉取请求概览">
       <div className="diff-viewer-pr-header">
         <div className="diff-viewer-pr-header-row">
           <div className="diff-viewer-pr-title">
@@ -89,7 +89,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
               <button
                 type="button"
                 className="ghost diff-viewer-pr-checkout"
-                aria-label={`检出 PR #${pullRequest.number} 分支`}
+                aria-label={`检出拉取请求 #${pullRequest.number} 分支`}
                 disabled={isCheckingOut}
                 onClick={() => {
                   setIsCheckingOut(true);
@@ -180,7 +180,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             </div>
           )}
           {visibleComments.map((comment) => {
-            const commentAuthor = comment.author?.login ?? "unknown";
+            const commentAuthor = comment.author?.login ?? "未知";
             const commentTime = formatRelativeTime(
               new Date(comment.createdAt).getTime(),
             );

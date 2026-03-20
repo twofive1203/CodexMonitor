@@ -368,8 +368,8 @@ export function useThreadSelectionHandlersOrchestration({
       const next = normalizeCodexArgsInput(value);
       if (next && getIgnoredCodexArgsFlagsMetadata(next).hasIgnoredFlags) {
         pushErrorToast({
-          title: "Some codex args are ignored",
-          message: "Selected flags are ignored for per-thread overrides.",
+          title: "部分 Codex 参数会被忽略",
+          message: "当前按会话覆盖时，所选参数标记不会生效。",
         });
       }
       setSelectedCodexArgsOverride?.(next);

@@ -115,8 +115,8 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     expect(pushErrorToast).toHaveBeenCalledTimes(1);
     expect(pushErrorToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: expect.stringMatching(/ignored/i),
-        message: expect.stringContaining("ignored for per-thread overrides"),
+        title: "部分 Codex 参数会被忽略",
+        message: "当前按会话覆盖时，所选参数标记不会生效。",
       }),
     );
   });

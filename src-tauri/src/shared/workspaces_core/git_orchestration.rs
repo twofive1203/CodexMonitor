@@ -41,18 +41,18 @@ pub(crate) async fn apply_worktree_changes_core(
         let entry = workspaces
             .get(&workspace_id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         if !entry.kind.is_worktree() {
-            return Err("Not a worktree workspace.".to_string());
+            return Err("当前工作区不是工作树。".to_string());
         }
         let parent_id = entry
             .parent_id
             .clone()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         let parent = workspaces
             .get(&parent_id)
             .cloned()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         (entry, parent)
     };
 
@@ -70,7 +70,7 @@ pub(super) async fn apply_worktree_changes_inner_core(
         git_core::run_git_command_bytes(&parent_root, &["status", "--porcelain"]).await?;
     if !String::from_utf8_lossy(&parent_status).trim().is_empty() {
         return Err(
-            "Your current branch has uncommitted changes. Please commit, stash, or discard them before applying worktree changes."
+            "当前分支有未提交的改动。请先提交、暂存或丢弃这些改动，再应用工作树改动。"
                 .to_string(),
         );
     }
@@ -113,11 +113,11 @@ pub(super) async fn apply_worktree_changes_inner_core(
     }
 
     if String::from_utf8_lossy(&patch).trim().is_empty() {
-        return Err("No changes to apply.".to_string());
+        return Err("没有可应用的改动。".to_string());
     }
 
     let git_bin =
-        crate::utils::resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+        crate::utils::resolve_git_binary().map_err(|e| format!("执行 git 失败：{e}"))?;
     let mut child = tokio_command(git_bin)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
@@ -126,19 +126,19 @@ pub(super) async fn apply_worktree_changes_inner_core(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|e| format!("执行 git 失败：{e}"))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(&patch)
             .await
-            .map_err(|e| format!("Failed to write git apply input: {e}"))?;
+            .map_err(|e| format!("写入 git apply 输入失败：{e}"))?;
     }
 
     let output = child
         .wait_with_output()
         .await
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|e| format!("执行 git 失败：{e}"))?;
 
     if output.status.success() {
         return Ok(());
@@ -152,18 +152,18 @@ pub(super) async fn apply_worktree_changes_inner_core(
         stderr.trim()
     };
     if detail.is_empty() {
-        return Err("Git apply failed.".to_string());
+        return Err("应用 Git 补丁失败。".to_string());
     }
 
     if detail.contains("Applied patch to") {
         if detail.contains("with conflicts") {
             return Err(
-                "Applied with conflicts. Resolve conflicts in the parent repo before retrying."
+                "补丁已应用，但存在冲突。请先在父仓库中解决冲突后再重试。"
                     .to_string(),
             );
         }
         return Err(
-            "Patch applied partially. Resolve changes in the parent repo before retrying."
+            "补丁仅部分应用成功。请先在父仓库中处理相关改动后再重试。"
                 .to_string(),
         );
     }

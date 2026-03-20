@@ -52,7 +52,7 @@ const PresetStep = memo(function PresetStep({
         disabled={isSubmitting}
       >
         <span className="review-inline-option-title">按基础分支审查</span>
-        <span className="review-inline-option-subtitle">（PR 模式）</span>
+        <span className="review-inline-option-subtitle">（拉取请求模式）</span>
       </button>
       <button
         type="button"

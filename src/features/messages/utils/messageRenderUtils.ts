@@ -100,21 +100,21 @@ function summarizeCollabLabel(title: string, status?: string) {
   const tool = title.replace(/^collab:\s*/i, "").trim().toLowerCase();
   const tone = statusToneFromText(status);
   if (tool.includes("wait")) {
-    return tone === "processing" ? "waiting for" : "waited for";
+    return tone === "processing" ? "等待" : "已等待";
   }
   if (tool.includes("resume")) {
-    return tone === "processing" ? "resuming" : "resumed";
+    return tone === "processing" ? "恢复" : "已恢复";
   }
   if (tool.includes("close")) {
-    return tone === "processing" ? "closing" : "closed";
+    return tone === "processing" ? "关闭" : "已关闭";
   }
   if (tool.includes("spawn")) {
-    return tone === "processing" ? "spawning" : "spawned";
+    return tone === "processing" ? "启动" : "已启动";
   }
   if (tool.includes("send") || tool.includes("interaction")) {
-    return tone === "processing" ? "sending to" : "sent to";
+    return tone === "processing" ? "发送给" : "已发送给";
   }
-  return "sub-agent";
+  return "子智能体";
 }
 
 function summarizeCollabReceiver(
@@ -144,8 +144,8 @@ export function toolNameFromTitle(title: string) {
   return segments.length ? segments[segments.length - 1] : "";
 }
 
-export function formatCount(value: number, singular: string, plural: string) {
-  return `${value} ${value === 1 ? singular : plural}`;
+export function formatCount(value: number, unit: string) {
+  return `${value}${unit}`;
 }
 
 function sanitizeReasoningTitle(title: string) {
@@ -171,7 +171,7 @@ export function parseReasoning(
     ? cleanTitle.length > 80
       ? `${cleanTitle.slice(0, 80)}…`
       : cleanTitle
-    : "Reasoning";
+    : "思考过程";
   const summaryLines = summary.split("\n");
   const contentLines = content.split("\n");
   const summaryBody =
@@ -233,7 +233,7 @@ function mergeExploreItems(
 ): Extract<ConversationItem, { kind: "explore" }> {
   const first = items[0];
   const last = items[items.length - 1];
-  const status = last?.status ?? "explored";
+    const status = last?.status ?? "explored";
   const entries = items.flatMap((item) => item.entries);
   return {
     id: first.id,
@@ -343,8 +343,8 @@ export function buildToolSummary(
   if (item.toolType === "commandExecution") {
     const cleanedCommand = cleanCommandText(commandText);
     return {
-      label: "command",
-      value: cleanedCommand || "Command",
+      label: "命令",
+      value: cleanedCommand || "命令",
       detail: "",
       output: item.output || "",
     };
@@ -352,23 +352,26 @@ export function buildToolSummary(
 
   if (item.toolType === "webSearch") {
     return {
-      label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
-      value: item.detail || "the web",
+      label: statusToneFromText(item.status) === "processing" ? "搜索中" : "已搜索",
+      value: item.detail || "网页",
     };
   }
 
   if (item.toolType === "imageView") {
     const file = basename(item.detail || "");
     return {
-      label: "read",
-      value: file || "image",
+      label: "查看",
+      value: file || "图片",
     };
   }
 
   if (item.toolType === "hook") {
     return {
-      label: "hook",
-      value: item.title.replace(/^Hook:\s*/i, "").trim() || item.title || "hook",
+      label: "钩子",
+      value:
+        item.title.replace(/^(Hook:|钩子[:：])\s*/i, "").trim() ||
+        item.title ||
+        "钩子",
       detail: item.detail || "",
       output: item.output || "",
     };
@@ -388,7 +391,7 @@ export function buildToolSummary(
     const args = parseToolArgs(item.detail);
     if (toolName.toLowerCase().includes("search")) {
       return {
-        label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
+        label: statusToneFromText(item.status) === "processing" ? "搜索中" : "已搜索",
         value:
           firstStringField(args, ["query", "pattern", "text"]) || item.detail,
       };
@@ -397,14 +400,14 @@ export function buildToolSummary(
       const targetPath =
         firstStringField(args, ["path", "file", "filename"]) || item.detail;
       return {
-        label: "read",
+        label: "读取",
         value: basename(targetPath),
         detail: targetPath && targetPath !== basename(targetPath) ? targetPath : "",
       };
     }
     if (toolName) {
       return {
-        label: "tool",
+        label: "工具",
         value: toolName,
         detail: item.detail || "",
       };
@@ -412,7 +415,7 @@ export function buildToolSummary(
   }
 
   return {
-    label: "tool",
+    label: "工具",
     value: item.title || "",
     detail: item.detail || "",
     output: item.output || "",
@@ -461,12 +464,25 @@ export function formatToolStatusLabel(
   item: Extract<ConversationItem, { kind: "tool" }>,
 ) {
   if (item.toolType !== "hook") {
-    return "";
+      return "";
   }
   const parts: string[] = [];
   const status = (item.status ?? "").trim().toLowerCase();
   if (status) {
-    parts.push(status.replace(/[_-]+/g, " "));
+    const normalizedStatus = status.replace(/[_-]+/g, " ");
+    const translatedStatus =
+      normalizedStatus === "failed"
+        ? "失败"
+        : normalizedStatus === "completed"
+          ? "已完成"
+          : normalizedStatus === "processing" ||
+              normalizedStatus === "running" ||
+              normalizedStatus === "started" ||
+              normalizedStatus === "in progress" ||
+              normalizedStatus === "pending"
+            ? "进行中"
+            : normalizedStatus;
+    parts.push(translatedStatus);
   }
   if (typeof item.durationMs === "number" && Number.isFinite(item.durationMs)) {
     parts.push(formatDurationMs(item.durationMs));
@@ -570,5 +586,16 @@ export function scrollKeyForItems(items: ConversationItem[]) {
 export function exploreKindLabel(
   kind: Extract<ConversationItem, { kind: "explore" }>["entries"][number]["kind"],
 ) {
-  return kind[0].toUpperCase() + kind.slice(1);
+  switch (kind) {
+    case "read":
+      return "读取";
+    case "search":
+      return "搜索";
+    case "list":
+      return "列出";
+    case "run":
+      return "运行";
+    default:
+      return kind;
+  }
 }

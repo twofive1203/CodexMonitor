@@ -102,7 +102,7 @@ async fn get_terminal_session(
     sessions
         .get(key)
         .cloned()
-        .ok_or_else(|| "Terminal session not found".to_string())
+        .ok_or_else(|| "终端会话不存在。".to_string())
 }
 
 async fn get_workspace_path(
@@ -113,7 +113,7 @@ async fn get_workspace_path(
     let workspaces = state.workspaces.lock().await;
     let entry = workspaces
         .get(workspace_id)
-        .ok_or_else(|| "Unknown workspace".to_string())?;
+        .ok_or_else(|| "未知工作区。".to_string())?;
     Ok(PathBuf::from(&entry.path))
 }
 
@@ -132,7 +132,7 @@ pub(crate) async fn open_web_terminal(
     terminal_events: broadcast::Sender<WebTerminalEvent>,
 ) -> Result<Value, String> {
     if terminal_id.trim().is_empty() {
-        return Err("Terminal id is required".to_string());
+        return Err("终端标识不能为空。".to_string());
     }
 
     let key = terminal_key(&client_id, &workspace_id, &terminal_id);
@@ -247,7 +247,7 @@ pub(crate) async fn close_web_terminal(
     let mut sessions = state.terminal_sessions.lock().await;
     let session = sessions
         .remove(&key)
-        .ok_or_else(|| "Terminal session not found".to_string())?;
+        .ok_or_else(|| "终端会话不存在。".to_string())?;
     drop(sessions);
     close_terminal_session(session).await
 }

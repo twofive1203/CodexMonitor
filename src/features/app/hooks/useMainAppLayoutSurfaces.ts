@@ -740,10 +740,10 @@ export function useMainAppLayoutSurfaces({
         onModeChange: gitState.handleGitPanelModeChange,
         filePanelMode: gitState.filePanelMode,
         onFilePanelModeChange: gitState.setFilePanelMode,
-        worktreeApplyLabel: "apply",
+        worktreeApplyLabel: "应用",
         worktreeApplyTitle: worktreeState.activeParentWorkspace?.name
-          ? `Apply changes to ${worktreeState.activeParentWorkspace.name}`
-          : "Apply changes to parent workspace",
+          ? `应用更改到 ${worktreeState.activeParentWorkspace.name}`
+          : "应用更改到父工作区",
         worktreeApplyLoading: worktreeState.isWorktreeWorkspace
           ? gitState.worktreeApplyLoading
           : false,
@@ -757,7 +757,7 @@ export function useMainAppLayoutSurfaces({
         onApplyWorktreeChanges: !webGitReadOnly && worktreeState.isWorktreeWorkspace
           ? gitState.handleApplyWorktreeChanges
           : undefined,
-        branchName: gitState.gitStatus.branchName || "unknown",
+        branchName: gitState.gitStatus.branchName || "未知",
         totalAdditions: gitState.gitStatus.totalAdditions,
         totalDeletions: gitState.gitStatus.totalDeletions,
         fileStatus: gitState.fileStatus,

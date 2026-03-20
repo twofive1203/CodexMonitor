@@ -478,10 +478,10 @@ export const Messages = memo(function Messages({
           const { group } = entry;
           const isCollapsed = collapsedToolGroups.has(group.id);
           const summaryParts = [
-            formatCount(group.toolCount, "tool call", "tool calls"),
+            formatCount(group.toolCount, "次工具调用"),
           ];
           if (group.messageCount > 0) {
-            summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+            summaryParts.push(formatCount(group.messageCount, "条消息"));
           }
           const summaryText = summaryParts.join(", ");
           const groupBodyId = `tool-group-${group.id}`;
@@ -498,7 +498,7 @@ export const Messages = memo(function Messages({
                   onClick={() => toggleToolGroup(group.id)}
                   aria-expanded={!isCollapsed}
                   aria-controls={groupBodyId}
-                  aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+                  aria-label={isCollapsed ? "展开工具调用" : "收起工具调用"}
                 >
                   <span className="tool-group-chevron" aria-hidden>
                     <ChevronIcon size={14} />
@@ -529,14 +529,14 @@ export const Messages = memo(function Messages({
       />
       {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
         <div className="empty messages-empty">
-          {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+          {threadId ? "发送提示词给智能体。" : "发送提示词以启动新智能体。"}
         </div>
       )}
       {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
         <div className="empty messages-empty">
           <div className="messages-loading-indicator" role="status" aria-live="polite">
             <span className="working-spinner" aria-hidden />
-            <span className="messages-loading-label">Loading…</span>
+            <span className="messages-loading-label">加载中...</span>
           </div>
         </div>
       )}

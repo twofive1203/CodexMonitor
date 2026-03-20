@@ -35,7 +35,7 @@ describe("threadItems", () => {
       id: "tool-1",
       kind: "tool",
       toolType: "fileChange",
-      title: "File changes",
+      title: "文件变更",
       detail: "",
       output,
     };
@@ -451,7 +451,7 @@ describe("threadItems", () => {
     });
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
-      expect(item.title).toBe("File changes");
+      expect(item.title).toBe("文件变更");
       expect(item.detail).toBe("A foo.txt");
       expect(item.output).toContain("diff --git a/foo.txt b/foo.txt");
       expect(item.changes?.[0]?.path).toBe("foo.txt");
@@ -467,7 +467,7 @@ describe("threadItems", () => {
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
       expect(item.toolType).toBe("webSearch");
-      expect(item.status).toBe("completed");
+      expect(item.status).toBe("已完成");
       expect(item.detail).toBe("codex monitor");
     }
   });
@@ -558,8 +558,8 @@ describe("threadItems", () => {
       id: "plan-1",
       kind: "tool",
       toolType: "plan",
-      title: "Plan",
-      detail: "Generating plan...",
+      title: "计划",
+      detail: "正在生成计划...",
       status: "in_progress",
       output: "## Plan\n- Step 1\n- Step 2",
     };
@@ -567,7 +567,7 @@ describe("threadItems", () => {
       id: "plan-1",
       kind: "tool",
       toolType: "plan",
-      title: "Plan",
+      title: "计划",
       detail: "",
       status: "completed",
       output: "",
@@ -812,8 +812,8 @@ describe("threadItems", () => {
     });
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
-      expect(item.title).toBe("Collab: handoff");
-      expect(item.detail).toContain("From thread-a");
+      expect(item.title).toBe("协作：handoff");
+      expect(item.detail).toContain("来自 thread-a");
       expect(item.detail).toContain("thread-b");
       expect(item.detail).toContain("thread-c");
       expect(item.output).toBe("Coordinate work\n\nagent-1: running");
@@ -882,7 +882,7 @@ describe("threadItems", () => {
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
       expect(item.toolType).toBe("contextCompaction");
-      expect(item.title).toBe("Context compaction");
+      expect(item.title).toBe("上下文压缩");
       expect(item.status).toBe("inProgress");
     }
   });
@@ -895,8 +895,8 @@ describe("threadItems", () => {
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
       expect(item.toolType).toBe("contextCompaction");
-      expect(item.title).toBe("Context compaction");
-      expect(item.status).toBe("completed");
+      expect(item.title).toBe("上下文压缩");
+      expect(item.status).toBe("已完成");
     }
   });
 

@@ -83,7 +83,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:accept]] Implement this plan.",
+      "[[cm_plan_ready:accept]] 按此计划执行。",
       [],
       {
         collaborationMode: {
@@ -119,7 +119,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:accept]] Implement this plan.",
+      "[[cm_plan_ready:accept]] 按此计划执行。",
       [],
       expect.objectContaining({
         collaborationMode: expect.objectContaining({
@@ -150,7 +150,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:accept]] Implement this plan.",
+      "[[cm_plan_ready:accept]] 按此计划执行。",
       [],
       { collaborationMode: null },
     );
@@ -177,7 +177,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:accept]] Implement this plan.",
+      "[[cm_plan_ready:accept]] 按此计划执行。",
       [],
       { collaborationMode: null },
     );
@@ -218,7 +218,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:changes]] Update the plan with these changes:\n\nAdd tests",
+      "[[cm_plan_ready:changes]] 请按以下修改调整计划：\n\nAdd tests",
       [],
       {
         collaborationMode: {
@@ -252,7 +252,7 @@ describe("usePlanReadyActions", () => {
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",
-      "[[cm_plan_ready:changes]] Update the plan with these changes:\n\nAdd tests",
+      "[[cm_plan_ready:changes]] 请按以下修改调整计划：\n\nAdd tests",
       [],
       { collaborationMode: null },
     );

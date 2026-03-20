@@ -39,18 +39,18 @@ pub(crate) async fn send_notification_fallback(title: String, body: String) -> R
             .arg("-e")
             .arg(script)
             .status()
-            .map_err(|error| format!("Failed to run osascript: {error}"))?;
+            .map_err(|error| format!("无法执行 osascript：{error}"))?;
 
         if status.success() {
             Ok(())
         } else {
-            Err(format!("osascript exited with status: {status}"))
+            Err(format!("osascript 退出状态异常：{status}"))
         }
     }
 
     #[cfg(not(all(target_os = "macos", debug_assertions)))]
     {
         let _ = (title, body);
-        Err("Notification fallback is only available on macOS debug builds.".to_string())
+        Err("通知兜底仅支持 macOS 调试构建。".to_string())
     }
 }

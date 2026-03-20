@@ -12,21 +12,21 @@ fn format_git_error(stdout: &[u8], stderr: &[u8]) -> String {
         stderr.trim()
     };
     if detail.is_empty() {
-        "Git command failed.".to_string()
+        "Git 命令执行失败。".to_string()
     } else {
         detail.to_string()
     }
 }
 
 pub(crate) async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_path)
         .env("PATH", git_env_path())
         .output()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     if output.status.success() {
         return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
     }
@@ -48,14 +48,14 @@ pub(crate) async fn run_git_command_bytes(
     repo_path: &PathBuf,
     args: &[&str],
 ) -> Result<Vec<u8>, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_path)
         .env("PATH", git_env_path())
         .output()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     if output.status.success() {
         return Ok(output.stdout);
     }
@@ -63,14 +63,14 @@ pub(crate) async fn run_git_command_bytes(
 }
 
 pub(crate) async fn run_git_diff(repo_path: &PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_path)
         .env("PATH", git_env_path())
         .output()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     if output.status.success() || output.status.code() == Some(1) {
         return Ok(output.stdout);
     }
@@ -82,26 +82,26 @@ pub(crate) fn is_missing_worktree_error(error: &str) -> bool {
 }
 
 pub(crate) async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let status = tokio_command(git_bin)
         .args(["show-ref", "--verify", &format!("refs/heads/{branch}")])
         .current_dir(repo_path)
         .env("PATH", git_env_path())
         .status()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     Ok(status.success())
 }
 
 pub(crate) async fn git_remote_exists(repo_path: &PathBuf, remote: &str) -> Result<bool, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let status = tokio_command(git_bin)
         .args(["remote", "get-url", remote])
         .current_dir(repo_path)
         .env("PATH", git_env_path())
         .status()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     Ok(status.success())
 }
 
@@ -110,7 +110,7 @@ pub(crate) async fn git_remote_branch_exists_live(
     remote: &str,
     branch: &str,
 ) -> Result<bool, String> {
-    let git_bin = resolve_git_binary().map_err(|err| format!("Failed to run git: {err}"))?;
+    let git_bin = resolve_git_binary().map_err(|err| format!("执行 git 失败：{err}"))?;
     let output = tokio_command(git_bin)
         .args([
             "ls-remote",
@@ -122,7 +122,7 @@ pub(crate) async fn git_remote_branch_exists_live(
         .env("PATH", git_env_path())
         .output()
         .await
-        .map_err(|err| format!("Failed to run git: {err}"))?;
+        .map_err(|err| format!("执行 git 失败：{err}"))?;
     if output.status.success() {
         return Ok(!String::from_utf8_lossy(&output.stdout).trim().is_empty());
     }
@@ -233,7 +233,7 @@ pub(crate) async fn unique_branch_name_live(
             return Ok((candidate, true));
         }
     }
-    Err("Unable to find an available branch name.".to_string())
+    Err("找不到可用的分支名称。".to_string())
 }
 
 pub(crate) async fn git_get_origin_url(repo_path: &PathBuf) -> Option<String> {

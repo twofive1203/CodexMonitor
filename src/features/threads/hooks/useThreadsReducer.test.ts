@@ -385,7 +385,7 @@ describe("threadReducer", () => {
       id: "plan-1",
       kind: "tool",
       toolType: "plan",
-      title: "Plan",
+      title: "计划",
       output: "- Step 1",
     });
   });

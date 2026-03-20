@@ -529,14 +529,11 @@ impl WorkspaceSession {
         }
         match timeout(REQUEST_TIMEOUT, rx).await {
             Ok(Ok(value)) => Ok(value),
-            Ok(Err(_)) => Err("request canceled".to_string()),
+            Ok(Err(_)) => Err("请求已取消。".to_string()),
             Err(_) => {
                 self.pending.lock().await.remove(&id);
                 self.request_context.lock().await.remove(&id);
-                Err(format!(
-                    "request timed out after {} seconds",
-                    REQUEST_TIMEOUT.as_secs()
-                ))
+                Err(format!("请求超时（{} 秒）。", REQUEST_TIMEOUT.as_secs()))
             }
         }
     }
@@ -707,15 +704,14 @@ pub(crate) async fn check_codex_installation(
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.".to_string()
+                "未找到 Codex CLI。请安装 Codex，并确认 `codex` 已加入 PATH。".to_string()
             } else {
                 e.to_string()
             }
         })?,
         Err(_) => {
             return Err(
-                "Timed out while checking Codex CLI. Make sure `codex --version` runs in Terminal."
-                    .to_string(),
+                "检查 Codex CLI 超时。请确认能在终端执行 `codex --version`。".to_string(),
             );
         }
     };
@@ -729,12 +725,10 @@ pub(crate) async fn check_codex_installation(
             stderr.trim()
         };
         if detail.is_empty() {
-            return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal.".to_string(),
-            );
+            return Err("Codex CLI 启动失败。请尝试在终端执行 `codex --version`。".to_string());
         }
         return Err(format!(
-            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
+            "Codex CLI 启动失败：{detail}。请尝试在终端执行 `codex --version`。"
         ));
     }
 
@@ -771,9 +765,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     command.stderr(std::process::Stdio::piped());
 
     let mut child = command.spawn().map_err(|e| e.to_string())?;
-    let stdin = child.stdin.take().ok_or("missing stdin")?;
-    let stdout = child.stdout.take().ok_or("missing stdout")?;
-    let stderr = child.stderr.take().ok_or("missing stderr")?;
+    let stdin = child.stdin.take().ok_or("缺少 stdin。")?;
+    let stdout = child.stdout.take().ok_or("缺少 stdout。")?;
+    let stderr = child.stderr.take().ok_or("缺少 stderr。")?;
 
     let session = Arc::new(WorkspaceSession {
         codex_args,

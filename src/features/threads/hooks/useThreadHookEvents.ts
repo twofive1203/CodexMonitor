@@ -70,7 +70,7 @@ function buildHookConversationItem(run: HookRun, status: string): ConversationIt
     id: `hook-${asString(run.id).trim()}`,
     kind: "tool",
     toolType: "hook",
-    title: `Hook: ${eventName || "unknown"}`,
+    title: `钩子：${eventName || "未知"}`,
     detail: formatHookDetail(run),
     status,
     output: formatHookOutput(run),

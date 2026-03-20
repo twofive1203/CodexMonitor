@@ -31,14 +31,14 @@ where
 {
     let normalized_path = normalize_workspace_path_input(&path);
     if !normalized_path.is_dir() {
-        return Err("Workspace path must be a folder.".to_string());
+        return Err("工作区路径必须是文件夹。".to_string());
     }
     let path = normalized_path.to_string_lossy().to_string();
 
     let name = PathBuf::from(&path)
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("Workspace")
+        .unwrap_or("工作区")
         .to_string();
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
@@ -119,18 +119,18 @@ where
 {
     let copy_name = copy_name.trim().to_string();
     if copy_name.is_empty() {
-        return Err("Copy name is required.".to_string());
+        return Err("必须填写副本名称。".to_string());
     }
 
     let copies_folder = copies_folder.trim().to_string();
     if copies_folder.is_empty() {
-        return Err("Copies folder is required.".to_string());
+        return Err("必须填写副本目录。".to_string());
     }
     let copies_folder_path = PathBuf::from(&copies_folder);
     std::fs::create_dir_all(&copies_folder_path)
-        .map_err(|e| format!("Failed to create copies folder: {e}"))?;
+        .map_err(|e| format!("创建副本目录失败：{e}"))?;
     if !copies_folder_path.is_dir() {
-        return Err("Copies folder must be a directory.".to_string());
+        return Err("副本目录必须是文件夹。".to_string());
     }
 
     let (source_entry, inherited_group_id) = {
@@ -138,7 +138,7 @@ where
         let source_entry = workspaces
             .get(&source_workspace_id)
             .cloned()
-            .ok_or_else(|| "source workspace not found".to_string())?;
+            .ok_or_else(|| "未找到源工作区。".to_string())?;
         let inherited_group_id = if source_entry.kind.is_worktree() {
             source_entry
                 .parent_id
@@ -274,12 +274,12 @@ fn default_repo_name_from_url(url: &str) -> Option<String> {
 fn validate_target_folder_name(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err("Target folder name is required.".to_string());
+        return Err("必须填写目标文件夹名称。".to_string());
     }
 
     if trimmed.contains('/') || trimmed.contains('\\') {
         return Err(
-            "Target folder name must be a single relative folder name without separators or traversal."
+            "目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。"
                 .to_string(),
         );
     }
@@ -288,7 +288,7 @@ fn validate_target_folder_name(value: &str) -> Result<String, String> {
     match (path.components().next(), path.components().nth(1)) {
         (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
         _ => Err(
-            "Target folder name must be a single relative folder name without separators or traversal."
+            "目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。"
                 .to_string(),
         ),
     }
@@ -310,15 +310,15 @@ where
 {
     let url = url.trim().to_string();
     if url.is_empty() {
-        return Err("Remote Git URL is required.".to_string());
+        return Err("必须填写远程 Git URL。".to_string());
     }
     let destination_path = destination_path.trim().to_string();
     if destination_path.is_empty() {
-        return Err("Destination folder is required.".to_string());
+        return Err("必须填写目标目录。".to_string());
     }
     let destination_parent = PathBuf::from(&destination_path);
     if !destination_parent.is_dir() {
-        return Err("Destination folder must be an existing directory.".to_string());
+        return Err("目标目录必须是已存在的文件夹。".to_string());
     }
 
     let folder_name = target_folder_name
@@ -327,17 +327,17 @@ where
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .or_else(|| default_repo_name_from_url(&url))
-        .ok_or_else(|| "Could not determine target folder name from URL.".to_string())?;
+        .ok_or_else(|| "无法根据 URL 确定目标文件夹名称。".to_string())?;
     let folder_name = validate_target_folder_name(&folder_name)?;
 
     let clone_path = destination_parent.join(folder_name);
     if clone_path.exists() {
         let is_empty = std::fs::read_dir(&clone_path)
-            .map_err(|err| format!("Failed to inspect destination path: {err}"))?
+            .map_err(|err| format!("检查目标路径失败：{err}"))?
             .next()
             .is_none();
         if !is_empty {
-            return Err("Destination path already exists and is not empty.".to_string());
+            return Err("目标路径已存在且不为空。".to_string());
         }
     }
 
@@ -352,7 +352,7 @@ where
     let workspace_name = clone_path
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("Workspace")
+        .unwrap_or("工作区")
         .to_string();
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
@@ -443,9 +443,9 @@ where
         let entry = workspaces
             .get(&id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         if entry.kind.is_worktree() {
-            return Err("Use remove_worktree for worktree agents.".to_string());
+            return Err("工作树智能体请使用 remove_worktree 删除。".to_string());
         }
         let children = workspaces
             .values()
@@ -523,7 +523,7 @@ where
 
     if require_all_children_removed_to_remove_parent {
         let mut message =
-            "Failed to remove one or more worktrees; parent workspace was not removed.".to_string();
+            "删除一个或多个工作树失败，因此没有删除父工作区。".to_string();
         for (child_id, error) in failures {
             message.push_str(&format!("\n- {child_id}: {error}"));
         }
@@ -559,7 +559,7 @@ where
         let previous_entry = workspaces
             .get(&id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         let previous_worktree_setup_script = previous_entry.settings.worktree_setup_script.clone();
         let entry_snapshot = apply_settings_update(&mut workspaces, &id, settings)?;
         let child_entries = workspaces

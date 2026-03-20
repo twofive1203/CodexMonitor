@@ -64,7 +64,7 @@ pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
     let current_exe = std::env::current_exe().map_err(|err| err.to_string())?;
     let parent = current_exe
         .parent()
-        .ok_or_else(|| "Unable to resolve executable directory".to_string())?;
+        .ok_or_else(|| "无法解析可执行文件所在目录。".to_string())?;
     let candidate_names = daemon_binary_candidates();
 
     if let Ok(explicit_raw) = std::env::var("CODEX_MONITOR_DAEMON_PATH") {
@@ -105,7 +105,7 @@ pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
         .join(", ");
 
     Err(format!(
-        "Unable to locate daemon binary (tried: {}). For local development, run `cargo build --manifest-path src-tauri/Cargo.toml --bin codex_monitor_daemon` first.",
+        "无法找到守护进程可执行文件（已尝试：{}）。本地开发请先运行 `cargo build --manifest-path src-tauri/Cargo.toml --bin codex_monitor_daemon`。",
         attempted
     ))
 }

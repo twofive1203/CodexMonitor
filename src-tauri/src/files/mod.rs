@@ -92,18 +92,18 @@ pub(crate) async fn read_image_as_data_url(
 ) -> Result<String, String> {
     let trimmed_path = path.trim();
     if trimmed_path.is_empty() {
-        return Err("Image path is required".to_string());
+        return Err("图片路径不能为空。".to_string());
     }
 
     let mobile_runtime = cfg!(any(target_os = "ios", target_os = "android"));
     let remote_mode = remote_backend::is_remote_mode(&*state).await;
     if !mobile_runtime && !remote_mode {
-        return Err("Image conversion is only supported in remote backend mode or on mobile runtimes".to_string());
+        return Err("图片转换仅支持远程后端模式或移动端运行时。".to_string());
     }
 
     let normalized = codex_core::normalize_file_path(trimmed_path);
     if normalized.is_empty() {
-        return Err("Image path is required".to_string());
+        return Err("图片路径不能为空。".to_string());
     }
 
     let _ = app;
@@ -114,13 +114,13 @@ pub(crate) async fn read_image_as_data_url(
 pub(crate) fn write_text_file(path: String, content: String) -> Result<(), String> {
     let target = PathBuf::from(path.trim());
     if target.as_os_str().is_empty() {
-        return Err("Path is required".to_string());
+        return Err("路径不能为空。".to_string());
     }
     if let Some(parent) = target.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)
-                .map_err(|err| format!("Failed to create export directory: {err}"))?;
+                .map_err(|err| format!("无法创建导出目录：{err}"))?;
         }
     }
-    std::fs::write(&target, content).map_err(|err| format!("Failed to write export file: {err}"))
+    std::fs::write(&target, content).map_err(|err| format!("无法写入导出文件：{err}"))
 }

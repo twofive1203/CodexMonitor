@@ -66,10 +66,10 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     let registry = handle.state::<MenuItemRegistry<R>>();
     let app_name = handle.package_info().name.clone();
     let about_item =
-        MenuItemBuilder::with_id("about", format!("About {app_name}")).build(handle)?;
+        MenuItemBuilder::with_id("about", format!("关于 {app_name}")).build(handle)?;
     let check_updates_item =
-        MenuItemBuilder::with_id("check_for_updates", "Check for Updates...").build(handle)?;
-    let settings_item = MenuItemBuilder::with_id("file_open_settings", "Settings...")
+        MenuItemBuilder::with_id("check_for_updates", "检查更新...").build(handle)?;
+    let settings_item = MenuItemBuilder::with_id("file_open_settings", "设置...")
         .accelerator("CmdOrCtrl+,")
         .build(handle)?;
     let app_menu = Submenu::with_items(
@@ -90,15 +90,15 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let new_agent_item = MenuItemBuilder::with_id("file_new_agent", "New Agent").build(handle)?;
+    let new_agent_item = MenuItemBuilder::with_id("file_new_agent", "新建智能体").build(handle)?;
     let new_worktree_agent_item =
-        MenuItemBuilder::with_id("file_new_worktree_agent", "New Worktree Agent").build(handle)?;
+        MenuItemBuilder::with_id("file_new_worktree_agent", "新建工作树智能体").build(handle)?;
     let new_clone_agent_item =
-        MenuItemBuilder::with_id("file_new_clone_agent", "New Clone Agent").build(handle)?;
+        MenuItemBuilder::with_id("file_new_clone_agent", "新建克隆智能体").build(handle)?;
     let add_workspace_item =
-        MenuItemBuilder::with_id("file_add_workspace", "Add Workspaces...").build(handle)?;
+        MenuItemBuilder::with_id("file_add_workspace", "添加工作区...").build(handle)?;
     let add_workspace_from_url_item =
-        MenuItemBuilder::with_id("file_add_workspace_from_url", "Add Workspace from URL...")
+        MenuItemBuilder::with_id("file_add_workspace_from_url", "通过 URL 添加工作区...")
             .build(handle)?;
 
     registry.register("file_new_agent", &new_agent_item);
@@ -108,11 +108,11 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     let file_menu = {
         let close_window_item =
-            MenuItemBuilder::with_id("file_close_window", "Close Window").build(handle)?;
-        let quit_item = MenuItemBuilder::with_id("file_quit", "Quit").build(handle)?;
+            MenuItemBuilder::with_id("file_close_window", "关闭窗口").build(handle)?;
+        let quit_item = MenuItemBuilder::with_id("file_quit", "退出").build(handle)?;
         Submenu::with_items(
             handle,
-            "File",
+            "文件",
             true,
             &[
                 &new_agent_item,
@@ -130,7 +130,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let file_menu = Submenu::with_items(
         handle,
-        "File",
+        "文件",
         true,
         &[
             &new_agent_item,
@@ -148,7 +148,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     let edit_menu = Submenu::with_items(
         handle,
-        "Edit",
+        "编辑",
         true,
         &[
             &PredefinedMenuItem::undo(handle, None)?,
@@ -161,18 +161,18 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let cycle_model_item = MenuItemBuilder::with_id("composer_cycle_model", "Cycle Model")
+    let cycle_model_item = MenuItemBuilder::with_id("composer_cycle_model", "切换模型")
         .accelerator("CmdOrCtrl+Shift+M")
         .build(handle)?;
-    let cycle_access_item = MenuItemBuilder::with_id("composer_cycle_access", "Cycle Access Mode")
+    let cycle_access_item = MenuItemBuilder::with_id("composer_cycle_access", "切换访问模式")
         .accelerator("CmdOrCtrl+Shift+A")
         .build(handle)?;
     let cycle_reasoning_item =
-        MenuItemBuilder::with_id("composer_cycle_reasoning", "Cycle Reasoning Mode")
+        MenuItemBuilder::with_id("composer_cycle_reasoning", "切换思考模式")
             .accelerator("CmdOrCtrl+Shift+R")
             .build(handle)?;
     let cycle_collaboration_item =
-        MenuItemBuilder::with_id("composer_cycle_collaboration", "Cycle Collaboration Mode")
+        MenuItemBuilder::with_id("composer_cycle_collaboration", "切换协作模式")
             .accelerator("Shift+Tab")
             .build(handle)?;
     registry.register("composer_cycle_model", &cycle_model_item);
@@ -182,7 +182,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     let composer_menu = Submenu::with_items(
         handle,
-        "Composer",
+        "输入栏",
         true,
         &[
             &cycle_model_item,
@@ -193,25 +193,25 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     )?;
 
     let toggle_projects_sidebar_item =
-        MenuItemBuilder::with_id("view_toggle_projects_sidebar", "Toggle Projects Sidebar")
+        MenuItemBuilder::with_id("view_toggle_projects_sidebar", "切换项目侧栏")
             .build(handle)?;
     let toggle_git_sidebar_item =
-        MenuItemBuilder::with_id("view_toggle_git_sidebar", "Toggle Git Sidebar").build(handle)?;
+        MenuItemBuilder::with_id("view_toggle_git_sidebar", "切换 Git 侧栏").build(handle)?;
     let toggle_debug_panel_item =
-        MenuItemBuilder::with_id("view_toggle_debug_panel", "Toggle Debug Panel")
+        MenuItemBuilder::with_id("view_toggle_debug_panel", "切换调试面板")
             .accelerator("CmdOrCtrl+Shift+D")
             .build(handle)?;
-    let toggle_terminal_item = MenuItemBuilder::with_id("view_toggle_terminal", "Toggle Terminal")
+    let toggle_terminal_item = MenuItemBuilder::with_id("view_toggle_terminal", "切换终端")
         .accelerator("CmdOrCtrl+Shift+T")
         .build(handle)?;
     let next_agent_item =
-        MenuItemBuilder::with_id("view_next_agent", "Next Agent").build(handle)?;
+        MenuItemBuilder::with_id("view_next_agent", "下一个智能体").build(handle)?;
     let prev_agent_item =
-        MenuItemBuilder::with_id("view_prev_agent", "Previous Agent").build(handle)?;
+        MenuItemBuilder::with_id("view_prev_agent", "上一个智能体").build(handle)?;
     let next_workspace_item =
-        MenuItemBuilder::with_id("view_next_workspace", "Next Workspace").build(handle)?;
+        MenuItemBuilder::with_id("view_next_workspace", "下一个工作区").build(handle)?;
     let prev_workspace_item =
-        MenuItemBuilder::with_id("view_prev_workspace", "Previous Workspace").build(handle)?;
+        MenuItemBuilder::with_id("view_prev_workspace", "上一个工作区").build(handle)?;
     registry.register(
         "view_toggle_projects_sidebar",
         &toggle_projects_sidebar_item,
@@ -227,10 +227,10 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     let view_menu = {
         let fullscreen_item =
-            MenuItemBuilder::with_id("view_fullscreen", "Toggle Full Screen").build(handle)?;
+            MenuItemBuilder::with_id("view_fullscreen", "切换全屏").build(handle)?;
         Submenu::with_items(
             handle,
-            "View",
+            "视图",
             true,
             &[
                 &toggle_projects_sidebar_item,
@@ -251,7 +251,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let view_menu = Submenu::with_items(
         handle,
-        "View",
+        "视图",
         true,
         &[
             &toggle_projects_sidebar_item,
@@ -272,13 +272,13 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     let window_menu = {
         let minimize_item =
-            MenuItemBuilder::with_id("window_minimize", "Minimize").build(handle)?;
+            MenuItemBuilder::with_id("window_minimize", "最小化").build(handle)?;
         let maximize_item =
-            MenuItemBuilder::with_id("window_maximize", "Maximize").build(handle)?;
-        let close_item = MenuItemBuilder::with_id("window_close", "Close Window").build(handle)?;
+            MenuItemBuilder::with_id("window_maximize", "最大化").build(handle)?;
+        let close_item = MenuItemBuilder::with_id("window_close", "关闭窗口").build(handle)?;
         Submenu::with_items(
             handle,
-            "Window",
+            "窗口",
             true,
             &[
                 &minimize_item,
@@ -291,7 +291,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let window_menu = Submenu::with_items(
         handle,
-        "Window",
+        "窗口",
         true,
         &[
             &PredefinedMenuItem::minimize(handle, None)?,
@@ -304,11 +304,11 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(target_os = "linux")]
     let help_menu = {
         let about_item =
-            MenuItemBuilder::with_id("help_about", format!("About {app_name}")).build(handle)?;
-        Submenu::with_items(handle, "Help", true, &[&about_item])?
+            MenuItemBuilder::with_id("help_about", format!("关于 {app_name}")).build(handle)?;
+        Submenu::with_items(handle, "帮助", true, &[&about_item])?
     };
     #[cfg(not(target_os = "linux"))]
-    let help_menu = Submenu::with_items(handle, "Help", true, &[])?;
+    let help_menu = Submenu::with_items(handle, "帮助", true, &[])?;
 
     Menu::with_items(
         handle,
@@ -336,7 +336,7 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
                 return;
             }
             let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
-                .title("About Codex Monitor")
+                .title("关于 Codex Monitor")
                 .resizable(false)
                 .inner_size(360.0, 240.0)
                 .center()

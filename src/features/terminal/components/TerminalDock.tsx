@@ -33,12 +33,12 @@ export function TerminalDock({
           className="terminal-panel-resizer"
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize terminal panel"
+          aria-label="调整终端面板大小"
           onMouseDown={onResizeStart}
         />
       )}
       <div className="terminal-header">
-        <div className="terminal-tabs" role="tablist" aria-label="Terminal tabs">
+        <div className="terminal-tabs" role="tablist" aria-label="终端标签页">
           {terminals.map((tab) => (
             <button
               key={tab.id}
@@ -54,7 +54,7 @@ export function TerminalDock({
               <span
                 className="terminal-tab-close"
                 role="button"
-                aria-label={`Close ${tab.title}`}
+                aria-label={`关闭 ${tab.title}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onCloseTerminal(tab.id);
@@ -68,8 +68,8 @@ export function TerminalDock({
             className="terminal-tab-add"
             type="button"
             onClick={onNewTerminal}
-            aria-label="New terminal"
-            title="New terminal"
+            aria-label="新建终端"
+            title="新建终端"
           >
             +
           </button>

@@ -224,7 +224,7 @@ export const DiffCard = memo(function DiffCard({
         )}
       </div>
       {useInteractiveDiff && selectedLines && reviewActions.length > 0 ? (
-        <div className="diff-viewer-review-actions" role="toolbar" aria-label="PR 选区操作">
+        <div className="diff-viewer-review-actions" role="toolbar" aria-label="拉取请求选区操作">
           {reviewActions.map((action) => (
             <button
               key={action.id}

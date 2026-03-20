@@ -30,27 +30,27 @@ pub(crate) fn policy_for(scope: FileScope, kind: FileKind) -> Result<FilePolicy,
     match (scope, kind) {
         (FileScope::Workspace, FileKind::Agents) => Ok(FilePolicy {
             filename: AGENTS_FILENAME,
-            root_context: "workspace root",
+            root_context: "工作区根目录",
             root_may_be_missing: false,
             create_root: false,
             allow_external_symlink_target: false,
         }),
         (FileScope::Global, FileKind::Agents) => Ok(FilePolicy {
             filename: AGENTS_FILENAME,
-            root_context: "CODEX_HOME",
+            root_context: "CODEX_HOME 目录",
             root_may_be_missing: true,
             create_root: true,
             allow_external_symlink_target: true,
         }),
         (FileScope::Global, FileKind::Config) => Ok(FilePolicy {
             filename: CONFIG_FILENAME,
-            root_context: "CODEX_HOME",
+            root_context: "CODEX_HOME 目录",
             root_may_be_missing: true,
             create_root: true,
             allow_external_symlink_target: false,
         }),
         (FileScope::Workspace, FileKind::Config) => {
-            Err("config.toml is only supported for global scope".to_string())
+            Err("config.toml 仅支持全局作用域。".to_string())
         }
     }
 }
@@ -63,7 +63,7 @@ mod tests {
     fn workspace_agents_policy_is_strict() {
         let policy = policy_for(FileScope::Workspace, FileKind::Agents).expect("policy");
         assert_eq!(policy.filename, "AGENTS.md");
-        assert_eq!(policy.root_context, "workspace root");
+        assert_eq!(policy.root_context, "工作区根目录");
         assert!(!policy.root_may_be_missing);
         assert!(!policy.create_root);
         assert!(!policy.allow_external_symlink_target);
@@ -73,7 +73,7 @@ mod tests {
     fn global_agents_policy_creates_root() {
         let policy = policy_for(FileScope::Global, FileKind::Agents).expect("policy");
         assert_eq!(policy.filename, "AGENTS.md");
-        assert_eq!(policy.root_context, "CODEX_HOME");
+        assert_eq!(policy.root_context, "CODEX_HOME 目录");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
         assert!(policy.allow_external_symlink_target);
@@ -83,7 +83,7 @@ mod tests {
     fn global_config_policy_creates_root() {
         let policy = policy_for(FileScope::Global, FileKind::Config).expect("policy");
         assert_eq!(policy.filename, "config.toml");
-        assert_eq!(policy.root_context, "CODEX_HOME");
+        assert_eq!(policy.root_context, "CODEX_HOME 目录");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
         assert!(!policy.allow_external_symlink_target);

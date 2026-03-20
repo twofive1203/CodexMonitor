@@ -31,7 +31,7 @@ pub(crate) async fn worktree_setup_status_core(
         workspaces
             .get(workspace_id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?
+            .ok_or_else(|| "未找到工作区。".to_string())?
     };
 
     let script = normalize_setup_script(entry.settings.worktree_setup_script.clone());
@@ -55,22 +55,22 @@ pub(crate) async fn worktree_setup_mark_ran_core(
         workspaces
             .get(workspace_id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?
+            .ok_or_else(|| "未找到工作区。".to_string())?
     };
     if !entry.kind.is_worktree() {
-        return Err("Not a worktree workspace.".to_string());
+        return Err("当前工作区不是工作树。".to_string());
     }
     let marker_path = worktree_setup_marker_path(data_dir, &entry.id);
     if let Some(parent) = marker_path.parent() {
         std::fs::create_dir_all(parent)
-            .map_err(|err| format!("Failed to prepare worktree marker directory: {err}"))?;
+            .map_err(|err| format!("准备工作树标记目录失败：{err}"))?;
     }
     let ran_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
     std::fs::write(&marker_path, format!("ran_at={ran_at}\n"))
-        .map_err(|err| format!("Failed to write worktree setup marker: {err}"))?;
+        .map_err(|err| format!("写入工作树初始化标记失败：{err}"))?;
     Ok(())
 }
 
@@ -116,7 +116,7 @@ where
 {
     let branch = branch.trim().to_string();
     if branch.is_empty() {
-        return Err("Branch name is required.".to_string());
+        return Err("必须填写分支名称。".to_string());
     }
     let name = name
         .map(|value| value.trim().to_string())
@@ -127,11 +127,11 @@ where
         workspaces
             .get(&parent_id)
             .cloned()
-            .ok_or_else(|| "parent workspace not found".to_string())?
+            .ok_or_else(|| "未找到父工作区。".to_string())?
     };
 
     if parent_entry.kind.is_worktree() {
-        return Err("Cannot create a worktree from another worktree.".to_string());
+        return Err("不能从另一个工作树创建新的工作树。".to_string());
     }
 
     // Determine worktree root: per-workspace setting > global setting > default
@@ -149,7 +149,7 @@ where
         }
     };
     std::fs::create_dir_all(&worktree_root)
-        .map_err(|err| format!("Failed to create worktree directory: {err}"))?;
+        .map_err(|err| format!("创建工作树目录失败：{err}"))?;
 
     let safe_name = sanitize_worktree_name(&branch);
     let worktree_path = unique_worktree_path(&worktree_root, &safe_name)?;
@@ -278,18 +278,18 @@ where
         let entry = workspaces
             .get(&id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         if !entry.kind.is_worktree() {
-            return Err("Not a worktree workspace.".to_string());
+            return Err("当前工作区不是工作树。".to_string());
         }
         let parent_id = entry
             .parent_id
             .clone()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         let parent = workspaces
             .get(&parent_id)
             .cloned()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         (entry, parent)
     };
 
@@ -368,7 +368,7 @@ where
 {
     let trimmed = branch.trim();
     if trimmed.is_empty() {
-        return Err("Branch name is required.".to_string());
+        return Err("必须填写分支名称。".to_string());
     }
 
     let (entry, parent) = {
@@ -376,18 +376,18 @@ where
         let entry = workspaces
             .get(&id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         if !entry.kind.is_worktree() {
-            return Err("Not a worktree workspace.".to_string());
+            return Err("当前工作区不是工作树。".to_string());
         }
         let parent_id = entry
             .parent_id
             .clone()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         let parent = workspaces
             .get(&parent_id)
             .cloned()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         (entry, parent)
     };
 
@@ -397,13 +397,13 @@ where
         .map(|worktree| worktree.branch.clone())
         .ok_or_else(|| "worktree metadata missing".to_string())?;
     if old_branch == trimmed {
-        return Err("Branch name is unchanged.".to_string());
+        return Err("分支名称未发生变化。".to_string());
     }
 
     let parent_root = resolve_git_root(&parent)?;
     let final_branch = unique_branch_name(&parent_root, trimmed).await?;
     if final_branch == old_branch {
-        return Err("Branch name is unchanged.".to_string());
+        return Err("分支名称未发生变化。".to_string());
     }
 
     // Use the same priority logic as add_worktree_core:
@@ -422,7 +422,7 @@ where
         }
     };
     std::fs::create_dir_all(&worktree_root)
-        .map_err(|err| format!("Failed to create worktree directory: {err}"))?;
+        .map_err(|err| format!("创建工作树目录失败：{err}"))?;
 
     let safe_name = sanitize_worktree_name(&final_branch);
     let current_path = PathBuf::from(&entry.path);
@@ -469,7 +469,7 @@ where
             let list: Vec<_> = workspaces.values().cloned().collect();
             Ok((old_snapshot, snapshot, list))
         } else {
-            Err("workspace not found".to_string())
+            Err("未找到工作区。".to_string())
         }
     };
     let (old_snapshot, entry_snapshot, list) = match update_result {
@@ -562,10 +562,10 @@ where
     let old_branch = old_branch.trim().to_string();
     let new_branch = new_branch.trim().to_string();
     if old_branch.is_empty() || new_branch.is_empty() {
-        return Err("Branch name is required.".to_string());
+        return Err("必须填写分支名称。".to_string());
     }
     if old_branch == new_branch {
-        return Err("Branch name is unchanged.".to_string());
+        return Err("分支名称未发生变化。".to_string());
     }
 
     let (_entry, parent) = {
@@ -573,24 +573,24 @@ where
         let entry = workspaces
             .get(&id)
             .cloned()
-            .ok_or_else(|| "workspace not found".to_string())?;
+            .ok_or_else(|| "未找到工作区。".to_string())?;
         if !entry.kind.is_worktree() {
-            return Err("Not a worktree workspace.".to_string());
+            return Err("当前工作区不是工作树。".to_string());
         }
         let parent_id = entry
             .parent_id
             .clone()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         let parent = workspaces
             .get(&parent_id)
             .cloned()
-            .ok_or_else(|| "worktree parent not found".to_string())?;
+            .ok_or_else(|| "未找到工作树父级工作区。".to_string())?;
         (entry, parent)
     };
 
     let parent_root = resolve_git_root(&parent)?;
     if !git_branch_exists(&parent_root, &new_branch).await? {
-        return Err("Local branch not found.".to_string());
+        return Err("未找到本地分支。".to_string());
     }
 
     let remote_for_old = git_find_remote_for_branch(&parent_root, &old_branch).await?;
@@ -600,13 +600,13 @@ where
             if git_remote_exists(&parent_root, "origin").await? {
                 "origin".to_string()
             } else {
-                return Err("No git remote configured for this worktree.".to_string());
+                return Err("当前工作树未配置 Git 远端。".to_string());
             }
         }
     };
 
     if git_remote_branch_exists(&parent_root, &remote_name, &new_branch).await? {
-        return Err("Remote branch already exists.".to_string());
+        return Err("远端分支已存在。".to_string());
     }
 
     if remote_for_old.is_some() {

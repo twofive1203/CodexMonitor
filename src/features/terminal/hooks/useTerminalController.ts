@@ -29,7 +29,10 @@ export function useTerminalController({
   }, []);
   const shouldIgnoreTerminalCloseError = useCallback((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    return message.includes("Terminal session not found");
+    return (
+      message.includes("Terminal session not found") ||
+      message.includes("终端会话不存在")
+    );
   }, []);
 
   const handleTerminalClose = useCallback(

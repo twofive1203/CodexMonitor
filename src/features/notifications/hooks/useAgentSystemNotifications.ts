@@ -157,7 +157,7 @@ export function useAgentSystemNotifications({
 
   const getNotificationContent = useCallback(
     (workspaceId: string, threadId: string, fallbackBody: string) => {
-      const title = getWorkspaceName?.(workspaceId) ?? "Agent Complete";
+      const title = getWorkspaceName?.(workspaceId) ?? "智能体已完成";
       const threadKey = buildThreadKey(workspaceId, threadId);
       const lastMessage = lastMessageByThread.current.get(threadKey);
       const body = lastMessage
@@ -191,7 +191,7 @@ export function useAgentSystemNotifications({
       const { title, body } = getNotificationContent(
         workspaceId,
         threadId,
-        "Your agent has finished its task.",
+        "你的智能体任务已完成。",
       );
       onThreadNotificationSent?.(workspaceId, threadId);
       void notify(title, body, "success", {
@@ -219,8 +219,8 @@ export function useAgentSystemNotifications({
       if (!shouldNotify(workspaceId, threadId, durationMs, threadKey)) {
         return;
       }
-      const title = getWorkspaceName?.(workspaceId) ?? "Agent Error";
-      const body = payload.message || "An error occurred.";
+      const title = getWorkspaceName?.(workspaceId) ?? "智能体出错";
+      const body = payload.message || "发生错误。";
       onThreadNotificationSent?.(workspaceId, threadId);
       void notify(title, truncateText(body, MAX_BODY_LENGTH), "error", {
         kind: "thread",
@@ -267,7 +267,7 @@ export function useAgentSystemNotifications({
       const { title, body } = getNotificationContent(
         event.workspaceId,
         event.threadId,
-        "Your agent has finished its task.",
+        "你的智能体任务已完成。",
       );
       onThreadNotificationSent?.(event.workspaceId, event.threadId);
       void notify(title, body, "success", {

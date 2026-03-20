@@ -49,14 +49,14 @@ export function useWorkspaceGroupOps({
       }
       const trimmed = normalizeGroupName(name);
       if (!trimmed) {
-        throw new Error("Group name is required.");
+        throw new Error("请填写分组名称。");
       }
       if (isReservedGroupName(trimmed)) {
-        throw new Error(`"${RESERVED_GROUP_NAME}" is reserved.`);
+        throw new Error(`“${RESERVED_GROUP_NAME}”是系统保留名称。`);
       }
       const currentGroups = appSettings.workspaceGroups ?? [];
       if (isDuplicateGroupName(trimmed, currentGroups)) {
-        throw new Error("Group name already exists.");
+        throw new Error("分组名称已存在。");
       }
       const nextSortOrder =
         currentGroups.reduce((max, group) => {
@@ -84,14 +84,14 @@ export function useWorkspaceGroupOps({
       }
       const trimmed = normalizeGroupName(name);
       if (!trimmed) {
-        throw new Error("Group name is required.");
+        throw new Error("请填写分组名称。");
       }
       if (isReservedGroupName(trimmed)) {
-        throw new Error(`"${RESERVED_GROUP_NAME}" is reserved.`);
+        throw new Error(`“${RESERVED_GROUP_NAME}”是系统保留名称。`);
       }
       const currentGroups = appSettings.workspaceGroups ?? [];
       if (isDuplicateGroupName(trimmed, currentGroups, groupId)) {
-        throw new Error("Group name already exists.");
+        throw new Error("分组名称已存在。");
       }
       const nextGroups = currentGroups.map((group) =>
         group.id === groupId ? { ...group, name: trimmed } : group,

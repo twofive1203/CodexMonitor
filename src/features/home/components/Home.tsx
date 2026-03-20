@@ -573,7 +573,7 @@ export function Home({
           <span className="home-icon" aria-hidden>
             ⤓
           </span>
-          通过 URL 添加项目
+          通过仓库地址添加项目
         </button>
       </div>
       <div className="home-usage">

@@ -393,7 +393,7 @@ async function invokeWebRuntime<T>(
     return {
       state: "missing",
       modelId: typeof args?.modelId === "string" ? args.modelId : "base",
-      error: "Web runtime 不支持听写。",
+      error: "网页运行时不支持听写。",
       path: null,
     } as T;
   }
@@ -405,7 +405,7 @@ async function invokeWebRuntime<T>(
     return {
       state: "missing",
       modelId: typeof args?.modelId === "string" ? args.modelId : "base",
-      error: "Web runtime 不支持听写。",
+      error: "网页运行时不支持听写。",
       path: null,
     } as T;
   }
@@ -422,7 +422,7 @@ async function invokeWebRuntime<T>(
       codexBin: null,
       version: null,
       appServerOk: true,
-      details: "Web runtime 不支持本地环境探测。",
+      details: "网页运行时不支持本地环境探测。",
       path: null,
       nodeOk: false,
       nodeVersion: null,
@@ -438,7 +438,7 @@ async function invokeWebRuntime<T>(
       afterVersion: null,
       upgraded: false,
       output: null,
-      details: "Web runtime 不支持自动更新 Codex CLI。",
+      details: "网页运行时不支持自动更新 Codex CLI。",
     } as T;
   }
 

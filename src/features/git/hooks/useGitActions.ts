@@ -138,8 +138,8 @@ export function useGitActions({
       return;
     }
     const confirmed = await ask(
-      "Revert all changes in this repo?\n\nThis will discard all staged and unstaged changes, including untracked files.",
-      { title: "Revert all changes", kind: "warning" },
+      "要撤销这个仓库中的所有改动吗？\n\n这会丢弃所有已暂存和未暂存的改动，包括未跟踪文件。",
+      { title: "撤销全部改动", kind: "warning" },
     );
     if (!confirmed) {
       return;

@@ -162,9 +162,9 @@ export function useRenameWorktreePrompt({
         });
       }
       if (actualName !== trimmed) {
-        setNoticeMessage(`Branch already exists. Renamed to "${actualName}".`);
+        setNoticeMessage(`分支已存在，已改名为“${actualName}”。`);
       } else {
-        setNoticeMessage("Worktree renamed.");
+        setNoticeMessage("工作树已重命名。");
       }
       setRenamePrompt(null);
     } catch (error) {
@@ -194,7 +194,7 @@ export function useRenameWorktreePrompt({
         upstreamPrompt.newBranch,
       );
       setUpstreamPrompt(null);
-      setNoticeMessage("Upstream branch updated.");
+      setNoticeMessage("上游分支已更新。");
     } catch (error) {
       setUpstreamPrompt((prev) =>
         prev

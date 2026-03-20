@@ -217,17 +217,17 @@ export function SettingsServerSection({
       return "正在等待状态探测。";
     }
     if (!webAccessStatus.enabled) {
-      return "Web 访问当前未启用。";
+      return "网页访问当前未启用。";
     }
     if (webAccessStatus.state === "running") {
       return webAccessStatus.pid
-        ? `Web 服务正在运行（PID ${webAccessStatus.pid}）。`
-        : "Web 服务正在运行。";
+        ? `网页服务正在运行（PID ${webAccessStatus.pid}）。`
+        : "网页服务正在运行。";
     }
     if (webAccessStatus.state === "error") {
-      return webAccessStatus.lastError ?? "Web 服务当前处于异常状态。";
+      return webAccessStatus.lastError ?? "网页服务当前处于异常状态。";
     }
-    return "Web 服务当前已停止。";
+    return "网页服务当前已停止。";
   })();
 
   /**
@@ -460,12 +460,12 @@ export function SettingsServerSection({
         {!isMobileSimplified && (
           <>
               <SettingsToggleRow
-                title="Web 访问"
-                subtitle="开启后会复用当前守护进程，在桌面端暴露浏览器访问入口。关闭时会停止当前受管 Web 服务。"
+                title="网页访问"
+                subtitle="开启后会复用当前守护进程，在桌面端暴露浏览器访问入口。关闭时会停止当前受管网页服务。"
               >
                 <SettingsToggleSwitch
                   pressed={appSettings.webAccessEnabled}
-                  aria-label="切换 Web 访问"
+                  aria-label="切换网页访问"
                   onClick={() => {
                     void onToggleWebAccessEnabled();
                   }}
@@ -476,7 +476,7 @@ export function SettingsServerSection({
               <div className="settings-field">
                 <div className="settings-web-status-header">
                   <div>
-                    <div className="settings-field-label">Web 服务状态</div>
+                    <div className="settings-field-label">网页服务状态</div>
                     <div className={`settings-web-status-badge ${webAccessStatusTone}`}>
                       {webAccessBusy ? "检测中..." : webAccessStatusLabel}
                     </div>
@@ -484,7 +484,7 @@ export function SettingsServerSection({
                   <button
                     type="button"
                     className="button settings-button-compact"
-                    aria-label="刷新 Web 服务状态"
+                    aria-label="刷新网页服务状态"
                     onClick={onRefreshWebAccessStatus}
                     disabled={webAccessBusy}
                   >
@@ -511,7 +511,7 @@ export function SettingsServerSection({
 
               <div className="settings-field">
                 <label className="settings-field-label" htmlFor="web-access-listen-addr">
-                  Web 监听地址
+                  网页监听地址
                 </label>
                 <input
                   id="web-access-listen-addr"
@@ -539,7 +539,7 @@ export function SettingsServerSection({
 
               <div className="settings-field">
                 <label className="settings-field-label" htmlFor="web-access-port">
-                  Web 端口
+                  网页端口
                 </label>
                 <input
                   id="web-access-port"

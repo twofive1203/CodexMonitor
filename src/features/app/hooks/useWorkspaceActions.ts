@@ -65,7 +65,7 @@ export function useWorkspaceActions({
         label: "workspace/add error",
         payload: message,
       });
-      alert(`Failed to add workspace.\n\n${message}`);
+      alert(`添加工作区失败。\n\n${message}`);
     }
   }, [addWorkspace, handleWorkspaceAdded, onDebug]);
 
@@ -85,7 +85,7 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspaces.\n\n${message}`);
+        alert(`批量添加工作区失败。\n\n${message}`);
       }
     },
     [addWorkspacesFromPaths, handleWorkspaceAdded, onDebug],
@@ -107,7 +107,7 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspace.\n\n${message}`);
+        alert(`添加工作区失败。\n\n${message}`);
       }
     },
     [addWorkspaceFromPath, handleWorkspaceAdded, onDebug],
@@ -130,7 +130,7 @@ export function useWorkspaceActions({
           label: "workspace/add-from-url error",
           payload: message,
         });
-        alert(`Failed to import workspace from URL.
+        alert(`通过仓库地址导入工作区失败。
 
 ${message}`);
         throw error;

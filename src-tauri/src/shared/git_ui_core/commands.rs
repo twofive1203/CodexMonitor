@@ -16,14 +16,14 @@ use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 use super::context::workspace_entry_for_id;
 
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
-    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let git_bin = resolve_git_binary().map_err(|e| format!("执行 git 失败：{e}"))?;
     let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_root)
         .env("PATH", git_env_path())
         .output()
         .await
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|e| format!("执行 git 失败：{e}"))?;
 
     if output.status.success() {
         return Ok(());
@@ -37,7 +37,7 @@ async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> 
         stderr.trim()
     };
     if detail.is_empty() {
-        return Err("Git command failed.".to_string());
+        return Err("Git 命令执行失败。".to_string());
     }
     Err(detail.to_string())
 }
@@ -48,7 +48,7 @@ async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, Stri
         .current_dir(repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -62,7 +62,7 @@ async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, Stri
         stderr.trim()
     };
     if detail.is_empty() {
-        return Err("GitHub CLI command failed.".to_string());
+        return Err("GitHub CLI 命令执行失败。".to_string());
     }
     Err(detail.to_string())
 }
@@ -79,12 +79,12 @@ async fn gh_git_protocol(repo_root: &Path) -> String {
 }
 
 fn count_effective_dir_entries(root: &Path) -> Result<usize, String> {
-    let entries = fs::read_dir(root).map_err(|err| format!("Failed to read directory: {err}"))?;
+    let entries = fs::read_dir(root).map_err(|err| format!("读取目录失败：{err}"))?;
     let mut count = 0usize;
     for entry in entries {
         let entry = entry.map_err(|err| {
             format!(
-                "Failed to read directory entry in {}: {err}",
+                "读取目录项失败（{}）：{err}",
                 root.display()
             )
         })?;
@@ -101,35 +101,35 @@ fn count_effective_dir_entries(root: &Path) -> Result<usize, String> {
 fn validate_branch_name(name: &str) -> Result<String, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        return Err("Branch name is required.".to_string());
+        return Err("必须填写分支名称。".to_string());
     }
     if trimmed == "." || trimmed == ".." {
-        return Err("Branch name cannot be '.' or '..'.".to_string());
+        return Err("分支名称不能是 '.' 或 '..'。".to_string());
     }
     if trimmed.chars().any(|ch| ch.is_whitespace()) {
-        return Err("Branch name cannot contain spaces.".to_string());
+        return Err("分支名称不能包含空格。".to_string());
     }
     if trimmed.starts_with('/') || trimmed.ends_with('/') {
-        return Err("Branch name cannot start or end with '/'.".to_string());
+        return Err("分支名称不能以 '/' 开头或结尾。".to_string());
     }
     if trimmed.contains("//") {
-        return Err("Branch name cannot contain '//'.".to_string());
+        return Err("分支名称不能包含 '//'。".to_string());
     }
     if trimmed.ends_with(".lock") {
-        return Err("Branch name cannot end with '.lock'.".to_string());
+        return Err("分支名称不能以 '.lock' 结尾。".to_string());
     }
     if trimmed.contains("..") {
-        return Err("Branch name cannot contain '..'.".to_string());
+        return Err("分支名称不能包含 '..'。".to_string());
     }
     if trimmed.contains("@{") {
-        return Err("Branch name cannot contain '@{'.".to_string());
+        return Err("分支名称不能包含 '@{'。".to_string());
     }
     let invalid_chars = ['~', '^', ':', '?', '*', '[', '\\'];
     if trimmed.chars().any(|ch| invalid_chars.contains(&ch)) {
-        return Err("Branch name contains invalid characters.".to_string());
+        return Err("分支名称包含非法字符。".to_string());
     }
     if trimmed.ends_with('.') {
-        return Err("Branch name cannot end with '.'.".to_string());
+        return Err("分支名称不能以 '.' 结尾。".to_string());
     }
     Ok(trimmed.to_string())
 }
@@ -137,16 +137,16 @@ fn validate_branch_name(name: &str) -> Result<String, String> {
 fn validate_github_repo_name(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err("Repository name is required.".to_string());
+        return Err("必须填写仓库名称。".to_string());
     }
     if trimmed.chars().any(|ch| ch.is_whitespace()) {
-        return Err("Repository name cannot contain spaces.".to_string());
+        return Err("仓库名称不能包含空格。".to_string());
     }
     if trimmed.starts_with('/') || trimmed.ends_with('/') {
-        return Err("Repository name cannot start or end with '/'.".to_string());
+        return Err("仓库名称不能以 '/' 开头或结尾。".to_string());
     }
     if trimmed.contains("//") {
-        return Err("Repository name cannot contain '//'.".to_string());
+        return Err("仓库名称不能包含 '//'。".to_string());
     }
     Ok(trimmed.to_string())
 }
@@ -173,7 +173,7 @@ pub(super) fn validate_normalized_repo_name(value: &str) -> Result<String, Strin
     let normalized = normalize_repo_full_name(value);
     if normalized.is_empty() {
         return Err(
-            "Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string(),
+            "规范化后仓库名称为空。请使用 'repo' 或 'owner/repo'。".to_string(),
         );
     }
     Ok(normalized)
@@ -532,7 +532,7 @@ pub(super) async fn init_git_repo_inner(
     branch: String,
     force: bool,
 ) -> Result<Value, String> {
-    const INITIAL_COMMIT_MESSAGE: &str = "Initial commit";
+    const INITIAL_COMMIT_MESSAGE: &str = "初始提交";
 
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
@@ -602,11 +602,11 @@ pub(super) async fn create_github_repo_inner(
     let visibility_flag = match visibility.trim() {
         "private" => "--private",
         "public" => "--public",
-        other => return Err(format!("Invalid repo visibility: {other}")),
+        other => return Err(format!("无效的仓库可见性：{other}")),
     };
 
     let local_repo = Repository::open(&repo_root)
-        .map_err(|_| "Git is not initialized in this folder yet.".to_string())?;
+        .map_err(|_| "这个目录尚未初始化 Git。".to_string())?;
     let origin_url_before = local_repo
         .find_remote("origin")
         .ok()
@@ -617,19 +617,19 @@ pub(super) async fn create_github_repo_inner(
     } else {
         let owner = gh_stdout_trim(&repo_root, &["api", "user", "--jq", ".login"]).await?;
         if owner.trim().is_empty() {
-            return Err("Failed to determine GitHub username.".to_string());
+            return Err("无法确定 GitHub 用户名。".to_string());
         }
         format!("{owner}/{repo}")
     };
 
     if let Some(origin_url) = origin_url_before.as_deref() {
         let existing_repo = parse_github_repo(origin_url).ok_or_else(|| {
-            "Origin remote is not a GitHub repository. Remove or reconfigure origin before creating a GitHub remote."
+            "origin 远端不是 GitHub 仓库。请先移除或重新配置 origin，再创建 GitHub 远端。"
                 .to_string()
         })?;
         if !github_repo_names_match(&existing_repo, &full_name) {
             return Err(format!(
-                "Origin remote already points to '{existing_repo}', but '{full_name}' was requested. Remove or reconfigure origin to continue."
+                "origin 远端当前指向 '{existing_repo}'，但请求的是 '{full_name}'。请先移除或重新配置 origin 后再继续。"
             ));
         }
     }
@@ -663,7 +663,7 @@ pub(super) async fn create_github_repo_inner(
         )
         .await?;
         if remote_url.trim().is_empty() {
-            return Err("Failed to resolve GitHub remote URL.".to_string());
+            return Err("无法解析 GitHub 远端 URL。".to_string());
         }
         run_git_command(&repo_root, &["remote", "add", "origin", remote_url.trim()]).await?;
     }

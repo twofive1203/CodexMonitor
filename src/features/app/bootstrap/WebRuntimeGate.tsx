@@ -25,7 +25,7 @@ function errorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
   }
-  return "连接 Web 运行时失败，请稍后重试。";
+  return "连接网页运行时失败，请稍后重试。";
 }
 
 /**
@@ -130,11 +130,11 @@ export function WebRuntimeGate({ children }: WebRuntimeGateProps) {
       ? "连接失败"
       : status === "checking"
         ? "正在连接"
-        : "登录 Web 访问";
+        : "登录网页访问";
   const subtitle =
     status === "error"
       ? "守护进程已启动，但浏览器初始化失败。"
-      : "请输入桌面端配置的远程访问令牌，完成 Web 版初始化。";
+      : "请输入桌面端配置的远程访问令牌，完成网页版初始化。";
 
   return (
     <div className="web-runtime-gate">
@@ -143,7 +143,7 @@ export function WebRuntimeGate({ children }: WebRuntimeGateProps) {
       <div className="web-runtime-gate__panel">
         <div className="web-runtime-gate__eyebrow">
           <span className="web-runtime-gate__pulse" aria-hidden />
-          Web MVP
+          网页预览版
         </div>
         <h1 className="web-runtime-gate__title">{title}</h1>
         <p className="web-runtime-gate__subtitle">{subtitle}</p>
@@ -172,7 +172,7 @@ export function WebRuntimeGate({ children }: WebRuntimeGateProps) {
               className="web-runtime-gate__input"
               type="password"
               autoComplete="current-password"
-              placeholder="请输入 remoteBackendToken"
+              placeholder="请输入桌面端生成的远程访问令牌"
               value={token}
               disabled={isBusy}
               onChange={(event) => setToken(event.target.value)}

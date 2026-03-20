@@ -267,7 +267,7 @@ pub(crate) async fn add_worktree(
     let data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+        .map_err(|err| format!("无法解析应用数据目录：{err}"))?;
 
     workspaces_core::add_worktree_core(
         parent_id,
@@ -320,7 +320,7 @@ pub(crate) async fn worktree_setup_status(
     let data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+        .map_err(|err| format!("无法解析应用数据目录：{err}"))?;
     workspaces_core::worktree_setup_status_core(&state.workspaces, &workspace_id, &data_dir).await
 }
 
@@ -345,7 +345,7 @@ pub(crate) async fn worktree_setup_mark_ran(
     let data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+        .map_err(|err| format!("无法解析应用数据目录：{err}"))?;
     workspaces_core::worktree_setup_mark_ran_core(&state.workspaces, &workspace_id, &data_dir).await
 }
 
@@ -380,7 +380,7 @@ pub(crate) async fn remove_workspace(
         |error| is_missing_worktree_error(error),
         |path| {
             std::fs::remove_dir_all(path)
-                .map_err(|err| format!("Failed to remove worktree folder: {err}"))
+                .map_err(|err| format!("无法删除工作树目录：{err}"))
         },
         true,
         true,
@@ -419,7 +419,7 @@ pub(crate) async fn remove_worktree(
         |error| is_missing_worktree_error(error),
         |path| {
             std::fs::remove_dir_all(path)
-                .map_err(|err| format!("Failed to remove worktree folder: {err}"))
+                .map_err(|err| format!("无法删除工作树目录：{err}"))
         },
     )
     .await
@@ -447,7 +447,7 @@ pub(crate) async fn rename_worktree(
     let data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+        .map_err(|err| format!("无法解析应用数据目录：{err}"))?;
 
     workspaces_core::rename_worktree_core(
         id,

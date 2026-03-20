@@ -92,7 +92,7 @@ const buildRunTitle = (prompt: string) => {
   const firstLine = prompt.trim().split("\n")[0] ?? "";
   const normalized = firstLine.replace(/\s+/g, " ").trim();
   if (!normalized) {
-    return "New run";
+    return "新任务";
   }
   if (normalized.length > MAX_TITLE_LENGTH) {
     return `${normalized.slice(0, MAX_TITLE_LENGTH)}...`;
@@ -407,7 +407,7 @@ export function useWorkspaceHome({
       }));
 
     if (runMode === "worktree" && selectedModels.length === 0) {
-      setWorkspaceError("Select at least one model to run in a worktree.");
+      setWorkspaceError("请至少选择一个模型来运行工作树任务。");
       return false;
     }
 
@@ -541,7 +541,7 @@ export function useWorkspaceHome({
                 { activate: false },
               );
               if (!worktreeWorkspace) {
-                throw new Error("Failed to create worktree.");
+                throw new Error("创建工作树失败。");
               }
               if (!worktreeWorkspace.connected) {
                 await connectWorkspace(worktreeWorkspace);
@@ -555,7 +555,7 @@ export function useWorkspaceHome({
                 activate: false,
               });
               if (!threadId) {
-                throw new Error("Failed to start a worktree thread.");
+                throw new Error("启动工作树会话失败。");
               }
               seedThreadCodexParams?.(worktreeWorkspace.id, threadId, {
                 modelId: selection.modelId,
@@ -591,7 +591,7 @@ export function useWorkspaceHome({
           }
         }
         if (failureCount > 0) {
-          runError = `Started ${instances.length}/${totalInstanceCount} runs. ${failureCount} failed.`;
+          runError = `已启动 ${instances.length}/${totalInstanceCount} 个任务，失败 ${failureCount} 个。`;
         }
       }
     } catch (error) {
@@ -600,7 +600,7 @@ export function useWorkspaceHome({
     } finally {
       let status: WorkspaceHomeRun["status"] = "ready";
       if (instances.length === 0) {
-        runError ??= "Failed to start any instances.";
+        runError ??= "未能启动任何实例。";
         status = "failed";
       } else if (runError) {
         status = "partial";

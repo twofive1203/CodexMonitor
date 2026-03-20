@@ -29,21 +29,21 @@ fn resolve_root(
     }
     let canonical_root = root
         .canonicalize()
-        .map_err(|err| format!("Failed to resolve {root_context}: {err}"))?;
+        .map_err(|err| format!("无法解析{root_context}：{err}"))?;
     if !canonical_root.is_dir() {
-        return Err(format!("{root_context} is not a directory"));
+        return Err(format!("{root_context} 不是目录。"));
     }
     Ok(Some(canonical_root))
 }
 
 fn resolve_or_create_root(root: &Path, root_context: &str) -> Result<PathBuf, String> {
     std::fs::create_dir_all(root)
-        .map_err(|err| format!("Failed to create {root_context}: {err}"))?;
+        .map_err(|err| format!("无法创建{root_context}：{err}"))?;
     let canonical_root = root
         .canonicalize()
-        .map_err(|err| format!("Failed to resolve {root_context}: {err}"))?;
+        .map_err(|err| format!("无法解析{root_context}：{err}"))?;
     if !canonical_root.is_dir() {
-        return Err(format!("{root_context} is not a directory"));
+        return Err(format!("{root_context} 不是目录。"));
     }
     Ok(canonical_root)
 }
@@ -66,25 +66,25 @@ pub(crate) fn read_text_file_within(
     }
 
     let candidate_is_symlink = std::fs::symlink_metadata(&candidate)
-        .map_err(|err| format!("Failed to open {file_context}: {err}"))?
+        .map_err(|err| format!("无法打开{file_context}：{err}"))?
         .file_type()
         .is_symlink();
     let canonical_path = candidate
         .canonicalize()
-        .map_err(|err| format!("Failed to open {file_context}: {err}"))?;
+        .map_err(|err| format!("无法打开{file_context}：{err}"))?;
     if !canonical_path.starts_with(&canonical_root)
         && !(allow_external_symlink_target && candidate_is_symlink)
     {
-        return Err(format!("Invalid {file_context} path"));
+        return Err(format!("{file_context} 路径无效。"));
     }
 
     let mut file = File::open(&canonical_path)
-        .map_err(|err| format!("Failed to open {file_context}: {err}"))?;
+        .map_err(|err| format!("无法打开{file_context}：{err}"))?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
-        .map_err(|err| format!("Failed to read {file_context}: {err}"))?;
-    let content =
-        String::from_utf8(buffer).map_err(|_| format!("{file_context} is not valid UTF-8"))?;
+        .map_err(|err| format!("无法读取{file_context}：{err}"))?;
+    let content = String::from_utf8(buffer)
+        .map_err(|_| format!("{file_context} 不是有效的 UTF-8 文本。"))?;
 
     Ok(TextFileResponse {
         exists: true,
@@ -106,34 +106,33 @@ pub(crate) fn write_text_file_within(
         resolve_or_create_root(root, root_context)?
     } else {
         resolve_root(root, root_context, false)?
-            .ok_or_else(|| format!("Failed to resolve {root_context}"))?
+            .ok_or_else(|| format!("无法解析{root_context}。"))?
     };
 
     let candidate = canonical_root.join(filename);
     if !candidate.starts_with(&canonical_root) {
-        return Err(format!("Invalid {file_context} path"));
+        return Err(format!("{file_context} 路径无效。"));
     }
 
     let target_path = if candidate.exists() {
         let candidate_is_symlink = std::fs::symlink_metadata(&candidate)
-            .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?
+            .map_err(|err| format!("无法解析{file_context}：{err}"))?
             .file_type()
             .is_symlink();
         let canonical_path = candidate
             .canonicalize()
-            .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?;
+            .map_err(|err| format!("无法解析{file_context}：{err}"))?;
         if !canonical_path.starts_with(&canonical_root)
             && !(allow_external_symlink_target && candidate_is_symlink)
         {
-            return Err(format!("Invalid {file_context} path"));
+            return Err(format!("{file_context} 路径无效。"));
         }
         canonical_path
     } else {
         candidate
     };
 
-    std::fs::write(&target_path, content)
-        .map_err(|err| format!("Failed to write {file_context}: {err}"))
+    std::fs::write(&target_path, content).map_err(|err| format!("无法写入{file_context}：{err}"))
 }
 
 #[cfg(test)]

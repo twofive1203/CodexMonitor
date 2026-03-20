@@ -5,10 +5,10 @@ export function isPlanReadyTaggedMessage(text: string) {
 }
 
 export function makePlanReadyAcceptMessage() {
-  return `${PLAN_READY_TAG_PREFIX}accept]] Implement this plan.`;
+  return `${PLAN_READY_TAG_PREFIX}accept]] 按此计划执行。`;
 }
 
 export function makePlanReadyChangesMessage(changes: string) {
   const trimmed = changes.trim();
-  return `${PLAN_READY_TAG_PREFIX}changes]] Update the plan with these changes:\n\n${trimmed}`;
+  return `${PLAN_READY_TAG_PREFIX}changes]] 请按以下修改调整计划：\n\n${trimmed}`;
 }

@@ -217,8 +217,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="拆分聊天与 Diff 中央面板"
-        subtitle="让聊天和 Diff 并排显示，而不是来回切换。"
+        title="拆分聊天与差异中央面板"
+        subtitle="让聊天和差异并排显示，而不是来回切换。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.splitChatDiffView}
@@ -452,7 +452,7 @@ export function SettingsDisplaySection({
             重置
           </button>
         </div>
-        <div className="settings-help">应用于 Git Diff 和其他等宽文本区域。</div>
+        <div className="settings-help">应用于 Git 差异和其他等宽文本区域。</div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-size">
@@ -485,7 +485,7 @@ export function SettingsDisplaySection({
             重置
           </button>
         </div>
-        <div className="settings-help">调整代码和 Diff 的文字大小。</div>
+        <div className="settings-help">调整代码和差异的文字大小。</div>
       </div>
       <div className="settings-subsection-title">声音</div>
       <div className="settings-subsection-subtitle">控制通知声音提醒。</div>

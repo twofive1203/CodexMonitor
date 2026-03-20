@@ -124,7 +124,7 @@ describe("SettingsAgentsSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const nameInputs = screen.getAllByLabelText("Name") as HTMLInputElement[];
     fireEvent.change(nameInputs[1], { target: { value: "researcher-v2" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(onUpdateAgent).toHaveBeenCalledTimes(1);

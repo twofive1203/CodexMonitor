@@ -666,7 +666,7 @@ export function GitDiffPanel({
               <option value="perFile">智能体改动</option>
               <option value="log">日志</option>
               <option value="issues">问题</option>
-              <option value="prs">PRs</option>
+              <option value="prs">拉取请求</option>
             </select>
           </div>
         </div>

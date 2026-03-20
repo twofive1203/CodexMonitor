@@ -782,7 +782,7 @@ export function FileTreePanel({
               imageSrc={previewImageSrc}
               imageUnavailableMessage={
                 previewKind === "image" && !imagePreviewEnabled
-                  ? "Web 端暂不支持图片文件预览，请在桌面端查看。"
+                  ? "网页端暂不支持图片文件预览，请在桌面端查看。"
                   : null
               }
               openTargets={openTargets}

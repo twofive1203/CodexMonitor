@@ -1781,7 +1781,7 @@ mod tests {
             .await
             .expect_err("expected validation error");
 
-            assert_eq!(err, "Copy name is required.");
+            assert_eq!(err, "必须填写副本名称。");
             let _ = std::fs::remove_dir_all(&tmp);
         });
     }

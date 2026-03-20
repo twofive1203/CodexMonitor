@@ -23,11 +23,11 @@ fn github_repo_from_path(path: &Path) -> Result<String, String> {
         remotes.iter().flatten().next().unwrap_or("").to_string()
     };
     if name.is_empty() {
-        return Err("No git remote configured.".to_string());
+        return Err("未配置 Git 远端。".to_string());
     }
     let remote = repo.find_remote(&name).map_err(|e| e.to_string())?;
-    let remote_url = remote.url().ok_or("Remote has no URL configured.")?;
-    parse_github_repo(remote_url).ok_or("Remote is not a GitHub repository.".to_string())
+    let remote_url = remote.url().ok_or("远端未配置 URL。")?;
+    parse_github_repo(remote_url).ok_or("远端不是 GitHub 仓库。".to_string())
 }
 
 fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {
@@ -154,13 +154,13 @@ pub(super) async fn checkout_github_pull_request_inner(
         .current_dir(&repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     if !output.status.success() {
         return Err(command_failure_detail(
             &output.stdout,
             &output.stderr,
-            "GitHub CLI command failed.",
+            "GitHub CLI 命令执行失败。",
         ));
     }
 
@@ -189,13 +189,13 @@ pub(super) async fn get_github_issues_inner(
         .current_dir(&repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     if !output.status.success() {
         return Err(command_failure_detail(
             &output.stdout,
             &output.stderr,
-            "GitHub CLI command failed.",
+            "GitHub CLI 命令执行失败。",
         ));
     }
 
@@ -248,13 +248,13 @@ pub(super) async fn get_github_pull_requests_inner(
         .current_dir(&repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     if !output.status.success() {
         return Err(command_failure_detail(
             &output.stdout,
             &output.stderr,
-            "GitHub CLI command failed.",
+            "GitHub CLI 命令执行失败。",
         ));
     }
 
@@ -308,13 +308,13 @@ pub(super) async fn get_github_pull_request_diff_inner(
         .current_dir(&repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     if !output.status.success() {
         return Err(command_failure_detail(
             &output.stdout,
             &output.stderr,
-            "GitHub CLI command failed.",
+            "GitHub CLI 命令执行失败。",
         ));
     }
 
@@ -339,13 +339,13 @@ pub(super) async fn get_github_pull_request_comments_inner(
         .current_dir(&repo_root)
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|e| format!("执行 gh 失败：{e}"))?;
 
     if !output.status.success() {
         return Err(command_failure_detail(
             &output.stdout,
             &output.stderr,
-            "GitHub CLI command failed.",
+            "GitHub CLI 命令执行失败。",
         ));
     }
 

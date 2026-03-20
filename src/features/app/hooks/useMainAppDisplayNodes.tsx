@@ -36,9 +36,9 @@ export function useMainAppDisplayNodes({
           className="ghost main-header-action ds-tooltip-trigger"
           onClick={handleMobileThreadRefresh}
           data-tauri-drag-region="false"
-          aria-label="Refresh current thread from server"
-          title="Refresh current thread from server"
-          data-tooltip="Refresh current thread from server"
+          aria-label="从服务端刷新当前会话"
+          title="从服务端刷新当前会话"
+          data-tooltip="从服务端刷新当前会话"
           data-tooltip-placement="bottom"
           disabled={mobileThreadRefreshLoading}
         >

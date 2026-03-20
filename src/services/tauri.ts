@@ -200,7 +200,7 @@ export async function pickImageFiles(): Promise<string[]> {
     multiple: true,
     filters: [
       {
-        name: "Images",
+        name: "图片文件",
         extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif"],
       },
     ],
@@ -219,11 +219,11 @@ export async function exportMarkdownFile(
     return downloadBrowserTextFile(content, defaultFileName);
   }
   const selection = await save({
-    title: "Export plan as Markdown",
+    title: "导出计划为 Markdown",
     defaultPath: defaultFileName,
     filters: [
       {
-        name: "Markdown",
+        name: "Markdown 文件",
         extensions: ["md"],
       },
     ],

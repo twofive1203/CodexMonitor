@@ -25,7 +25,7 @@ export function useRenameThreadPrompt({
     (workspaceId: string, threadId: string) => {
       const threads = threadsByWorkspace[workspaceId] ?? [];
       const thread = threads.find((entry) => entry.id === threadId);
-      const currentName = thread?.name || "Thread";
+      const currentName = thread?.name || "会话";
       setRenamePrompt({
         workspaceId,
         threadId,

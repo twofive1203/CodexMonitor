@@ -92,7 +92,7 @@ pub(crate) fn resolve_git_binary() -> Result<PathBuf, String> {
     }
 
     Err(format!(
-        "Git not found. Install Git or ensure it is on PATH. Tried: {}",
+        "未找到 Git。请安装 Git，或确认其已加入 PATH。已尝试：{}",
         candidates.join(", ")
     ))
 }

@@ -11,7 +11,7 @@ use crate::types::WorkspaceEntry;
 
 fn resolve_default_codex_home() -> Result<PathBuf, String> {
     codex_home::resolve_default_codex_home()
-        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
+        .ok_or_else(|| "无法解析 CODEX_HOME 目录。".to_string())
 }
 
 async fn resolve_workspace_root(
@@ -21,7 +21,7 @@ async fn resolve_workspace_root(
     let workspaces = workspaces.lock().await;
     let entry = workspaces
         .get(workspace_id)
-        .ok_or_else(|| "workspace not found".to_string())?;
+        .ok_or_else(|| "未找到工作区。".to_string())?;
     Ok(PathBuf::from(&entry.path))
 }
 
@@ -33,7 +33,7 @@ pub(crate) async fn resolve_root_core(
     match scope {
         FileScope::Global => resolve_default_codex_home(),
         FileScope::Workspace => {
-            let workspace_id = workspace_id.ok_or_else(|| "workspaceId is required".to_string())?;
+            let workspace_id = workspace_id.ok_or_else(|| "workspaceId 不能为空。".to_string())?;
             resolve_workspace_root(workspaces, workspace_id).await
         }
     }

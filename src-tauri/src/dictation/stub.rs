@@ -4,7 +4,7 @@ use tauri::{AppHandle, State};
 use crate::state::AppState;
 
 const DEFAULT_MODEL_ID: &str = "base";
-const UNSUPPORTED_MESSAGE: &str = "Dictation is not available on mobile builds.";
+const UNSUPPORTED_MESSAGE: &str = "移动端构建暂不支持语音输入。";
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

@@ -61,7 +61,7 @@ describe("useRenameWorktreePrompt", () => {
       "feature/new",
     );
     expect(result.current.upstreamPrompt).toBeNull();
-    expect(result.current.notice).toBe("Upstream branch updated.");
+    expect(result.current.notice).toBe("上游分支已更新。");
   });
 
   it("surfaces rename errors", async () => {

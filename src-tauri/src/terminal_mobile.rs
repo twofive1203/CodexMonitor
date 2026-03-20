@@ -3,7 +3,7 @@ use tauri::{AppHandle, State};
 
 use crate::state::AppState;
 
-const UNSUPPORTED_MESSAGE: &str = "Terminal is not available on mobile builds.";
+const UNSUPPORTED_MESSAGE: &str = "移动端构建不支持终端。";
 
 pub(crate) struct TerminalSession {
     pub(crate) id: String,
@@ -24,7 +24,7 @@ pub(crate) async fn terminal_open(
     _app: AppHandle,
 ) -> Result<TerminalSessionInfo, String> {
     if terminal_id.trim().is_empty() {
-        return Err("Terminal id is required".to_string());
+        return Err("终端 ID 不能为空。".to_string());
     }
     Err(UNSUPPORTED_MESSAGE.to_string())
 }

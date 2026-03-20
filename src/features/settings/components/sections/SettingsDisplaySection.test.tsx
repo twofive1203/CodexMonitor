@@ -49,9 +49,7 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const row = screen
-      .getByText("Auto-generate new thread titles")
-      .closest(".settings-toggle-row");
+    const row = screen.getByText("自动生成新会话标题").closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");
 
@@ -103,7 +101,7 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const row = screen.getByText("Unlimited chat history").closest(".settings-toggle-row");
+    const row = screen.getByText("无限聊天历史").closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");
 
@@ -156,16 +154,16 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const presetSelect = screen.getByLabelText("Scrollback preset");
+    const presetSelect = screen.getByLabelText("历史保留预设");
     expect((presetSelect as HTMLSelectElement).disabled).toBe(true);
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText("每个会话最大条目数");
     expect((maxItemsInput as HTMLInputElement).disabled).toBe(true);
 
     const maxItemsRow = maxItemsInput.closest(".settings-field-row");
     expect(maxItemsRow).toBeTruthy();
     const resetButton = within(maxItemsRow as HTMLElement).getByRole("button", {
-      name: "Reset",
+      name: "重置",
     });
     expect((resetButton as HTMLButtonElement).disabled).toBe(true);
 
@@ -215,7 +213,7 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const select = screen.getByLabelText("Scrollback preset");
+    const select = screen.getByLabelText("历史保留预设");
     fireEvent.change(select, { target: { value: "1000" } });
 
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -265,11 +263,11 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText("每个会话最大条目数");
     fireEvent.change(maxItemsInput, { target: { value: "50" } });
 
     const unlimitedRow = screen
-      .getByText("Unlimited chat history")
+      .getByText("无限聊天历史")
       .closest(".settings-toggle-row");
     expect(unlimitedRow).toBeTruthy();
     const unlimitedButton = within(unlimitedRow as HTMLElement).getByRole("button");
@@ -325,13 +323,13 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText("每个会话最大条目数");
     fireEvent.change(maxItemsInput, { target: { value: "50" } });
 
     const maxItemsRow = maxItemsInput.closest(".settings-field-row");
     expect(maxItemsRow).toBeTruthy();
     const resetButton = within(maxItemsRow as HTMLElement).getByRole("button", {
-      name: "Reset",
+      name: "重置",
     });
 
     fireEvent.blur(maxItemsInput, { relatedTarget: resetButton });

@@ -8,14 +8,14 @@ describe("WorkspaceHomeGitInitBanner", () => {
     const onInitGitRepo = vi.fn();
     render(<WorkspaceHomeGitInitBanner isLoading={false} onInitGitRepo={onInitGitRepo} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Initialize Git" }));
+    fireEvent.click(screen.getByRole("button", { name: "初始化 Git" }));
     expect(onInitGitRepo).toHaveBeenCalledTimes(1);
   });
 
   it("disables the button when loading", () => {
     render(<WorkspaceHomeGitInitBanner isLoading={true} onInitGitRepo={vi.fn()} />);
 
-    const button = screen.getByRole("button", { name: "Initializing..." });
+    const button = screen.getByRole("button", { name: "初始化中..." });
     expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 });

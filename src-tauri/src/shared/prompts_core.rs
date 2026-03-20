@@ -45,14 +45,14 @@ fn require_workspace_entry(
     workspaces
         .get(workspace_id)
         .cloned()
-        .ok_or_else(|| "workspace not found".to_string())
+        .ok_or_else(|| "未找到工作区。".to_string())
 }
 
 fn app_data_dir(settings_path: &Path) -> Result<PathBuf, String> {
     settings_path
         .parent()
         .map(|path| path.to_path_buf())
-        .ok_or_else(|| "Unable to resolve app data dir.".to_string())
+        .ok_or_else(|| "无法解析应用数据目录。".to_string())
 }
 
 fn workspace_prompts_dir(settings_path: &Path, entry: &WorkspaceEntry) -> Result<PathBuf, String> {
@@ -76,7 +76,7 @@ fn prompt_roots_for_workspace(
 fn ensure_path_within_roots(path: &Path, roots: &[PathBuf]) -> Result<(), String> {
     let canonical_path = path
         .canonicalize()
-        .map_err(|_| "Invalid prompt path.".to_string())?;
+        .map_err(|_| "提示词路径无效。".to_string())?;
     for root in roots {
         if let Ok(canonical_root) = root.canonicalize() {
             if canonical_path.starts_with(&canonical_root) {
@@ -84,7 +84,7 @@ fn ensure_path_within_roots(path: &Path, roots: &[PathBuf]) -> Result<(), String
             }
         }
     }
-    Err("Prompt path is not within allowed directories.".to_string())
+    Err("提示词路径不在允许的目录范围内。".to_string())
 }
 
 #[cfg(unix)]
@@ -211,13 +211,13 @@ fn build_prompt_contents(
 fn sanitize_prompt_name(name: &str) -> Result<String, String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        return Err("Prompt name is required.".to_string());
+        return Err("提示词名称不能为空。".to_string());
     }
     if trimmed.chars().any(|ch| ch.is_whitespace()) {
-        return Err("Prompt name cannot include whitespace.".to_string());
+        return Err("提示词名称不能包含空白字符。".to_string());
     }
     if trimmed.contains('/') || trimmed.contains('\\') {
-        return Err("Prompt name cannot include path separators.".to_string());
+        return Err("提示词名称不能包含路径分隔符。".to_string());
     }
     Ok(trimmed.to_string())
 }
@@ -299,7 +299,7 @@ pub(crate) async fn prompts_list_core(
         out
     })
     .await
-    .map_err(|_| "prompt discovery failed".to_string())
+    .map_err(|_| "发现提示词失败。".to_string())
 }
 
 pub(crate) async fn prompts_workspace_dir_core(
@@ -323,7 +323,7 @@ pub(crate) async fn prompts_global_dir_core(
     let workspaces = workspaces.lock().await;
     let entry = require_workspace_entry(&workspaces, &workspace_id)?;
     let dir = default_prompts_dir_for_workspace(&workspaces, &entry)
-        .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+        .ok_or("无法解析 CODEX_HOME 目录。".to_string())?;
     fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
     Ok(dir.to_string_lossy().to_string())
 }
@@ -349,15 +349,15 @@ pub(crate) async fn prompts_create_core(
             }
             "global" => {
                 let dir = default_prompts_dir_for_workspace(&workspaces, &entry)
-                    .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+                    .ok_or("无法解析 CODEX_HOME 目录。".to_string())?;
                 (dir, "global")
             }
-            _ => return Err("Invalid scope.".to_string()),
+            _ => return Err("作用域无效。".to_string()),
         }
     };
     let path = target_dir.join(format!("{name}.md"));
     if path.exists() {
-        return Err("Prompt already exists.".to_string());
+        return Err("提示词已存在。".to_string());
     }
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
@@ -387,7 +387,7 @@ pub(crate) async fn prompts_update_core(
     let name = sanitize_prompt_name(&name)?;
     let target_path = PathBuf::from(&path);
     if !target_path.exists() {
-        return Err("Prompt not found.".to_string());
+        return Err("未找到提示词。".to_string());
     }
     {
         let workspaces = workspaces.lock().await;
@@ -397,10 +397,10 @@ pub(crate) async fn prompts_update_core(
     }
     let dir = target_path
         .parent()
-        .ok_or("Unable to resolve prompt directory.".to_string())?;
+        .ok_or("无法解析提示词目录。".to_string())?;
     let next_path = dir.join(format!("{name}.md"));
     if next_path != target_path && next_path.exists() {
-        return Err("Prompt with that name already exists.".to_string());
+        return Err("同名提示词已存在。".to_string());
     }
     let body = build_prompt_contents(description.clone(), argument_hint.clone(), content.clone());
     fs::write(&next_path, body).map_err(|err| err.to_string())?;
@@ -455,7 +455,7 @@ pub(crate) async fn prompts_move_core(
 ) -> Result<CustomPromptEntry, String> {
     let target_path = PathBuf::from(&path);
     if !target_path.exists() {
-        return Err("Prompt not found.".to_string());
+        return Err("未找到提示词。".to_string());
     }
     let roots = {
         let workspaces = workspaces.lock().await;
@@ -466,23 +466,23 @@ pub(crate) async fn prompts_move_core(
     let file_name = target_path
         .file_name()
         .and_then(|value| value.to_str())
-        .ok_or("Invalid prompt path.".to_string())?;
+        .ok_or("提示词路径无效。".to_string())?;
     let target_dir = {
         let workspaces = workspaces.lock().await;
         let entry = require_workspace_entry(&workspaces, &workspace_id)?;
         match scope.as_str() {
             "workspace" => workspace_prompts_dir(settings_path, &entry)?,
             "global" => default_prompts_dir_for_workspace(&workspaces, &entry)
-                .ok_or("Unable to resolve CODEX_HOME".to_string())?,
-            _ => return Err("Invalid scope.".to_string()),
+                .ok_or("无法解析 CODEX_HOME 目录。".to_string())?,
+            _ => return Err("作用域无效。".to_string()),
         }
     };
     let next_path = target_dir.join(file_name);
     if next_path == target_path {
-        return Err("Prompt is already in that scope.".to_string());
+        return Err("提示词已在该作用域中。".to_string());
     }
     if next_path.exists() {
-        return Err("Prompt with that name already exists.".to_string());
+        return Err("同名提示词已存在。".to_string());
     }
     if let Some(parent) = next_path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;

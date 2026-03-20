@@ -38,7 +38,7 @@ export function WorkspaceFromUrlPrompt({
 
   return (
     <ModalShell
-      ariaLabel="通过 URL 添加工作区"
+      ariaLabel="通过仓库地址添加工作区"
       className="workspace-from-url-modal"
       cardClassName="workspace-from-url-modal-card"
       onBackdropClick={() => {
@@ -48,7 +48,7 @@ export function WorkspaceFromUrlPrompt({
       }}
     >
       <div className="workspace-from-url-modal-content">
-        <div className="ds-modal-title">通过 URL 添加工作区</div>
+        <div className="ds-modal-title">通过仓库地址添加工作区</div>
         <label className="ds-modal-label" htmlFor="workspace-url-input">
           远程 Git 地址
         </label>

@@ -130,7 +130,7 @@ export function InitGitRepoPrompt({
             id="git-init-repo-name"
             className="ds-modal-input git-init-modal-input"
             value={repoName}
-            placeholder="owner/repo or repo"
+            placeholder="owner/repo 或 repo"
             disabled={isBusy}
             onChange={(event) => onRepoNameChange(event.target.value)}
             onKeyDown={(event) => {

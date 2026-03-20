@@ -29,11 +29,11 @@ function defaultMobileSetupMessage(): string {
 function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: number): AppSettings {
   const existingBackends: AppSettings["remoteBackends"] =
     settings.remoteBackends.length > 0
-      ? [...settings.remoteBackends]
+        ? [...settings.remoteBackends]
       : [
           {
             id: settings.activeRemoteBackendId ?? "remote-default",
-            name: "Primary remote",
+            name: "主远程连接",
             provider: "tcp" as const,
             host: settings.remoteBackendHost,
             token: settings.remoteBackendToken,
@@ -105,15 +105,14 @@ export function useMobileServerSetup({
         setStatusError(false);
         if (options?.announceSuccess) {
           const count = entries.length;
-          const workspaceWord = count === 1 ? "workspace" : "workspaces";
-          setStatusMessage(`Connected. ${count} ${workspaceWord} available from your desktop backend.`);
+          setStatusMessage(`已连接桌面端，可访问 ${count} 个工作区。`);
         } else {
           setStatusMessage(null);
         }
         return true;
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Unable to reach remote backend.";
+          error instanceof Error ? error.message : "无法连接远程后端。";
         setMobileServerReady(false);
         setStatusError(true);
         setStatusMessage(message);
@@ -157,7 +156,7 @@ export function useMobileServerSetup({
         }
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Unable to save remote backend settings.";
+          error instanceof Error ? error.message : "无法保存远程后端设置。";
         setMobileServerReady(false);
         setStatusError(true);
         setStatusMessage(message);
@@ -193,7 +192,7 @@ export function useMobileServerSetup({
     void (async () => {
       const ok = await runConnectivityCheck();
       if (active && !ok) {
-        setStatusMessage((previous) => previous ?? "Unable to connect to remote backend.");
+        setStatusMessage((previous) => previous ?? "暂时无法连接远程后端。");
       }
       if (active) {
         setChecking(false);

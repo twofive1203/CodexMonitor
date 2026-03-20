@@ -19,7 +19,7 @@ describe("ErrorToasts", () => {
     expect(region.getAttribute("aria-live")).toBe("assertive");
     expect(screen.getByRole("alert")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss error" }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭错误提示" }));
     expect(onDismiss).toHaveBeenCalledWith("toast-1");
   });
 });

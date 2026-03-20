@@ -14,7 +14,7 @@ pub(super) async fn workspace_entry_for_id(
     workspaces
         .get(workspace_id)
         .cloned()
-        .ok_or_else(|| "workspace not found".to_string())
+        .ok_or_else(|| "未找到工作区。".to_string())
 }
 
 pub(super) async fn resolve_repo_root_for_workspace(

@@ -27,6 +27,6 @@ pub(crate) fn apply_workspace_settings_update(
             entry.settings = settings.clone();
             Ok(entry.clone())
         }
-        None => Err("workspace not found".to_string()),
+        None => Err("未找到工作区。".to_string()),
     }
 }

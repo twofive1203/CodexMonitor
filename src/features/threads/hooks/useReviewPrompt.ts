@@ -369,7 +369,7 @@ export function useReviewPrompt({
     const branch = reviewPrompt.selectedBranch.trim();
     if (!branch) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Choose a base branch." } : prev,
+        prev ? { ...prev, error: "请选择基准分支。" } : prev,
       );
       return;
     }
@@ -422,7 +422,7 @@ export function useReviewPrompt({
     const sha = reviewPrompt.selectedCommitSha.trim();
     if (!sha) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Choose a commit to review." } : prev,
+        prev ? { ...prev, error: "请选择要审查的提交。" } : prev,
       );
       return;
     }
@@ -447,7 +447,7 @@ export function useReviewPrompt({
     const instructions = reviewPrompt.customInstructions.trim();
     if (!instructions) {
       setReviewPrompt((prev) =>
-        prev ? { ...prev, error: "Enter custom review instructions." } : prev,
+        prev ? { ...prev, error: "请输入自定义审查说明。" } : prev,
       );
       return;
     }

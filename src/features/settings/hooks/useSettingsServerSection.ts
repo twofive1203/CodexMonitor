@@ -158,13 +158,13 @@ const validateRemoteHost = (value: string): string | null => {
 const validateWebAccessListenAddr = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "Web 监听地址不能为空。";
+    return "网页监听地址不能为空。";
   }
   if (/^https?:\/\//i.test(trimmed)) {
-    return "Web 监听地址不需要包含协议。";
+    return "网页监听地址不需要包含协议。";
   }
   if (/\s/.test(trimmed)) {
-    return "Web 监听地址不能包含空格。";
+    return "网页监听地址不能包含空格。";
   }
   return null;
 };
@@ -172,11 +172,11 @@ const validateWebAccessListenAddr = (value: string): string | null => {
 const validateWebAccessPort = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "Web 端口不能为空。";
+    return "网页端口不能为空。";
   }
   const port = Number(trimmed);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    return "Web 端口必须在 1 到 65535 之间。";
+    return "网页端口必须在 1 到 65535 之间。";
   }
   return null;
 };
@@ -337,13 +337,13 @@ export const useSettingsServerSection = ({
   }, [appSettings.webAccessPort, appSettings.webAccessPublicBaseUrl, tailscaleStatus]);
   const remoteTokenGenerationBlockedReason = useMemo(() => {
     if (webAccessBusy) {
-      return "正在检测 Web 服务状态，请稍后再试。";
+      return "正在检测网页服务状态，请稍后再试。";
     }
     if (appSettings.webAccessEnabled) {
-      return "请先关闭 Web 服务，再生成新的远程令牌。";
+      return "请先关闭网页服务，再生成新的远程令牌。";
     }
     if (webAccessStatus?.state === "running") {
-      return "Web 服务仍在运行，请先关闭并等待完全停止。";
+      return "网页服务仍在运行，请先关闭并等待完全停止。";
     }
     return null;
   }, [appSettings.webAccessEnabled, webAccessBusy, webAccessStatus?.state]);
@@ -486,7 +486,7 @@ export const useSettingsServerSection = ({
           setWebAccessNotice(null);
         }
       } catch (error) {
-        const message = formatErrorMessage(error, "无法刷新 Web 服务状态。");
+        const message = formatErrorMessage(error, "无法刷新网页服务状态。");
         setWebAccessStatus(null);
         setWebAccessNotice(message, true);
       } finally {
@@ -505,7 +505,7 @@ export const useSettingsServerSection = ({
     const nextEnabled = !latestSettings.webAccessEnabled;
     await persistSettingsPatch(
       { webAccessEnabled: nextEnabled },
-      nextEnabled ? "Web 访问已开启，正在刷新状态。" : "Web 访问已关闭。",
+      nextEnabled ? "网页访问已开启，正在刷新状态。" : "网页访问已关闭。",
     );
     handleRefreshWebAccessStatus();
   };
@@ -527,7 +527,7 @@ export const useSettingsServerSection = ({
     setWebAccessListenAddrDraft(nextValue);
     await persistSettingsPatch(
       { webAccessListenAddr: nextValue },
-      "Web 监听地址已保存。",
+      "网页监听地址已保存。",
     );
     handleRefreshWebAccessStatus();
   };
@@ -547,7 +547,7 @@ export const useSettingsServerSection = ({
     const nextPort = Number.parseInt(webAccessPortDraft.trim(), 10);
     setWebAccessPortError(null);
     setWebAccessPortDraft(String(nextPort));
-    await persistSettingsPatch({ webAccessPort: nextPort }, "Web 端口已保存。");
+    await persistSettingsPatch({ webAccessPort: nextPort }, "网页端口已保存。");
     handleRefreshWebAccessStatus();
   };
 
@@ -559,7 +559,7 @@ export const useSettingsServerSection = ({
   const handleCommitWebAccessPublicBaseUrl = async () => {
     const normalized = normalizePublicBaseUrl(webAccessPublicBaseUrlDraft);
     if (webAccessPublicBaseUrlDraft.trim() && !normalized) {
-      const message = "外部访问地址格式无效，请输入完整 URL 或主机名。";
+      const message = "外部访问地址格式无效，请输入完整地址或主机名。";
       setWebAccessPublicBaseUrlError(message);
       setWebAccessNotice(message, true);
       return;

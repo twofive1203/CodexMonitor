@@ -217,9 +217,9 @@ export function useMainAppComposerWorkspaceState({
 
   const queuePausedReason =
     queueFlushPaused && hasUserInputRequestForActiveThread
-      ? "Paused — waiting for your answers."
+      ? "已暂停，等待你的回复。"
       : queueFlushPaused && isPlanReadyAwaitingResponse
-        ? "Paused — waiting for plan accept/changes."
+        ? "已暂停，等待你确认或调整计划。"
         : null;
 
   const composerState = useComposerController({
@@ -293,7 +293,7 @@ export function useMainAppComposerWorkspaceState({
       workspaceId: activeWorkspaceId,
       threadId: thread.id,
       modelId: null,
-      modelLabel: thread.name?.trim() || "Untitled thread",
+      modelLabel: thread.name?.trim() || "未命名会话",
       sequence: index + 1,
     }));
     return {

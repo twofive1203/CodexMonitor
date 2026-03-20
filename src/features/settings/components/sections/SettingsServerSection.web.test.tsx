@@ -128,7 +128,7 @@ function createProps(
     remoteNameDraft: "主远程配置",
     remoteHostDraft: "127.0.0.1:4732",
     remoteTokenDraft: "token-1",
-    remoteTokenGenerationBlockedReason: "请先关闭 Web 服务，再生成新的远程令牌。",
+    remoteTokenGenerationBlockedReason: "请先关闭网页服务，再生成新的远程令牌。",
     nextRemoteNameSuggestion: "远程配置 2",
     tailscaleStatus: {
       installed: true,
@@ -209,7 +209,7 @@ describe("SettingsServerSection Web Access", () => {
   it("shows desktop web status and recommended urls", () => {
     render(<SettingsServerSection {...createProps()} />);
 
-    expect(screen.getByText("Web 服务状态")).toBeTruthy();
+    expect(screen.getByText("网页服务状态")).toBeTruthy();
     expect(screen.getByText("运行中")).toBeTruthy();
     expect(screen.getByText("本机访问")).toBeTruthy();
     expect(screen.getByText("远程访问")).toBeTruthy();
@@ -230,8 +230,8 @@ describe("SettingsServerSection Web Access", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "切换 Web 访问" }));
-    fireEvent.click(screen.getByRole("button", { name: "刷新 Web 服务状态" }));
+    fireEvent.click(screen.getByRole("button", { name: "切换网页访问" }));
+    fireEvent.click(screen.getByRole("button", { name: "刷新网页服务状态" }));
 
     expect(onToggleWebAccessEnabled).toHaveBeenCalledTimes(1);
     expect(onRefreshWebAccessStatus).toHaveBeenCalledTimes(1);

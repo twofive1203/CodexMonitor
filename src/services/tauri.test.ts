@@ -139,9 +139,9 @@ describe("tauri invoke wrappers", () => {
     await expect(exportMarkdownFile("# Plan", "my-plan.md")).resolves.toBe("/tmp/plan.md");
 
     expect(saveMock).toHaveBeenCalledWith({
-      title: "Export plan as Markdown",
+      title: "导出计划为 Markdown",
       defaultPath: "my-plan.md",
-      filters: [{ name: "Markdown", extensions: ["md"] }],
+      filters: [{ name: "Markdown 文件", extensions: ["md"] }],
     });
     expect(invokeMock).toHaveBeenCalledWith("write_text_file", {
       path: "/tmp/plan.md",
@@ -308,8 +308,8 @@ describe("tauri invoke wrappers", () => {
   it("maps usage for set_tray_session_usage", async () => {
     const invokeMock = vi.mocked(invoke);
     const usage = {
-      sessionLabel: "12% used · Resets 2 hours",
-      weeklyLabel: "67% used · Resets in 2 days",
+      sessionLabel: "已使用 12% · 重置时间：2小时后",
+      weeklyLabel: "已使用 67% · 重置时间：2天后",
     };
 
     await setTraySessionUsage(usage);

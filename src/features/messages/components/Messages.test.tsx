@@ -84,7 +84,7 @@ describe("Messages", () => {
     if (grid && markdown) {
       expect(bubble?.firstChild).toBe(grid);
     }
-    const openButton = screen.getByRole("button", { name: "Open image 1" });
+    const openButton = screen.getByRole("button", { name: "打开图片 1" });
     fireEvent.click(openButton);
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
@@ -167,7 +167,7 @@ describe("Messages", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Quote message" }));
+    fireEvent.click(screen.getByRole("button", { name: "引用消息" }));
     expect(onQuoteMessage).toHaveBeenCalledWith("> First line\n> Second line\n\n");
   });
 
@@ -205,7 +205,7 @@ describe("Messages", () => {
     selection?.removeAllRanges();
     selection?.addRange(range);
 
-    const quoteButton = screen.getByRole("button", { name: "Quote message" });
+    const quoteButton = screen.getByRole("button", { name: "引用消息" });
     fireEvent.mouseDown(quoteButton);
     fireEvent.click(quoteButton);
 
@@ -798,7 +798,7 @@ describe("Messages", () => {
     );
 
     const workingText = container.querySelector(".working-text");
-    expect(workingText?.textContent ?? "").toContain("Working");
+    expect(workingText?.textContent ?? "").toContain("处理中");
     expect(workingText?.textContent ?? "").not.toContain("Old reasoning title");
   });
 
@@ -865,13 +865,13 @@ describe("Messages", () => {
       );
 
       expect(
-        screen.getByText("New message will be fetched in 12 seconds"),
+        screen.getByText("12 秒后拉取新消息"),
       ).toBeTruthy();
       act(() => {
         vi.advanceTimersByTime(1_000);
       });
       expect(
-        screen.getByText("New message will be fetched in 11 seconds"),
+        screen.getByText("11 秒后拉取新消息"),
       ).toBeTruthy();
     } finally {
       vi.useRealTimers();
@@ -900,7 +900,7 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.getByText("Done in 0:04")).toBeTruthy();
+    expect(screen.getByText("0:04 完成")).toBeTruthy();
   });
 
   it("renders answered user input items with preview and expandable details", () => {
@@ -937,7 +937,7 @@ describe("Messages", () => {
     expect(screen.queryByText("user_note: after running tests")).toBeNull();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Toggle answered input details" }),
+      screen.getByRole("button", { name: "切换已回答输入详情" }),
     );
 
     expect(screen.getByText("user_note: after running tests")).toBeTruthy();
@@ -973,11 +973,11 @@ describe("Messages", () => {
     await waitFor(() => {
       expect(container.querySelector(".explore-inline")).toBeTruthy();
     });
-    expect(screen.queryByText(/tool calls/i)).toBeNull();
+    expect(screen.queryByText(/工具调用/i)).toBeNull();
     const exploreItems = container.querySelectorAll(".explore-inline-item");
     expect(exploreItems.length).toBe(2);
     expect(container.querySelector(".explore-inline-title")?.textContent ?? "").toContain(
-      "Explored",
+      "已探索",
     );
   });
 
@@ -1012,7 +1012,7 @@ describe("Messages", () => {
       expect(container.querySelectorAll(".explore-inline").length).toBe(1);
     });
     const exploreTitle = container.querySelector(".explore-inline-title");
-    expect(exploreTitle?.textContent ?? "").toContain("Explored");
+    expect(exploreTitle?.textContent ?? "").toContain("已探索");
   });
 
   it("does not merge explore items across interleaved tools", async () => {
@@ -1200,7 +1200,7 @@ describe("Messages", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("5 tool calls")).toBeTruthy();
+      expect(screen.getByText("5次工具调用")).toBeTruthy();
     });
   });
 
@@ -1267,7 +1267,7 @@ describe("Messages", () => {
         id: "plan-1",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "- Step 1",
@@ -1287,9 +1287,9 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.getByText("Plan ready")).toBeTruthy();
+    expect(screen.getByText("计划已就绪")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Implement this plan" }),
+      screen.getByRole("button", { name: "按此计划执行" }),
     ).toBeTruthy();
   });
 
@@ -1300,7 +1300,7 @@ describe("Messages", () => {
         id: "plan-7",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "## Steps\n- Step 1",
@@ -1319,7 +1319,7 @@ describe("Messages", () => {
     );
 
     const exportButton = await screen.findByRole("button", {
-      name: "Export .md",
+      name: "导出 .md",
     });
     fireEvent.click(exportButton);
 
@@ -1339,7 +1339,7 @@ describe("Messages", () => {
         id: "plan-2",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "Plan text",
@@ -1365,7 +1365,7 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("hides the plan-ready follow-up when the plan tool item is still running", () => {
@@ -1376,8 +1376,8 @@ describe("Messages", () => {
         id: "plan-3",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
-        detail: "Generating plan...",
+        title: "计划",
+        detail: "正在生成计划...",
         status: "in_progress",
         output: "Partial plan",
       },
@@ -1396,7 +1396,7 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("shows the plan-ready follow-up once the turn stops thinking even if the plan status stays in_progress", () => {
@@ -1407,8 +1407,8 @@ describe("Messages", () => {
         id: "plan-stuck-in-progress",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
-        detail: "Generating plan...",
+        title: "计划",
+        detail: "正在生成计划...",
         status: "in_progress",
         output: "Plan text",
       },
@@ -1427,7 +1427,7 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.getByText("Plan ready")).toBeTruthy();
+    expect(screen.getByText("计划已就绪")).toBeTruthy();
   });
 
   it("calls the plan follow-up callbacks", () => {
@@ -1438,7 +1438,7 @@ describe("Messages", () => {
         id: "plan-4",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "Plan text",
@@ -1458,18 +1458,18 @@ describe("Messages", () => {
       />,
     );
 
-    const sendChangesButton = screen.getByRole("button", { name: "Send changes" });
+    const sendChangesButton = screen.getByRole("button", { name: "发送修改" });
     expect((sendChangesButton as HTMLButtonElement).disabled).toBe(true);
 
     const textarea = screen.getByPlaceholderText(
-      "Describe what you want to change in the plan...",
+      "描述你希望如何调整这个计划...",
     );
     fireEvent.change(textarea, { target: { value: "Add error handling" } });
 
     expect((sendChangesButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(sendChangesButton);
     expect(onPlanSubmitChanges).toHaveBeenCalledWith("Add error handling");
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("dismisses the plan-ready follow-up when the plan is accepted", () => {
@@ -1480,7 +1480,7 @@ describe("Messages", () => {
         id: "plan-accept",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "Plan text",
@@ -1501,10 +1501,10 @@ describe("Messages", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Implement this plan" }),
+      screen.getByRole("button", { name: "按此计划执行" }),
     );
     expect(onPlanAccept).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("does not render plan-ready tagged internal user messages", () => {
@@ -1515,7 +1515,7 @@ describe("Messages", () => {
         id: "plan-6",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "Plan text",
@@ -1524,7 +1524,7 @@ describe("Messages", () => {
         id: "internal-user",
         kind: "message",
         role: "user",
-        text: "[[cm_plan_ready:accept]] Implement this plan.",
+        text: "[[cm_plan_ready:accept]] 按此计划执行。",
       },
     ];
 
@@ -1542,7 +1542,7 @@ describe("Messages", () => {
     );
 
     expect(screen.queryByText(/cm_plan_ready/)).toBeNull();
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("hides the plan follow-up when an input-requested bubble is active", () => {
@@ -1553,7 +1553,7 @@ describe("Messages", () => {
         id: "plan-5",
         kind: "tool",
         toolType: "plan",
-        title: "Plan",
+        title: "计划",
         detail: "completed",
         status: "completed",
         output: "Plan text",
@@ -1586,8 +1586,8 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.getByText("Input requested")).toBeTruthy();
-    expect(screen.queryByText("Plan ready")).toBeNull();
+    expect(screen.getByText("需要输入")).toBeTruthy();
+    expect(screen.queryByText("计划已就绪")).toBeNull();
   });
 
   it("renders hook rows through the standard tool renderer", () => {
@@ -1596,7 +1596,7 @@ describe("Messages", () => {
         id: "hook-hook-1",
         kind: "tool",
         toolType: "hook",
-        title: "Hook: session-start",
+        title: "钩子：session-start",
         detail: "command • sync • thread • session-start.sh • Preparing",
         status: "failed",
         output: "[error] Missing config",
@@ -1615,11 +1615,11 @@ describe("Messages", () => {
       />,
     );
 
-    expect(screen.getByText("hook:")).toBeTruthy();
     expect(screen.getByText("session-start")).toBeTruthy();
-    expect(screen.getByText("failed • 0:03")).toBeTruthy();
+    expect(document.body.textContent).toContain("钩子:");
+    expect(screen.getByText("失败 • 0:03")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle tool details" }));
+    fireEvent.click(screen.getByRole("button", { name: "切换工具详情" }));
     expect(
       screen.getByText("command • sync • thread • session-start.sh • Preparing"),
     ).toBeTruthy();

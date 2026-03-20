@@ -248,10 +248,10 @@ export function useMainAppGitState({
 
   const fileStatus =
     gitStatus.error
-      ? "Git status unavailable"
+      ? "Git 状态不可用"
       : gitStatus.files.length > 0
-        ? `${gitStatus.files.length} file${gitStatus.files.length === 1 ? "" : "s"} changed`
-        : "Working tree clean";
+        ? `${gitStatus.files.length} 个文件已变更`
+        : "工作区干净";
 
   useSyncSelectedDiffPath({
     diffSource,

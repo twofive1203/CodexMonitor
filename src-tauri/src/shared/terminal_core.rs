@@ -101,10 +101,7 @@ pub(crate) fn open_terminal_session(
     rows: u16,
 ) -> Result<(Arc<TerminalSession>, Box<dyn Read + Send>), String> {
     if !cwd.is_dir() {
-        return Err(format!(
-            "Workspace path does not exist or is not a directory: {}",
-            cwd.display()
-        ));
+        return Err(format!("工作区路径不存在，或不是目录：{}", cwd.display()));
     }
 
     let pty_system = native_pty_system();
@@ -116,7 +113,7 @@ pub(crate) fn open_terminal_session(
     };
     let pair = pty_system
         .openpty(size)
-        .map_err(|error| format!("Failed to open pty: {error}"))?;
+        .map_err(|error| format!("打开伪终端失败：{error}"))?;
 
     let mut cmd = CommandBuilder::new(shell_path());
     cmd.cwd(cwd);
@@ -130,15 +127,15 @@ pub(crate) fn open_terminal_session(
     let child = pair
         .slave
         .spawn_command(cmd)
-        .map_err(|error| format!("Failed to spawn shell: {error}"))?;
+        .map_err(|error| format!("启动终端 Shell 失败：{error}"))?;
     let reader = pair
         .master
         .try_clone_reader()
-        .map_err(|error| format!("Failed to open pty reader: {error}"))?;
+        .map_err(|error| format!("打开伪终端读取器失败：{error}"))?;
     let writer = pair
         .master
         .take_writer()
-        .map_err(|error| format!("Failed to open pty writer: {error}"))?;
+        .map_err(|error| format!("打开伪终端写入器失败：{error}"))?;
 
     let session = Arc::new(TerminalSession {
         id: terminal_id,
@@ -234,14 +231,14 @@ pub(crate) async fn write_terminal_session(
         let mut writer = session.writer.blocking_lock();
         writer
             .write_all(data.as_bytes())
-            .map_err(|error| format!("Failed to write to pty: {error}"))?;
+            .map_err(|error| format!("写入伪终端失败：{error}"))?;
         writer
             .flush()
-            .map_err(|error| format!("Failed to flush pty: {error}"))?;
+            .map_err(|error| format!("刷新伪终端失败：{error}"))?;
         Ok::<(), String>(())
     })
     .await
-    .map_err(|error| format!("Terminal write task failed: {error}"))?
+    .map_err(|error| format!("终端写入任务失败：{error}"))?
 }
 
 /// 调整终端窗口大小。
@@ -262,10 +259,10 @@ pub(crate) async fn resize_terminal_session(
         let master = session.master.blocking_lock();
         master
             .resize(size)
-            .map_err(|error| format!("Failed to resize pty: {error}"))
+            .map_err(|error| format!("调整伪终端大小失败：{error}"))
     })
     .await
-    .map_err(|error| format!("Terminal resize task failed: {error}"))?
+    .map_err(|error| format!("终端尺寸调整任务失败：{error}"))?
 }
 
 /// 主动关闭终端会话。

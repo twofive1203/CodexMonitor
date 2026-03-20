@@ -182,7 +182,7 @@ pub(crate) fn resolve_git_root(entry: &WorkspaceEntry) -> Result<PathBuf, String
     if root_path.is_dir() {
         Ok(root_path)
     } else {
-        Err(format!("Git root not found: {root}"))
+        Err(format!("未找到 Git 根目录：{root}"))
     }
 }
 

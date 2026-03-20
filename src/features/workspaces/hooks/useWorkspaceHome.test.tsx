@@ -171,7 +171,7 @@ describe("useWorkspaceHome", () => {
 
     expect(started).toBe(false);
     expect(result.current.error).toBe(
-      "Select at least one model to run in a worktree.",
+      "请至少选择一个模型来运行工作树任务。",
     );
     expect(result.current.runs).toHaveLength(0);
   });
@@ -293,7 +293,7 @@ describe("useWorkspaceHome", () => {
     expect(started).toBe(false);
     expect(result.current.runs).toHaveLength(0);
     expect(result.current.error).toBe(
-      "Select at least one model to run in a worktree.",
+      "请至少选择一个模型来运行工作树任务。",
     );
   });
 });

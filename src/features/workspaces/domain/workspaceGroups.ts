@@ -3,7 +3,8 @@ import type { WorkspaceGroup, WorkspaceInfo } from "../../../types";
 const GROUP_ID_RANDOM_MODULUS = 1_000_000;
 const SORT_ORDER_FALLBACK = Number.MAX_SAFE_INTEGER;
 
-export const RESERVED_GROUP_NAME = "Ungrouped";
+export const RESERVED_GROUP_NAME = "未分组";
+const LEGACY_RESERVED_GROUP_NAMES = [RESERVED_GROUP_NAME, "Ungrouped"];
 
 export type WorkspaceGroupSection = {
   id: string | null;
@@ -20,7 +21,10 @@ export function getSortOrderValue(value: number | null | undefined) {
 }
 
 export function isReservedGroupName(name: string) {
-  return normalizeGroupName(name).toLowerCase() === RESERVED_GROUP_NAME.toLowerCase();
+  const normalized = normalizeGroupName(name).toLowerCase();
+  return LEGACY_RESERVED_GROUP_NAMES.some(
+    (entry) => entry.toLowerCase() === normalized,
+  );
 }
 
 export function isDuplicateGroupName(

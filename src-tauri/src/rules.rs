@@ -13,7 +13,7 @@ pub(crate) fn default_rules_path(codex_home: &Path) -> PathBuf {
 
 pub(crate) fn append_prefix_rule(path: &Path, pattern: &[String]) -> Result<(), String> {
     if pattern.is_empty() {
-        return Err("empty command pattern".to_string());
+        return Err("命令模式不能为空。".to_string());
     }
 
     if let Some(parent) = path.parent() {
@@ -72,7 +72,7 @@ fn acquire_rules_lock(path: &Path) -> Result<RulesFileLock, String> {
                     continue;
                 }
                 if Instant::now() >= deadline {
-                    return Err("timed out waiting for rules file lock".to_string());
+                    return Err("等待规则文件锁超时。".to_string());
                 }
                 thread::sleep(Duration::from_millis(50));
             }

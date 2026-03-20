@@ -142,8 +142,8 @@ describe("webTerminalClient", () => {
 
     expect(socket.sent).toHaveLength(1);
 
-    socket.emitMessage('{"id":1,"error":{"message":"Unknown workspace"}}');
+    socket.emitMessage('{"id":1,"error":{"message":"未知工作区。"}}');
 
-    await expect(promise).rejects.toThrow("Unknown workspace");
+    await expect(promise).rejects.toThrow("未知工作区。");
   });
 });

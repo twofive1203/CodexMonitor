@@ -70,7 +70,7 @@ pub(crate) fn set_tray_recent_threads<R: tauri::Runtime>(
         let mut recent_threads = state
             .recent_threads
             .lock()
-            .map_err(|_| "failed to lock tray recent threads".to_string())?;
+            .map_err(|_| "无法锁定托盘最近线程数据。".to_string())?;
         if *recent_threads == normalized {
             return Ok(());
         }
@@ -94,7 +94,7 @@ pub(crate) fn set_tray_session_usage<R: tauri::Runtime>(
         let mut session_usage = state
             .session_usage
             .lock()
-            .map_err(|_| "failed to lock tray session usage".to_string())?;
+            .map_err(|_| "无法锁定托盘会话用量数据。".to_string())?;
         if *session_usage == normalized {
             return Ok(());
         }
@@ -303,11 +303,14 @@ fn build_usage_menu_items<R: Runtime>(
 
 fn build_usage_menu_labels(usage: Option<&TraySessionUsage>) -> (String, String, Option<String>) {
     (
-        "Current Usage".to_string(),
+        "当前用量".to_string(),
         usage
-            .map(|usage| format!("Session: {}", usage.session_label))
-            .unwrap_or_else(|| "No active session".to_string()),
-        usage.map(|usage| usage.weekly_label.clone()).unwrap_or(None).map(|label| format!("Weekly: {label}")),
+            .map(|usage| format!("当前会话：{}", usage.session_label))
+            .unwrap_or_else(|| "当前没有活跃会话".to_string()),
+        usage
+            .map(|usage| usage.weekly_label.clone())
+            .unwrap_or(None)
+            .map(|label| format!("每周：{label}")),
     )
 }
 
@@ -430,12 +433,12 @@ mod tests {
         );
         assert_eq!(
             normalize_session_usage(Some(TraySessionUsage {
-                session_label: " 12% used ".into(),
-                weekly_label: Some(" 67% used ".into()),
+                session_label: " 已使用 12% ".into(),
+                weekly_label: Some(" 已使用 67% ".into()),
             })),
             Some(TraySessionUsage {
-                session_label: "12% used".into(),
-                weekly_label: Some("67% used".into()),
+                session_label: "已使用 12%".into(),
+                weekly_label: Some("已使用 67%".into()),
             })
         );
     }
@@ -444,18 +447,18 @@ mod tests {
     fn build_usage_menu_labels_include_current_usage_section() {
         assert_eq!(
             build_usage_menu_labels(Some(&TraySessionUsage {
-                session_label: "12% used · Resets 2 hours".into(),
-                weekly_label: Some("67% used · Resets in 2 days".into()),
+                session_label: "已使用 12% · 重置时间：2小时后".into(),
+                weekly_label: Some("已使用 67% · 重置时间：2天后".into()),
             })),
             (
-                "Current Usage".into(),
-                "Session: 12% used · Resets 2 hours".into(),
-                Some("Weekly: 67% used · Resets in 2 days".into()),
+                "当前用量".into(),
+                "当前会话：已使用 12% · 重置时间：2小时后".into(),
+                Some("每周：已使用 67% · 重置时间：2天后".into()),
             )
         );
         assert_eq!(
             build_usage_menu_labels(None),
-            ("Current Usage".into(), "No active session".into(), None)
+            ("当前用量".into(), "当前没有活跃会话".into(), None)
         );
     }
 }

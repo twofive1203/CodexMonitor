@@ -29,7 +29,7 @@ pub(super) fn copy_agents_md_from_parent_to_worktree(
 
     std::fs::copy(&source_path, &temp_path).map_err(|err| {
         format!(
-            "Failed to copy {} from {} to {}: {err}",
+            "复制 {} 从 {} 到 {} 失败：{err}",
             AGENTS_MD_FILE_NAME,
             source_path.display(),
             temp_path.display()
@@ -39,7 +39,7 @@ pub(super) fn copy_agents_md_from_parent_to_worktree(
     std::fs::rename(&temp_path, &destination_path).map_err(|err| {
         let _ = std::fs::remove_file(&temp_path);
         format!(
-            "Failed to finalize {} copy to {}: {err}",
+            "完成 {} 复制到 {} 失败：{err}",
             AGENTS_MD_FILE_NAME,
             destination_path.display()
         )
@@ -112,7 +112,7 @@ pub(super) async fn resolve_entry_and_parent(
     let entry = workspaces
         .get(workspace_id)
         .cloned()
-        .ok_or_else(|| "workspace not found".to_string())?;
+        .ok_or_else(|| "未找到工作区。".to_string())?;
     let parent_entry = entry
         .parent_id
         .as_ref()
@@ -129,7 +129,7 @@ pub(super) async fn resolve_workspace_root(
     let entry = workspaces
         .get(workspace_id)
         .cloned()
-        .ok_or_else(|| "workspace not found".to_string())?;
+        .ok_or_else(|| "未找到工作区。".to_string())?;
     Ok(PathBuf::from(entry.path))
 }
 
