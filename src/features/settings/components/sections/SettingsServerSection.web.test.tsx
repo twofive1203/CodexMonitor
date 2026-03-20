@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsServerSection } from "./SettingsServerSection";
@@ -254,6 +254,38 @@ describe("SettingsServerSection Web Access", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "隐藏远程后端令牌" }));
     expect(tokenInput.type).toBe("password");
+  });
+
+  it("copies the remote token with the copy button", async () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    try {
+      render(
+        <SettingsServerSection
+          {...createProps({
+            remoteTokenGenerationBlockedReason: null,
+          })}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "复制远程后端令牌" }));
+
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledWith("token-1");
+      });
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(navigator, "clipboard", originalDescriptor);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (navigator as any).clipboard;
+      }
+    }
   });
 
   it("only allows random token generation after web access is closed", () => {

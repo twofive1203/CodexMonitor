@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import Copy from "lucide-react/dist/esm/icons/copy";
 import Eye from "lucide-react/dist/esm/icons/eye";
 import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
@@ -229,6 +230,10 @@ export function SettingsServerSection({
     return "Web 服务当前已停止。";
   })();
 
+  /**
+   * 将指定值写入系统剪贴板。
+   * @param value 需要复制的文本；为空时直接忽略。
+   */
   const handleCopyValue = (value: string | null) => {
     if (!value) {
       return;
@@ -677,15 +682,27 @@ export function SettingsServerSection({
                 }}
                 aria-label="远程后端令牌"
               />
-              <button
-                type="button"
-                className="ghost icon-button settings-remote-token-visibility"
-                aria-label={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
-                title={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
-                onClick={() => setShowRemoteToken((current) => !current)}
-              >
-                {showRemoteToken ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
-              </button>
+              <div className="settings-remote-token-actions">
+                <button
+                  type="button"
+                  className="ghost icon-button settings-remote-token-copy"
+                  aria-label="复制远程后端令牌"
+                  title="复制远程后端令牌"
+                  onClick={() => handleCopyValue(remoteTokenDraft.trim())}
+                  disabled={!remoteTokenDraft.trim()}
+                >
+                  <Copy aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="ghost icon-button settings-remote-token-visibility"
+                  aria-label={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+                  title={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+                  onClick={() => setShowRemoteToken((current) => !current)}
+                >
+                  {showRemoteToken ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+                </button>
+              </div>
             </div>
             <button
               type="button"

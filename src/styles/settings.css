@@ -164,23 +164,27 @@
 
 .settings-remote-token-input {
   width: 100%;
-  padding-right: 40px;
+  padding-right: 74px;
 }
 
-.settings-remote-token-visibility {
+.settings-remote-token-actions {
   position: absolute;
   top: 50%;
   right: 6px;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-remote-token-copy,
+.settings-remote-token-visibility {
   padding: 4px;
 }
 
+.settings-remote-token-copy:hover:not(:disabled),
 .settings-remote-token-visibility:hover:not(:disabled) {
-  transform: translateY(-50%);
-}
-
-.settings-remote-token-visibility:active:not(:disabled) {
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .settings-remote-token-generate {
