@@ -35,33 +35,21 @@ impl HttpServerContext {
 
 /// 解析 Web 静态资源目录。
 ///
-/// `configured_dir`：命令行传入的静态目录；`daemon_binary_path`：当前守护进程二进制路径，用于推导相邻 `dist` 目录。
+/// `configured_dir`：命令行传入的静态目录；`daemon_binary_path`：当前守护进程二进制路径，用于推导开发目录和安装包资源目录。
 pub(super) fn resolve_static_dir(
     configured_dir: Option<PathBuf>,
     daemon_binary_path: Option<&str>,
 ) -> Option<PathBuf> {
-    let mut candidates = Vec::new();
-    if let Some(path) = configured_dir {
-        candidates.push(path);
-    }
-    if let Ok(current_dir) = std::env::current_dir() {
-        candidates.push(current_dir.join("dist"));
+    let mut binary_paths = Vec::<PathBuf>::new();
+
+    if let Ok(current_exe) = std::env::current_exe() {
+        binary_paths.push(current_exe);
     }
     if let Some(binary_path) = daemon_binary_path {
-        let binary = PathBuf::from(binary_path);
-        if let Some(parent) = binary.parent() {
-            candidates.push(parent.join("dist"));
-        }
+        binary_paths.push(PathBuf::from(binary_path));
     }
 
-    candidates.into_iter().find_map(|path| {
-        let index_file = path.join("index.html");
-        if path.is_dir() && index_file.is_file() {
-            Some(path)
-        } else {
-            None
-        }
-    })
+    crate::shared::web_static_dir::resolve_web_static_dir(configured_dir, &binary_paths)
 }
 
 /// 启动 daemon 的 Web HTTP/WS 服务。

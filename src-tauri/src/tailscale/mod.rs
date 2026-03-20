@@ -342,27 +342,18 @@ async fn probe_configured_web_access(settings: &AppSettings) -> bool {
 
 /// 为桌面端启动流程解析可复用的 Web 静态资源目录。
 ///
-/// 无入参；返回包含 `index.html` 的 `dist` 目录。
+/// 无入参；返回包含 `index.html` 的开发 `dist` 目录或安装包内的 `web-dist` 目录。
 fn resolve_web_static_dir() -> Option<PathBuf> {
-    let mut candidates = Vec::<PathBuf>::new();
-
-    if let Ok(current_dir) = std::env::current_dir() {
-        candidates.push(current_dir.join("dist"));
-    }
+    let mut binary_paths = Vec::<PathBuf>::new();
 
     if let Ok(current_exe) = std::env::current_exe() {
-        for ancestor in current_exe.ancestors().skip(1).take(6) {
-            candidates.push(ancestor.join("dist"));
-        }
+        binary_paths.push(current_exe);
     }
-
     if let Ok(daemon_binary) = resolve_daemon_binary_path() {
-        for ancestor in daemon_binary.ancestors().skip(1).take(6) {
-            candidates.push(ancestor.join("dist"));
-        }
+        binary_paths.push(daemon_binary);
     }
 
-    candidates.into_iter().find(|candidate| candidate.join("index.html").is_file())
+    crate::shared::web_static_dir::resolve_web_static_dir(None, &binary_paths)
 }
 
 /// 将共享守护进程状态映射为 Web 访问状态。

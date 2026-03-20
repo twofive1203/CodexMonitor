@@ -227,6 +227,22 @@ Windows builds are opt-in and use a separate Tauri config file to avoid macOS-on
 npm run tauri:build:win
 ```
 
+If you keep `plugins.updater.pubkey` and `bundle.createUpdaterArtifacts` enabled, Tauri will also sign updater artifacts during the build. On Windows PowerShell, set the private key before running the release build:
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY="C:\path\to\your\private.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+npm run tauri:build:win
+```
+
+For local manual installer verification without updater signing, use:
+
+```bash
+npm run tauri:build:win:local
+```
+
+The packaged app now bundles the Web frontend static assets into `resources/web-dist`, so installed Windows builds can serve the Web runtime without manually passing `--web-static-dir`.
+
 Artifacts will be in:
 
 - `src-tauri/target/release/bundle/nsis/` (installer exe)
