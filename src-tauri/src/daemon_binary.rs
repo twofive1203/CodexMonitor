@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+/// Returns the supported daemon executable names for the current platform.
 pub(crate) fn daemon_binary_candidates() -> &'static [&'static str] {
     if cfg!(windows) {
         &["codex_monitor_daemon.exe", "codex-monitor-daemon.exe"]
@@ -8,6 +9,9 @@ pub(crate) fn daemon_binary_candidates() -> &'static [&'static str] {
     }
 }
 
+/// Builds the ordered daemon search directories.
+///
+/// Parameter `executable_dir`: parent directory of the current desktop app binary.
 fn daemon_search_dirs(executable_dir: &std::path::Path) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
@@ -18,6 +22,19 @@ fn daemon_search_dirs(executable_dir: &std::path::Path) -> Vec<PathBuf> {
     };
 
     push_unique(executable_dir.to_path_buf());
+
+    if let Some(target_dir) = executable_dir.parent() {
+        push_unique(target_dir.join("debug"));
+        push_unique(target_dir.join("release"));
+    }
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        push_unique(current_dir.clone());
+        push_unique(current_dir.join("target").join("debug"));
+        push_unique(current_dir.join("target").join("release"));
+        push_unique(current_dir.join("src-tauri").join("target").join("debug"));
+        push_unique(current_dir.join("src-tauri").join("target").join("release"));
+    }
 
     #[cfg(target_os = "macos")]
     {
@@ -38,6 +55,10 @@ fn daemon_search_dirs(executable_dir: &std::path::Path) -> Vec<PathBuf> {
     dirs
 }
 
+/// Resolves the daemon binary path for the current runtime.
+///
+/// The function first honors `CODEX_MONITOR_DAEMON_PATH`, then falls back to
+/// common development and packaged output directories.
 pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
     let mut attempted_paths: Vec<PathBuf> = Vec::new();
     let current_exe = std::env::current_exe().map_err(|err| err.to_string())?;
@@ -84,7 +105,7 @@ pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
         .join(", ");
 
     Err(format!(
-        "Unable to locate daemon binary (tried: {})",
+        "Unable to locate daemon binary (tried: {}). For local development, run `cargo build --manifest-path src-tauri/Cargo.toml --bin codex_monitor_daemon` first.",
         attempted
     ))
 }

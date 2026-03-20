@@ -211,6 +211,23 @@ pub(crate) struct TcpDaemonStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct WebAccessStatus {
+    pub(crate) enabled: bool,
+    pub(crate) state: TcpDaemonState,
+    #[serde(default)]
+    pub(crate) pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) started_at_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_error: Option<String>,
+    #[serde(default)]
+    pub(crate) listen_addr: Option<String>,
+    #[serde(default)]
+    pub(crate) local_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct TailscaleStatus {
     pub(crate) installed: bool,
     pub(crate) running: bool,
@@ -389,6 +406,17 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_host: String,
     #[serde(default, rename = "remoteBackendToken")]
     pub(crate) remote_backend_token: Option<String>,
+    #[serde(default = "default_web_access_enabled", rename = "webAccessEnabled")]
+    pub(crate) web_access_enabled: bool,
+    #[serde(
+        default = "default_web_access_listen_addr",
+        rename = "webAccessListenAddr"
+    )]
+    pub(crate) web_access_listen_addr: String,
+    #[serde(default = "default_web_access_port", rename = "webAccessPort")]
+    pub(crate) web_access_port: u16,
+    #[serde(default, rename = "webAccessPublicBaseUrl")]
+    pub(crate) web_access_public_base_url: Option<String>,
     #[serde(default = "default_remote_backends", rename = "remoteBackends")]
     pub(crate) remote_backends: Vec<RemoteBackendTarget>,
     #[serde(default, rename = "activeRemoteBackendId")]
@@ -691,8 +719,24 @@ fn default_backend_mode() -> BackendMode {
     }
 }
 
+pub(crate) const DEFAULT_REMOTE_BACKEND_HOST: &str = "127.0.0.1:4732";
+pub(crate) const DEFAULT_WEB_ACCESS_LISTEN_ADDR: &str = "127.0.0.1";
+pub(crate) const DEFAULT_WEB_ACCESS_PORT: u16 = 4733;
+
 fn default_remote_backend_host() -> String {
-    "127.0.0.1:4732".to_string()
+    DEFAULT_REMOTE_BACKEND_HOST.to_string()
+}
+
+fn default_web_access_enabled() -> bool {
+    false
+}
+
+fn default_web_access_listen_addr() -> String {
+    DEFAULT_WEB_ACCESS_LISTEN_ADDR.to_string()
+}
+
+fn default_web_access_port() -> u16 {
+    DEFAULT_WEB_ACCESS_PORT
 }
 
 fn default_remote_backends() -> Vec<RemoteBackendTarget> {
@@ -1129,6 +1173,10 @@ impl Default for AppSettings {
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
+            web_access_enabled: default_web_access_enabled(),
+            web_access_listen_addr: default_web_access_listen_addr(),
+            web_access_port: default_web_access_port(),
+            web_access_public_base_url: None,
             remote_backends: default_remote_backends(),
             active_remote_backend_id: None,
             keep_daemon_running_after_app_close: false,
@@ -1229,6 +1277,10 @@ mod tests {
         ));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
+        assert!(!settings.web_access_enabled);
+        assert_eq!(settings.web_access_listen_addr, "127.0.0.1");
+        assert_eq!(settings.web_access_port, 4733);
+        assert!(settings.web_access_public_base_url.is_none());
         assert!(settings.remote_backends.is_empty());
         assert!(settings.active_remote_backend_id.is_none());
         assert!(!settings.keep_daemon_running_after_app_close);

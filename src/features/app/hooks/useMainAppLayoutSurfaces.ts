@@ -10,6 +10,7 @@ import type { useMainAppPromptActions } from "@app/hooks/useMainAppPromptActions
 import type { useMainAppSidebarMenuOrchestration } from "@app/hooks/useMainAppSidebarMenuOrchestration";
 import type { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import type { LayoutNodesOptions } from "@/features/layout/hooks/layoutNodes/types";
+import type { RuntimeCapabilities } from "@services/runtime/capabilities";
 
 type SidebarProps = LayoutNodesOptions["primary"]["sidebarProps"];
 type ComposerProps = NonNullable<LayoutNodesOptions["primary"]["composerProps"]>;
@@ -31,6 +32,7 @@ type UseMainAppLayoutSurfacesArgs = {
     | "splitChatDiffView"
     | "gitDiffIgnoreWhitespaceChanges"
   >;
+  runtimeCapabilities: RuntimeCapabilities;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: Array<{ id: string | null; name: string; workspaces: WorkspaceInfo[] }>;
   workspaceGroupsCount: number;
@@ -229,6 +231,7 @@ type UseMainAppLayoutSurfacesArgs = {
 
 export function useMainAppLayoutSurfaces({
   appSettings,
+  runtimeCapabilities,
   workspaces,
   groupedWorkspaces,
   workspaceGroupsCount,
@@ -389,6 +392,8 @@ export function useMainAppLayoutSurfaces({
 }: UseMainAppLayoutSurfacesArgs): LayoutNodesOptions {
   const sidebarRateLimits = activeWorkspace ? activeRateLimits : homeRateLimits;
   const sidebarAccount = activeWorkspace ? activeAccount : homeAccount;
+  const desktopShellEnabled = runtimeCapabilities.kind === "tauri";
+  const webGitReadOnly = runtimeCapabilities.kind === "web";
 
   return {
     primary: {
@@ -643,9 +648,12 @@ export function useMainAppLayoutSurfaces({
             canCopyThread: activeItems.length > 0,
             onCopyThread: handleCopyThread,
             onToggleTerminal: handleToggleTerminalWithFocus,
-            isTerminalOpen: terminalOpen,
-            showTerminalButton: !isCompact,
-            showWorkspaceTools: !isCompact,
+            isTerminalOpen: runtimeCapabilities.terminal && terminalOpen,
+            showTerminalButton: runtimeCapabilities.terminal && !isCompact,
+            showWorkspaceTools:
+              runtimeCapabilities.revealInDir &&
+              runtimeCapabilities.openAppIcon &&
+              !isCompact,
             launchScript: launchScriptState.launchScript,
             launchScriptEditorOpen: launchScriptState.editorOpen,
             launchScriptDraft: launchScriptState.draftScript,
@@ -702,10 +710,12 @@ export function useMainAppLayoutSurfaces({
             onFilePanelModeChange: gitState.setFilePanelMode,
             onInsertText: composerWorkspaceState.handleInsertComposerText,
             canInsertText: composerWorkspaceState.canInsertComposerText,
-            openTargets: appSettings.openAppTargets,
+            openTargets: desktopShellEnabled ? appSettings.openAppTargets : [],
             openAppIconById,
             selectedOpenAppId: appSettings.selectedOpenAppId,
             onSelectOpenAppId: handleSelectOpenAppId,
+            desktopFileActionsEnabled: desktopShellEnabled,
+            imagePreviewEnabled: desktopShellEnabled,
           }
         : null,
       promptPanelProps: {
@@ -743,7 +753,8 @@ export function useMainAppLayoutSurfaces({
         worktreeApplySuccess: worktreeState.isWorktreeWorkspace
           ? gitState.worktreeApplySuccess
           : false,
-        onApplyWorktreeChanges: worktreeState.isWorktreeWorkspace
+        nativeContextMenuEnabled: desktopShellEnabled,
+        onApplyWorktreeChanges: !webGitReadOnly && worktreeState.isWorktreeWorkspace
           ? gitState.handleApplyWorktreeChanges
           : undefined,
         branchName: gitState.gitStatus.branchName || "unknown",
@@ -799,28 +810,28 @@ export function useMainAppLayoutSurfaces({
         onClearGitRoot: () => {
           void gitState.handleSetGitRoot(null);
         },
-        onPickGitRoot: gitState.handlePickGitRoot,
-        onInitGitRepo: openInitGitRepoPrompt,
+        onPickGitRoot: runtimeCapabilities.fileDialogs ? gitState.handlePickGitRoot : undefined,
+        onInitGitRepo: webGitReadOnly ? undefined : openInitGitRepoPrompt,
         initGitRepoLoading: gitState.initGitRepoLoading,
-        onStageAllChanges: gitState.handleStageGitAll,
-        onStageFile: gitState.handleStageGitFile,
-        onUnstageFile: gitState.handleUnstageGitFile,
-        onRevertFile: gitState.handleRevertGitFile,
-        onRevertAllChanges: gitState.handleRevertAllGitChanges,
+        onStageAllChanges: webGitReadOnly ? undefined : gitState.handleStageGitAll,
+        onStageFile: webGitReadOnly ? undefined : gitState.handleStageGitFile,
+        onUnstageFile: webGitReadOnly ? undefined : gitState.handleUnstageGitFile,
+        onRevertFile: webGitReadOnly ? undefined : gitState.handleRevertGitFile,
+        onRevertAllChanges: webGitReadOnly ? undefined : gitState.handleRevertAllGitChanges,
         onReviewUncommittedChanges: (workspaceId) =>
           startUncommittedReview(workspaceId ?? activeWorkspace?.id ?? null),
         commitMessage: gitState.commitMessage,
         commitMessageLoading: gitState.commitMessageLoading,
         commitMessageError: gitState.commitMessageError,
-        onCommitMessageChange: gitState.handleCommitMessageChange,
-        onGenerateCommitMessage: gitState.handleGenerateCommitMessage,
-        onCommit: gitState.handleCommit,
-        onCommitAndPush: gitState.handleCommitAndPush,
-        onCommitAndSync: gitState.handleCommitAndSync,
-        onPull: gitState.handlePull,
-        onFetch: gitState.handleFetch,
-        onPush: gitState.handlePush,
-        onSync: gitState.handleSync,
+        onCommitMessageChange: webGitReadOnly ? undefined : gitState.handleCommitMessageChange,
+        onGenerateCommitMessage: webGitReadOnly ? undefined : gitState.handleGenerateCommitMessage,
+        onCommit: webGitReadOnly ? undefined : gitState.handleCommit,
+        onCommitAndPush: webGitReadOnly ? undefined : gitState.handleCommitAndPush,
+        onCommitAndSync: webGitReadOnly ? undefined : gitState.handleCommitAndSync,
+        onPull: webGitReadOnly ? undefined : gitState.handlePull,
+        onFetch: webGitReadOnly ? undefined : gitState.handleFetch,
+        onPush: webGitReadOnly ? undefined : gitState.handlePush,
+        onSync: webGitReadOnly ? undefined : gitState.handleSync,
         commitLoading: gitState.commitLoading,
         pullLoading: gitState.pullLoading,
         fetchLoading: gitState.fetchLoading,
@@ -850,10 +861,11 @@ export function useMainAppLayoutSurfaces({
         onRunPullRequestReview: gitState.runPullRequestReview,
         pullRequestReviewLaunching: gitState.isLaunchingPullRequestReview,
         pullRequestReviewThreadId: gitState.lastPullRequestReviewThreadId,
-        onCheckoutPullRequest: (pullRequest) =>
-          gitState.handleCheckoutPullRequest(pullRequest.number),
-        canRevert: gitState.diffSource === "local",
-        onRevertFile: gitState.handleRevertGitFile,
+        onCheckoutPullRequest: webGitReadOnly
+          ? undefined
+          : (pullRequest) => gitState.handleCheckoutPullRequest(pullRequest.number),
+        canRevert: !webGitReadOnly && gitState.diffSource === "local",
+        onRevertFile: webGitReadOnly ? undefined : gitState.handleRevertGitFile,
         onActivePathChange: gitState.handleActiveDiffPath,
         onInsertComposerText: composerWorkspaceState.canInsertComposerText
           ? composerWorkspaceState.handleInsertComposerText
@@ -872,7 +884,7 @@ export function useMainAppLayoutSurfaces({
         isProcessing: composerWorkspaceState.isProcessing,
       },
       terminalDockProps: {
-        isOpen: terminalOpen,
+        isOpen: runtimeCapabilities.terminal && terminalOpen,
         terminals: terminalTabs,
         activeTerminalId,
         onSelectTerminal,

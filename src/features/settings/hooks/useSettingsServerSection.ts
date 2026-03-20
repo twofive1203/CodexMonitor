@@ -5,6 +5,7 @@ import type {
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
+  WebAccessStatus,
 } from "@/types";
 import {
   listWorkspaces,
@@ -13,6 +14,7 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus as fetchTailscaleStatus,
+  webAccessStatus as fetchWebAccessStatus,
 } from "@services/tauri";
 import { isMobilePlatform } from "@utils/platformPaths";
 import { DEFAULT_REMOTE_HOST } from "@settings/components/settingsViewConstants";
@@ -45,6 +47,7 @@ export type SettingsServerSectionProps = {
   remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
+  remoteTokenGenerationBlockedReason: string | null;
   nextRemoteNameSuggestion: string;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
@@ -54,16 +57,37 @@ export type SettingsServerSectionProps = {
   tailscaleCommandError: string | null;
   tcpDaemonStatus: TcpDaemonStatus | null;
   tcpDaemonBusyAction: "start" | "stop" | "status" | null;
+  webAccessStatus: WebAccessStatus | null;
+  webAccessBusy: boolean;
+  webAccessStatusText: string | null;
+  webAccessStatusError: boolean;
+  webAccessListenAddrError: string | null;
+  webAccessPortError: string | null;
+  webAccessPublicBaseUrlError: string | null;
+  webAccessListenAddrDraft: string;
+  webAccessPortDraft: string;
+  webAccessPublicBaseUrlDraft: string;
+  webAccessLocalUrl: string | null;
+  webAccessRemoteUrl: string | null;
   onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessListenAddrDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessPortDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessPublicBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onCommitRemoteName: () => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
+  onGenerateRemoteToken: () => Promise<void>;
+  onToggleWebAccessEnabled: () => Promise<void>;
+  onCommitWebAccessListenAddr: () => Promise<void>;
+  onCommitWebAccessPort: () => Promise<void>;
+  onCommitWebAccessPublicBaseUrl: () => Promise<void>;
   onSelectRemoteBackend: (id: string) => Promise<void>;
   onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
   onDeleteRemoteBackend: (id: string) => Promise<void>;
+  onRefreshWebAccessStatus: () => void;
   onRefreshTailscaleStatus: () => void;
   onRefreshTailscaleCommandPreview: () => void;
   onUseSuggestedTailscaleHost: () => Promise<void>;
@@ -131,6 +155,103 @@ const validateRemoteHost = (value: string): string | null => {
   return null;
 };
 
+const validateWebAccessListenAddr = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "Web 监听地址不能为空。";
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return "Web 监听地址不需要包含协议。";
+  }
+  if (/\s/.test(trimmed)) {
+    return "Web 监听地址不能包含空格。";
+  }
+  return null;
+};
+
+const validateWebAccessPort = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "Web 端口不能为空。";
+  }
+  const port = Number(trimmed);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return "Web 端口必须在 1 到 65535 之间。";
+  }
+  return null;
+};
+
+const normalizePublicBaseUrl = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const candidate = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return null;
+    }
+    return candidate.replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+};
+
+const normalizeUrlHost = (host: string): string => {
+  const trimmed = host.trim();
+  if (trimmed.includes(":") && !trimmed.startsWith("[")) {
+    return `[${trimmed}]`;
+  }
+  return trimmed;
+};
+
+const buildHttpUrl = (host: string, port: number): string => {
+  return `http://${normalizeUrlHost(host)}:${port}`;
+};
+
+/**
+ * 生成高熵十六进制远程令牌。
+ *
+ * 无入参；返回可直接保存的随机字符串。
+ */
+const createRandomRemoteToken = (): string => {
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.getRandomValues) {
+    throw new Error("当前运行环境不支持安全随机令牌生成。");
+  }
+  const bytes = new Uint8Array(24);
+  cryptoApi.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+};
+
+const extractSuggestedRemoteHost = (status: TailscaleStatus | null): string | null => {
+  const suggested = status?.suggestedRemoteHost?.trim();
+  if (suggested) {
+    if (suggested.startsWith("[")) {
+      const closingIndex = suggested.indexOf("]");
+      if (closingIndex > 0) {
+        return suggested.slice(0, closingIndex + 1);
+      }
+    }
+    const lastColonIndex = suggested.lastIndexOf(":");
+    if (lastColonIndex > 0 && suggested.indexOf(":") === lastColonIndex) {
+      return suggested.slice(0, lastColonIndex);
+    }
+    return suggested;
+  }
+  if (status?.dnsName?.trim()) {
+    return status.dnsName.trim();
+  }
+  if (status?.ipv4?.[0]?.trim()) {
+    return status.ipv4[0].trim();
+  }
+  if (status?.ipv6?.[0]?.trim()) {
+    return status.ipv6[0].trim();
+  }
+  return null;
+};
+
 const buildNextRemoteName = (remoteBackends: RemoteBackendTarget[]) => {
   const normalized = new Set(remoteBackends.map((entry) => entry.name.trim().toLowerCase()));
   let index = remoteBackends.length + 1;
@@ -166,6 +287,23 @@ export const useSettingsServerSection = ({
   const [tcpDaemonBusyAction, setTcpDaemonBusyAction] = useState<
     "start" | "stop" | "status" | null
   >(null);
+  const [webAccessStatus, setWebAccessStatus] = useState<WebAccessStatus | null>(null);
+  const [webAccessBusy, setWebAccessBusy] = useState(false);
+  const [webAccessStatusText, setWebAccessStatusText] = useState<string | null>(null);
+  const [webAccessStatusError, setWebAccessStatusError] = useState(false);
+  const [webAccessListenAddrDraft, setWebAccessListenAddrDraft] = useState(
+    appSettings.webAccessListenAddr,
+  );
+  const [webAccessPortDraft, setWebAccessPortDraft] = useState(
+    String(appSettings.webAccessPort),
+  );
+  const [webAccessPublicBaseUrlDraft, setWebAccessPublicBaseUrlDraft] = useState(
+    appSettings.webAccessPublicBaseUrl ?? "",
+  );
+  const [webAccessListenAddrError, setWebAccessListenAddrError] = useState<string | null>(null);
+  const [webAccessPortError, setWebAccessPortError] = useState<string | null>(null);
+  const [webAccessPublicBaseUrlError, setWebAccessPublicBaseUrlError] =
+    useState<string | null>(null);
   const [mobileConnectBusy, setMobileConnectBusy] = useState(false);
   const [mobileConnectStatusText, setMobileConnectStatusText] = useState<string | null>(null);
   const [mobileConnectStatusError, setMobileConnectStatusError] = useState(false);
@@ -173,10 +311,51 @@ export const useSettingsServerSection = ({
 
   const latestSettingsRef = useRef(appSettings);
   const activeRemoteBackend = useMemo(() => getActiveRemoteBackend(appSettings), [appSettings]);
+  const webAccessLocalUrl = useMemo(() => {
+    const host = appSettings.webAccessListenAddr.trim();
+    if (!host) {
+      return null;
+    }
+    if (host === "0.0.0.0") {
+      return buildHttpUrl("127.0.0.1", appSettings.webAccessPort);
+    }
+    if (host === "::" || host === "[::]") {
+      return buildHttpUrl("::1", appSettings.webAccessPort);
+    }
+    return buildHttpUrl(host, appSettings.webAccessPort);
+  }, [appSettings.webAccessListenAddr, appSettings.webAccessPort]);
+  const webAccessRemoteUrl = useMemo(() => {
+    const explicit = normalizePublicBaseUrl(appSettings.webAccessPublicBaseUrl ?? "");
+    if (explicit) {
+      return explicit;
+    }
+    const suggestedHost = extractSuggestedRemoteHost(tailscaleStatus);
+    if (!suggestedHost) {
+      return null;
+    }
+    return buildHttpUrl(suggestedHost.replace(/^\[(.*)\]$/, "$1"), appSettings.webAccessPort);
+  }, [appSettings.webAccessPort, appSettings.webAccessPublicBaseUrl, tailscaleStatus]);
+  const remoteTokenGenerationBlockedReason = useMemo(() => {
+    if (webAccessBusy) {
+      return "正在检测 Web 服务状态，请稍后再试。";
+    }
+    if (appSettings.webAccessEnabled) {
+      return "请先关闭 Web 服务，再生成新的远程令牌。";
+    }
+    if (webAccessStatus?.state === "running") {
+      return "Web 服务仍在运行，请先关闭并等待完全停止。";
+    }
+    return null;
+  }, [appSettings.webAccessEnabled, webAccessBusy, webAccessStatus?.state]);
 
   const setRemoteStatus = useCallback((message: string | null, isError = false) => {
     setRemoteStatusText(message);
     setRemoteStatusError(isError);
+  }, []);
+
+  const setWebAccessNotice = useCallback((message: string | null, isError = false) => {
+    setWebAccessStatusText(message);
+    setWebAccessStatusError(isError);
   }, []);
 
   useEffect(() => {
@@ -190,6 +369,19 @@ export const useSettingsServerSection = ({
     setRemoteNameError(null);
     setRemoteHostError(null);
   }, [activeRemoteBackend]);
+
+  useEffect(() => {
+    setWebAccessListenAddrDraft(appSettings.webAccessListenAddr);
+    setWebAccessPortDraft(String(appSettings.webAccessPort));
+    setWebAccessPublicBaseUrlDraft(appSettings.webAccessPublicBaseUrl ?? "");
+    setWebAccessListenAddrError(null);
+    setWebAccessPortError(null);
+    setWebAccessPublicBaseUrlError(null);
+  }, [
+    appSettings.webAccessListenAddr,
+    appSettings.webAccessPort,
+    appSettings.webAccessPublicBaseUrl,
+  ]);
 
   const normalizeRemoteBackendEntry = (
     entry: RemoteBackendTarget,
@@ -260,6 +452,140 @@ export const useSettingsServerSection = ({
     [buildSettingsFromRemoteBackends, onUpdateAppSettings],
   );
 
+  /**
+   * 持久化应用设置补丁。
+   *
+   * `patch`：需要写回的设置字段；`message`：成功后的状态提示。
+   */
+  const persistSettingsPatch = useCallback(
+    async (patch: Partial<AppSettings>, message?: string) => {
+      const latestSettings = latestSettingsRef.current;
+      const nextSettings = {
+        ...latestSettings,
+        ...patch,
+      };
+      await onUpdateAppSettings(nextSettings);
+      latestSettingsRef.current = nextSettings;
+      if (message) {
+        setWebAccessNotice(message);
+      }
+      return nextSettings;
+    },
+    [onUpdateAppSettings, setWebAccessNotice],
+  );
+
+  const handleRefreshWebAccessStatus = useCallback(() => {
+    void (async () => {
+      setWebAccessBusy(true);
+      try {
+        const status = await fetchWebAccessStatus();
+        setWebAccessStatus(status);
+        if (status.lastError) {
+          setWebAccessNotice(status.lastError, true);
+        } else {
+          setWebAccessNotice(null);
+        }
+      } catch (error) {
+        const message = formatErrorMessage(error, "无法刷新 Web 服务状态。");
+        setWebAccessStatus(null);
+        setWebAccessNotice(message, true);
+      } finally {
+        setWebAccessBusy(false);
+      }
+    })();
+  }, [setWebAccessNotice]);
+
+  /**
+   * 切换 Web 访问开关并立即同步守护进程状态。
+   *
+   * 无入参；保存成功后会刷新 Web 服务状态。
+   */
+  const handleToggleWebAccessEnabled = async () => {
+    const latestSettings = latestSettingsRef.current;
+    const nextEnabled = !latestSettings.webAccessEnabled;
+    await persistSettingsPatch(
+      { webAccessEnabled: nextEnabled },
+      nextEnabled ? "Web 访问已开启，正在刷新状态。" : "Web 访问已关闭。",
+    );
+    handleRefreshWebAccessStatus();
+  };
+
+  /**
+   * 保存 Web 监听地址。
+   *
+   * 无入参；会校验地址格式并在成功后刷新状态。
+   */
+  const handleCommitWebAccessListenAddr = async () => {
+    const nextValue = webAccessListenAddrDraft.trim();
+    const validationError = validateWebAccessListenAddr(nextValue);
+    if (validationError) {
+      setWebAccessListenAddrError(validationError);
+      setWebAccessNotice(validationError, true);
+      return;
+    }
+    setWebAccessListenAddrError(null);
+    setWebAccessListenAddrDraft(nextValue);
+    await persistSettingsPatch(
+      { webAccessListenAddr: nextValue },
+      "Web 监听地址已保存。",
+    );
+    handleRefreshWebAccessStatus();
+  };
+
+  /**
+   * 保存 Web 监听端口。
+   *
+   * 无入参；会校验端口范围并在成功后刷新状态。
+   */
+  const handleCommitWebAccessPort = async () => {
+    const validationError = validateWebAccessPort(webAccessPortDraft);
+    if (validationError) {
+      setWebAccessPortError(validationError);
+      setWebAccessNotice(validationError, true);
+      return;
+    }
+    const nextPort = Number.parseInt(webAccessPortDraft.trim(), 10);
+    setWebAccessPortError(null);
+    setWebAccessPortDraft(String(nextPort));
+    await persistSettingsPatch({ webAccessPort: nextPort }, "Web 端口已保存。");
+    handleRefreshWebAccessStatus();
+  };
+
+  /**
+   * 保存 Web 外部访问地址。
+   *
+   * 无入参；允许为空，非空时需为可访问的 HTTP/HTTPS 地址。
+   */
+  const handleCommitWebAccessPublicBaseUrl = async () => {
+    const normalized = normalizePublicBaseUrl(webAccessPublicBaseUrlDraft);
+    if (webAccessPublicBaseUrlDraft.trim() && !normalized) {
+      const message = "外部访问地址格式无效，请输入完整 URL 或主机名。";
+      setWebAccessPublicBaseUrlError(message);
+      setWebAccessNotice(message, true);
+      return;
+    }
+    setWebAccessPublicBaseUrlError(null);
+    setWebAccessPublicBaseUrlDraft(normalized ?? "");
+    await persistSettingsPatch(
+      { webAccessPublicBaseUrl: normalized },
+      normalized ? "外部访问地址已保存。" : "已清空外部访问地址。",
+    );
+  };
+
+  useEffect(() => {
+    if (mobilePlatform) {
+      return;
+    }
+    handleRefreshWebAccessStatus();
+  }, [
+    appSettings.remoteBackendToken,
+    appSettings.webAccessEnabled,
+    appSettings.webAccessListenAddr,
+    appSettings.webAccessPort,
+    handleRefreshWebAccessStatus,
+    mobilePlatform,
+  ]);
+
   const updateActiveRemoteBackend = useCallback(
     async (patch: Partial<RemoteBackendTarget>) => {
       const latestSettings = latestSettingsRef.current;
@@ -327,6 +653,27 @@ export const useSettingsServerSection = ({
     setRemoteTokenDraft(nextToken ?? "");
     await updateActiveRemoteBackend({ token: nextToken });
     setRemoteStatus("远程令牌已保存。");
+  };
+
+  /**
+   * 为当前远程配置生成并保存新的随机令牌。
+   *
+   * 无入参；生成前要求 Web 服务已关闭，避免旧守护进程继续持有过期令牌。
+   */
+  const handleGenerateRemoteToken = async () => {
+    if (remoteTokenGenerationBlockedReason) {
+      setRemoteStatus(remoteTokenGenerationBlockedReason, true);
+      return;
+    }
+    try {
+      const nextToken = createRandomRemoteToken();
+      setRemoteTokenDraft(nextToken);
+      await updateActiveRemoteBackend({ token: nextToken });
+      setRemoteStatus("已生成新的远程令牌并保存。");
+    } catch (error) {
+      const message = formatErrorMessage(error, "无法生成新的远程令牌。");
+      setRemoteStatus(message, true);
+    }
   };
 
   const handleSelectRemoteBackend = async (id: string) => {
@@ -435,6 +782,35 @@ export const useSettingsServerSection = ({
     setRemoteHostError(null);
     setRemoteStatus(null);
     setRemoteHostDraft((previous) => (typeof value === "function" ? value(previous) : value));
+  };
+
+  const handleSetRemoteTokenDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setRemoteStatus(null);
+    setRemoteTokenDraft((previous) => (typeof value === "function" ? value(previous) : value));
+  };
+
+  const handleSetWebAccessListenAddrDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setWebAccessListenAddrError(null);
+    setWebAccessNotice(null);
+    setWebAccessListenAddrDraft((previous) =>
+      typeof value === "function" ? value(previous) : value,
+    );
+  };
+
+  const handleSetWebAccessPortDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setWebAccessPortError(null);
+    setWebAccessNotice(null);
+    setWebAccessPortDraft((previous) =>
+      typeof value === "function" ? value(previous) : value,
+    );
+  };
+
+  const handleSetWebAccessPublicBaseUrlDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setWebAccessPublicBaseUrlError(null);
+    setWebAccessNotice(null);
+    setWebAccessPublicBaseUrlDraft((previous) =>
+      typeof value === "function" ? value(previous) : value,
+    );
   };
 
   const handleMoveRemoteBackend = async (id: string, direction: "up" | "down") => {
@@ -656,6 +1032,7 @@ export const useSettingsServerSection = ({
     remoteNameDraft,
     remoteHostDraft,
     remoteTokenDraft,
+    remoteTokenGenerationBlockedReason,
     nextRemoteNameSuggestion: buildNextRemoteName(getConfiguredRemoteBackends(appSettings)),
     tailscaleStatus,
     tailscaleStatusBusy,
@@ -665,16 +1042,37 @@ export const useSettingsServerSection = ({
     tailscaleCommandError,
     tcpDaemonStatus,
     tcpDaemonBusyAction,
+    webAccessStatus,
+    webAccessBusy,
+    webAccessStatusText,
+    webAccessStatusError,
+    webAccessListenAddrError,
+    webAccessPortError,
+    webAccessPublicBaseUrlError,
+    webAccessListenAddrDraft,
+    webAccessPortDraft,
+    webAccessPublicBaseUrlDraft,
+    webAccessLocalUrl,
+    webAccessRemoteUrl,
     onSetRemoteNameDraft: handleSetRemoteNameDraft,
     onSetRemoteHostDraft: handleSetRemoteHostDraft,
-    onSetRemoteTokenDraft: setRemoteTokenDraft,
+    onSetRemoteTokenDraft: handleSetRemoteTokenDraft,
+    onSetWebAccessListenAddrDraft: handleSetWebAccessListenAddrDraft,
+    onSetWebAccessPortDraft: handleSetWebAccessPortDraft,
+    onSetWebAccessPublicBaseUrlDraft: handleSetWebAccessPublicBaseUrlDraft,
     onCommitRemoteName: handleCommitRemoteName,
     onCommitRemoteHost: handleCommitRemoteHost,
     onCommitRemoteToken: handleCommitRemoteToken,
+    onGenerateRemoteToken: handleGenerateRemoteToken,
+    onToggleWebAccessEnabled: handleToggleWebAccessEnabled,
+    onCommitWebAccessListenAddr: handleCommitWebAccessListenAddr,
+    onCommitWebAccessPort: handleCommitWebAccessPort,
+    onCommitWebAccessPublicBaseUrl: handleCommitWebAccessPublicBaseUrl,
     onSelectRemoteBackend: handleSelectRemoteBackend,
     onAddRemoteBackend: handleAddRemoteBackend,
     onMoveRemoteBackend: handleMoveRemoteBackend,
     onDeleteRemoteBackend: handleDeleteRemoteBackend,
+    onRefreshWebAccessStatus: handleRefreshWebAccessStatus,
     onRefreshTailscaleStatus: handleRefreshTailscaleStatus,
     onRefreshTailscaleCommandPreview: handleRefreshTailscaleCommandPreview,
     onUseSuggestedTailscaleHost: handleUseSuggestedTailscaleHost,

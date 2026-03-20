@@ -1,10 +1,11 @@
-import { listen } from "@tauri-apps/api/event";
 import type {
   AppServerEvent,
   DictationEvent,
   DictationModelStatus,
   TrayOpenThreadPayload,
 } from "../types";
+import { getRuntimeClient } from "./runtime/client";
+import type { RuntimeEventName, RuntimeSubscribeOptions } from "./runtime/events";
 
 export type Unsubscribe = () => void;
 
@@ -19,30 +20,30 @@ export type TerminalExitEvent = {
   terminalId: string;
 };
 
-type SubscriptionOptions = {
-  onError?: (error: unknown) => void;
-};
-
 type Listener<T> = (payload: T) => void;
 
-function createEventHub<T>(eventName: string) {
+function createEventHub<T>(eventName: RuntimeEventName) {
   const listeners = new Set<Listener<T>>();
   let unlisten: Unsubscribe | null = null;
   let listenPromise: Promise<Unsubscribe> | null = null;
 
-  const start = (options?: SubscriptionOptions) => {
+  const start = (options?: RuntimeSubscribeOptions) => {
     if (unlisten || listenPromise) {
       return;
     }
-    listenPromise = listen<T>(eventName, (event) => {
-      for (const listener of listeners) {
-        try {
-          listener(event.payload);
-        } catch (error) {
-          console.error(`[events] ${eventName} listener failed`, error);
+    listenPromise = getRuntimeClient().subscribe<T>(
+      eventName,
+      (payload) => {
+        for (const listener of listeners) {
+          try {
+            listener(payload);
+          } catch (error) {
+            console.error(`[events] ${eventName} listener failed`, error);
+          }
         }
-      }
-    });
+      },
+      options,
+    );
     listenPromise
       .then((handler) => {
         listenPromise = null;
@@ -71,7 +72,7 @@ function createEventHub<T>(eventName: string) {
 
   const subscribe = (
     onEvent: Listener<T>,
-    options?: SubscriptionOptions,
+    options?: RuntimeSubscribeOptions,
   ): Unsubscribe => {
     listeners.add(onEvent);
     start(options);
@@ -120,42 +121,42 @@ const menuComposerCycleCollaborationHub = createEventHub<void>(
 
 export function subscribeAppServerEvents(
   onEvent: (event: AppServerEvent) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return appServerHub.subscribe(onEvent, options);
 }
 
 export function subscribeDictationDownload(
   onEvent: (event: DictationModelStatus) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return dictationDownloadHub.subscribe(onEvent, options);
 }
 
 export function subscribeDictationEvents(
   onEvent: (event: DictationEvent) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return dictationEventHub.subscribe(onEvent, options);
 }
 
 export function subscribeTerminalOutput(
   onEvent: (event: TerminalOutputEvent) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return terminalOutputHub.subscribe(onEvent, options);
 }
 
 export function subscribeTerminalExit(
   onEvent: (event: TerminalExitEvent) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return terminalExitHub.subscribe(onEvent, options);
 }
 
 export function subscribeUpdaterCheck(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return updaterCheckHub.subscribe(() => {
     onEvent();
@@ -164,7 +165,7 @@ export function subscribeUpdaterCheck(
 
 export function subscribeTrayOpenThread(
   onEvent: (payload: TrayOpenThreadPayload) => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return trayOpenThreadHub.subscribe((payload) => {
     onEvent(payload);
@@ -173,7 +174,7 @@ export function subscribeTrayOpenThread(
 
 export function subscribeMenuNewAgent(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuNewAgentHub.subscribe(() => {
     onEvent();
@@ -182,7 +183,7 @@ export function subscribeMenuNewAgent(
 
 export function subscribeMenuNewWorktreeAgent(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuNewWorktreeAgentHub.subscribe(() => {
     onEvent();
@@ -191,7 +192,7 @@ export function subscribeMenuNewWorktreeAgent(
 
 export function subscribeMenuNewCloneAgent(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuNewCloneAgentHub.subscribe(() => {
     onEvent();
@@ -200,7 +201,7 @@ export function subscribeMenuNewCloneAgent(
 
 export function subscribeMenuAddWorkspaceFromUrl(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuAddWorkspaceFromUrlHub.subscribe(() => {
     onEvent();
@@ -209,7 +210,7 @@ export function subscribeMenuAddWorkspaceFromUrl(
 
 export function subscribeMenuAddWorkspace(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuAddWorkspaceHub.subscribe(() => {
     onEvent();
@@ -218,7 +219,7 @@ export function subscribeMenuAddWorkspace(
 
 export function subscribeMenuOpenSettings(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuOpenSettingsHub.subscribe(() => {
     onEvent();
@@ -227,7 +228,7 @@ export function subscribeMenuOpenSettings(
 
 export function subscribeMenuToggleProjectsSidebar(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuToggleProjectsSidebarHub.subscribe(() => {
     onEvent();
@@ -236,7 +237,7 @@ export function subscribeMenuToggleProjectsSidebar(
 
 export function subscribeMenuToggleGitSidebar(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuToggleGitSidebarHub.subscribe(() => {
     onEvent();
@@ -245,7 +246,7 @@ export function subscribeMenuToggleGitSidebar(
 
 export function subscribeMenuToggleDebugPanel(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuToggleDebugPanelHub.subscribe(() => {
     onEvent();
@@ -254,7 +255,7 @@ export function subscribeMenuToggleDebugPanel(
 
 export function subscribeMenuToggleTerminal(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuToggleTerminalHub.subscribe(() => {
     onEvent();
@@ -263,7 +264,7 @@ export function subscribeMenuToggleTerminal(
 
 export function subscribeMenuNextAgent(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuNextAgentHub.subscribe(() => {
     onEvent();
@@ -272,7 +273,7 @@ export function subscribeMenuNextAgent(
 
 export function subscribeMenuPrevAgent(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuPrevAgentHub.subscribe(() => {
     onEvent();
@@ -281,7 +282,7 @@ export function subscribeMenuPrevAgent(
 
 export function subscribeMenuNextWorkspace(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuNextWorkspaceHub.subscribe(() => {
     onEvent();
@@ -290,7 +291,7 @@ export function subscribeMenuNextWorkspace(
 
 export function subscribeMenuPrevWorkspace(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuPrevWorkspaceHub.subscribe(() => {
     onEvent();
@@ -299,7 +300,7 @@ export function subscribeMenuPrevWorkspace(
 
 export function subscribeMenuCycleModel(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuCycleModelHub.subscribe(() => {
     onEvent();
@@ -308,7 +309,7 @@ export function subscribeMenuCycleModel(
 
 export function subscribeMenuCycleAccessMode(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuCycleAccessHub.subscribe(() => {
     onEvent();
@@ -317,7 +318,7 @@ export function subscribeMenuCycleAccessMode(
 
 export function subscribeMenuCycleReasoning(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuCycleReasoningHub.subscribe(() => {
     onEvent();
@@ -326,7 +327,7 @@ export function subscribeMenuCycleReasoning(
 
 export function subscribeMenuCycleCollaborationMode(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuCycleCollaborationHub.subscribe(() => {
     onEvent();
@@ -335,7 +336,7 @@ export function subscribeMenuCycleCollaborationMode(
 
 export function subscribeMenuComposerCycleModel(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuComposerCycleModelHub.subscribe(() => {
     onEvent();
@@ -344,7 +345,7 @@ export function subscribeMenuComposerCycleModel(
 
 export function subscribeMenuComposerCycleAccess(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuComposerCycleAccessHub.subscribe(() => {
     onEvent();
@@ -353,7 +354,7 @@ export function subscribeMenuComposerCycleAccess(
 
 export function subscribeMenuComposerCycleReasoning(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuComposerCycleReasoningHub.subscribe(() => {
     onEvent();
@@ -362,7 +363,7 @@ export function subscribeMenuComposerCycleReasoning(
 
 export function subscribeMenuComposerCycleCollaboration(
   onEvent: () => void,
-  options?: SubscriptionOptions,
+  options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuComposerCycleCollaborationHub.subscribe(() => {
     onEvent();

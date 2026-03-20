@@ -83,6 +83,7 @@ import {
   resolveWorkspaceRuntimeCodexArgsOverride,
 } from "@threads/utils/threadCodexParamsSeed";
 import { subscribeTrayOpenThread } from "@services/events";
+import { getRuntimeCapabilities } from "@services/runtime/client";
 import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
 
 const SettingsView = lazy(() =>
@@ -187,7 +188,8 @@ export default function MainApp() {
     queueSaveSettings,
     refreshWorkspaces,
   });
-  const updaterEnabled = !isMobileRuntime;
+  const runtimeCapabilities = getRuntimeCapabilities();
+  const updaterEnabled = runtimeCapabilities.updater && !isMobileRuntime;
 
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
@@ -1663,7 +1665,10 @@ export default function MainApp() {
           prompts,
           files,
           onFileAutocompleteActiveChange: setFileAutocompleteActive,
-          dictationEnabled: appSettings.dictationEnabled && dictationReady,
+          dictationEnabled:
+            runtimeCapabilities.dictation &&
+            appSettings.dictationEnabled &&
+            dictationReady,
           dictationState,
           dictationLevel,
           onToggleDictation: handleToggleDictation,
@@ -1699,17 +1704,20 @@ export default function MainApp() {
       usageShowRemaining: appSettings.usageShowRemaining,
       composerCodeBlockCopyUseModifier:
         appSettings.composerCodeBlockCopyUseModifier,
-      showMessageFilePath: appSettings.showMessageFilePath,
+      showMessageFilePath:
+        runtimeCapabilities.revealInDir && appSettings.showMessageFilePath,
       openAppTargets: appSettings.openAppTargets,
       selectedOpenAppId: appSettings.selectedOpenAppId,
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,
       followUpMessageBehavior: appSettings.followUpMessageBehavior,
       composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
-      dictationEnabled: appSettings.dictationEnabled,
+      dictationEnabled:
+        runtimeCapabilities.dictation && appSettings.dictationEnabled,
       splitChatDiffView: appSettings.splitChatDiffView,
       gitDiffIgnoreWhitespaceChanges:
         appSettings.gitDiffIgnoreWhitespaceChanges,
     },
+    runtimeCapabilities,
     workspaces,
     groupedWorkspaces,
     workspaceGroupsCount: workspaceGroups.length,

@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Event, EventCallback, UnlistenFn } from "@tauri-apps/api/event";
-import { listen } from "@tauri-apps/api/event";
 import type { AppServerEvent } from "../types";
 import {
   subscribeAppServerEvents,
@@ -10,8 +8,12 @@ import {
   subscribeTerminalOutput,
 } from "./events";
 
-vi.mock("@tauri-apps/api/event", () => ({
-  listen: vi.fn(),
+const subscribeMock = vi.fn();
+
+vi.mock("./runtime/client", () => ({
+  getRuntimeClient: () => ({
+    subscribe: subscribeMock,
+  }),
 }));
 
 describe("events subscriptions", () => {
@@ -20,11 +22,11 @@ describe("events subscriptions", () => {
   });
 
   it("delivers payloads and unsubscribes on cleanup", async () => {
-    let listener: EventCallback<AppServerEvent> = () => {};
+    let listener: (payload: AppServerEvent) => void = () => {};
     const unlisten = vi.fn();
 
-    vi.mocked(listen).mockImplementation((_event, handler) => {
-      listener = handler as EventCallback<AppServerEvent>;
+    subscribeMock.mockImplementation((_event, handler) => {
+      listener = handler as (payload: AppServerEvent) => void;
       return Promise.resolve(unlisten);
     });
 
@@ -35,12 +37,7 @@ describe("events subscriptions", () => {
       message: { method: "ping" },
     };
 
-    const event: Event<AppServerEvent> = {
-      event: "app-server-event",
-      id: 1,
-      payload,
-    };
-    listener(event);
+    listener(payload);
     expect(onEvent).toHaveBeenCalledWith(payload);
 
     cleanup();
@@ -49,12 +46,12 @@ describe("events subscriptions", () => {
   });
 
   it("cleans up listeners that resolve after unsubscribe", async () => {
-    let resolveListener: (handler: UnlistenFn) => void = () => {};
+    let resolveListener: (handler: () => void) => void = () => {};
     const unlisten = vi.fn();
 
-    vi.mocked(listen).mockImplementation(
+    subscribeMock.mockImplementation(
       () =>
-        new Promise<UnlistenFn>((resolve) => {
+        new Promise<() => void>((resolve) => {
           resolveListener = resolve;
         }),
     );
@@ -68,46 +65,36 @@ describe("events subscriptions", () => {
   });
 
   it("delivers menu events to subscribers", async () => {
-    let listener: EventCallback<void> = () => {};
+    let listener: () => void = () => {};
     const unlisten = vi.fn();
 
-    vi.mocked(listen).mockImplementation((_event, handler) => {
-      listener = handler as EventCallback<void>;
+    subscribeMock.mockImplementation((_event, handler) => {
+      listener = handler as () => void;
       return Promise.resolve(unlisten);
     });
 
     const onEvent = vi.fn();
     const cleanup = subscribeMenuCycleModel(onEvent);
 
-    const event: Event<void> = {
-      event: "menu-composer-cycle-model",
-      id: 1,
-      payload: undefined,
-    };
-    listener(event);
+    listener();
     expect(onEvent).toHaveBeenCalledTimes(1);
 
     cleanup();
   });
 
   it("delivers collaboration cycle menu events to subscribers", async () => {
-    let listener: EventCallback<void> = () => {};
+    let listener: () => void = () => {};
     const unlisten = vi.fn();
 
-    vi.mocked(listen).mockImplementation((_event, handler) => {
-      listener = handler as EventCallback<void>;
+    subscribeMock.mockImplementation((_event, handler) => {
+      listener = handler as () => void;
       return Promise.resolve(unlisten);
     });
 
     const onEvent = vi.fn();
     const cleanup = subscribeMenuCycleCollaborationMode(onEvent);
 
-    const event: Event<void> = {
-      event: "menu-composer-cycle-collaboration",
-      id: 1,
-      payload: undefined,
-    };
-    listener(event);
+    listener();
     expect(onEvent).toHaveBeenCalledTimes(1);
 
     cleanup();
@@ -115,7 +102,7 @@ describe("events subscriptions", () => {
 
   it("reports listen errors through options", async () => {
     const error = new Error("nope");
-    vi.mocked(listen).mockRejectedValueOnce(error);
+    subscribeMock.mockRejectedValueOnce(error);
 
     const onError = vi.fn();
     const cleanup = subscribeTerminalOutput(() => {}, { onError });

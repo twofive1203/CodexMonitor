@@ -15,6 +15,8 @@ mod file_ops;
 mod file_policy;
 #[path = "../git_utils.rs"]
 mod git_utils;
+#[path = "codex_monitor_daemon/http.rs"]
+mod http;
 #[path = "codex_monitor_daemon/rpc.rs"]
 mod rpc;
 #[path = "../rules.rs"]
@@ -69,6 +71,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -89,12 +92,14 @@ use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
     WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    DEFAULT_REMOTE_BACKEND_HOST, DEFAULT_WEB_ACCESS_LISTEN_ADDR, DEFAULT_WEB_ACCESS_PORT,
 };
 use workspace_settings::apply_workspace_settings_update;
 
-const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
+const DEFAULT_LISTEN_ADDR: &str = DEFAULT_REMOTE_BACKEND_HOST;
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
 const DAEMON_NAME: &str = "codex-monitor-daemon";
+const WEB_SESSION_TTL_SECS: u64 = 60 * 60 * 12;
 
 fn spawn_with_client(
     event_sink: DaemonEventSink,
@@ -144,6 +149,8 @@ impl EventSink for DaemonEventSink {
 
 struct DaemonConfig {
     listen: SocketAddr,
+    web_listen: Option<SocketAddr>,
+    web_static_dir: Option<PathBuf>,
     token: Option<String>,
     data_dir: PathBuf,
 }
@@ -157,6 +164,7 @@ struct DaemonState {
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    web_sessions: Mutex<HashMap<String, WebSessionRecord>>,
     daemon_binary_path: Option<String>,
 }
 
@@ -164,6 +172,11 @@ struct DaemonState {
 struct WorkspaceFileResponse {
     content: String,
     truncated: bool,
+}
+
+#[derive(Clone)]
+struct WebSessionRecord {
+    expires_at: SystemTime,
 }
 
 impl DaemonState {
@@ -184,6 +197,7 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
+            web_sessions: Mutex::new(HashMap::new()),
             daemon_binary_path,
         }
     }
@@ -196,6 +210,58 @@ impl DaemonState {
             "mode": "tcp",
             "binaryPath": self.daemon_binary_path,
         })
+    }
+
+    /// 返回 Web 登录允许使用的令牌。
+    ///
+    /// `fallback_token`：守护进程启动参数中的共享 token，作为设置未配置时的兜底。
+    async fn web_login_token(&self, fallback_token: Option<&str>) -> Option<String> {
+        let settings = self.app_settings.lock().await;
+        settings
+            .remote_backend_token
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .or_else(|| {
+                fallback_token
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string)
+            })
+    }
+
+    /// 创建新的 Web 会话并返回 session id。
+    ///
+    /// 无入参，返回值用于写入 HttpOnly cookie。
+    async fn create_web_session(&self) -> String {
+        let session_id = uuid::Uuid::new_v4().to_string();
+        let expires_at = SystemTime::now()
+            .checked_add(Duration::from_secs(WEB_SESSION_TTL_SECS))
+            .unwrap_or(SystemTime::now());
+        let mut sessions = self.web_sessions.lock().await;
+        sessions.insert(session_id.clone(), WebSessionRecord { expires_at });
+        session_id
+    }
+
+    /// 校验指定 session 是否仍然有效。
+    ///
+    /// `session_id`：来自 cookie 的会话标识。
+    async fn has_web_session(&self, session_id: &str) -> bool {
+        let mut sessions = self.web_sessions.lock().await;
+        let now = SystemTime::now();
+        sessions.retain(|_, record| record.expires_at > now);
+        sessions
+            .get(session_id)
+            .is_some_and(|record| record.expires_at > now)
+    }
+
+    /// 使指定 Web 会话失效。
+    ///
+    /// `session_id`：需要移除的会话标识。
+    async fn invalidate_web_session(&self, session_id: &str) {
+        let mut sessions = self.web_sessions.lock().await;
+        sessions.remove(session_id);
     }
 
     async fn sync_workspaces_from_storage(&self) {
@@ -1491,8 +1557,8 @@ fn default_data_dir() -> PathBuf {
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
-OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
+USAGE:\n  codex-monitor-daemon [--listen <addr>] [--web-listen <addr>] [--web-static-dir <path>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
+OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --web-listen <addr>      Enable Web listener (default suggestion: {DEFAULT_WEB_ACCESS_LISTEN_ADDR}:{DEFAULT_WEB_ACCESS_PORT})\n  --web-static-dir <path>  Frontend static directory for Web runtime\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
 
@@ -1506,6 +1572,8 @@ fn parse_args() -> Result<DaemonConfig, String> {
         .filter(|value| !value.is_empty());
     let mut insecure_no_auth = false;
     let mut data_dir: Option<PathBuf> = None;
+    let mut web_listen: Option<SocketAddr> = None;
+    let mut web_static_dir: Option<PathBuf> = None;
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -1517,6 +1585,18 @@ fn parse_args() -> Result<DaemonConfig, String> {
             "--listen" => {
                 let value = args.next().ok_or("--listen requires a value")?;
                 listen = value.parse::<SocketAddr>().map_err(|err| err.to_string())?;
+            }
+            "--web-listen" => {
+                let value = args.next().ok_or("--web-listen requires a value")?;
+                web_listen = Some(value.parse::<SocketAddr>().map_err(|err| err.to_string())?);
+            }
+            "--web-static-dir" => {
+                let value = args.next().ok_or("--web-static-dir requires a value")?;
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err("--web-static-dir requires a non-empty value".to_string());
+                }
+                web_static_dir = Some(PathBuf::from(trimmed));
             }
             "--token" => {
                 let value = args.next().ok_or("--token requires a value")?;
@@ -1551,6 +1631,8 @@ fn parse_args() -> Result<DaemonConfig, String> {
 
     Ok(DaemonConfig {
         listen,
+        web_listen,
+        web_static_dir,
         token,
         data_dir: data_dir.unwrap_or_else(default_data_dir),
     })
@@ -1606,6 +1688,7 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
+            web_sessions: Mutex::new(HashMap::new()),
             daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
         }
     }
@@ -1940,6 +2023,40 @@ fn main() {
                 .unwrap_or(&state.storage_path)
                 .display()
         );
+
+        if let Some(web_listen_addr) = config.web_listen {
+            let web_listener = match TcpListener::bind(web_listen_addr).await {
+                Ok(listener) => listener,
+                Err(err) => {
+                    eprintln!("failed to bind web listener {}: {err}", web_listen_addr);
+                    std::process::exit(2);
+                }
+            };
+            let web_static_dir = http::resolve_static_dir(
+                config.web_static_dir.clone(),
+                state.daemon_binary_path.as_deref(),
+            );
+            let static_dir_label = web_static_dir
+                .as_ref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "not found".to_string());
+            eprintln!(
+                "codex-monitor-daemon web listening on {} (static dir: {})",
+                web_listen_addr, static_dir_label
+            );
+
+            let web_state = Arc::clone(&state);
+            let web_config = Arc::clone(&config);
+            let web_events = events_tx.clone();
+            tokio::spawn(async move {
+                if let Err(err) =
+                    http::serve(web_listener, web_state, web_config, web_events, web_static_dir)
+                        .await
+                {
+                    eprintln!("web listener stopped: {err}");
+                }
+            });
+        }
 
         loop {
             match listener.accept().await {

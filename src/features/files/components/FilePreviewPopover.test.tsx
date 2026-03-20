@@ -105,7 +105,34 @@ describe("FilePreviewPopover", () => {
       />,
     );
 
-    const addButton = screen.getByRole("button", { name: "Add to chat" });
+    const addButton = screen.getByRole("button", { name: "添加到对话" });
     expect(addButton.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("hides desktop open actions and shows the web image fallback message", () => {
+    render(
+      <FilePreviewPopover
+        path="assets/example.png"
+        absolutePath="/workspace/assets/example.png"
+        content=""
+        truncated={false}
+        previewKind="image"
+        imageSrc={null}
+        imageUnavailableMessage="Web 端暂不支持图片文件预览，请在桌面端查看。"
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        showOpenAppMenu={false}
+        selection={null}
+        onSelectLine={vi.fn()}
+        onClearSelection={vi.fn()}
+        onAddSelection={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("open-app-menu")).toBeNull();
+    expect(screen.getByText("Web 端暂不支持图片文件预览，请在桌面端查看。")).toBeTruthy();
   });
 });

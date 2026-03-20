@@ -4,6 +4,7 @@ mod rpc_client;
 
 use std::ffi::{OsStr, OsString};
 use std::io::ErrorKind;
+use std::path::PathBuf;
 use std::process::Output;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -18,7 +19,8 @@ use crate::daemon_binary::resolve_daemon_binary_path;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::state::{AppState, TcpDaemonRuntime};
 use crate::types::{
-    TailscaleDaemonCommandPreview, TailscaleStatus, TcpDaemonState, TcpDaemonStatus,
+    AppSettings, TailscaleDaemonCommandPreview, TailscaleStatus, TcpDaemonState, TcpDaemonStatus,
+    WebAccessStatus,
 };
 
 use self::core as tailscale_core;
@@ -253,6 +255,186 @@ fn daemon_connect_addr(listen_addr: &str) -> Option<String> {
 
 fn configured_daemon_listen_addr(settings: &crate::types::AppSettings) -> String {
     daemon_listen_addr(&settings.remote_backend_host)
+}
+
+fn configured_web_access_listen_addr(settings: &AppSettings) -> String {
+    let host = settings.web_access_listen_addr.trim();
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{}", settings.web_access_port)
+    } else {
+        format!("{host}:{}", settings.web_access_port)
+    }
+}
+
+fn web_access_url_host(host: &str) -> String {
+    let trimmed = host.trim();
+    if trimmed.eq_ignore_ascii_case("0.0.0.0") {
+        return "127.0.0.1".to_string();
+    }
+    if trimmed == "::" || trimmed == "[::]" {
+        return "[::1]".to_string();
+    }
+    if trimmed.contains(':') && !trimmed.starts_with('[') {
+        return format!("[{trimmed}]");
+    }
+    trimmed.to_string()
+}
+
+/// 根据当前设置生成桌面端本机访问 URL。
+///
+/// `settings`：应用设置，提供 Web 监听地址与端口。
+fn configured_web_access_local_url(settings: &AppSettings) -> Option<String> {
+    let host = settings.web_access_listen_addr.trim();
+    if host.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "http://{}:{}",
+        web_access_url_host(host),
+        settings.web_access_port
+    ))
+}
+
+/// 生成 Web 健康检查地址。
+///
+/// `base_url`：Web 服务基础地址，例如 `http://127.0.0.1:4733`。
+fn web_access_healthz_url(base_url: &str) -> String {
+    format!("{}/healthz", base_url.trim_end_matches('/'))
+}
+
+/// 探测当前配置下的 Web listener 是否可用。
+///
+/// `settings`：应用设置，提供本机探测地址与端口。
+async fn probe_configured_web_access(settings: &AppSettings) -> bool {
+    let Some(local_url) = configured_web_access_local_url(settings) else {
+        return false;
+    };
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_millis(800))
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+    let response = match client
+        .get(web_access_healthz_url(&local_url))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return false,
+    };
+    if !response.status().is_success() {
+        return false;
+    }
+    let Ok(payload_text) = response.text().await else {
+        return false;
+    };
+    match serde_json::from_str::<Value>(&payload_text) {
+        Ok(payload) => payload
+            .get("web")
+            .and_then(|value| value.get("enabled"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
+/// 为桌面端启动流程解析可复用的 Web 静态资源目录。
+///
+/// 无入参；返回包含 `index.html` 的 `dist` 目录。
+fn resolve_web_static_dir() -> Option<PathBuf> {
+    let mut candidates = Vec::<PathBuf>::new();
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        candidates.push(current_dir.join("dist"));
+    }
+
+    if let Ok(current_exe) = std::env::current_exe() {
+        for ancestor in current_exe.ancestors().skip(1).take(6) {
+            candidates.push(ancestor.join("dist"));
+        }
+    }
+
+    if let Ok(daemon_binary) = resolve_daemon_binary_path() {
+        for ancestor in daemon_binary.ancestors().skip(1).take(6) {
+            candidates.push(ancestor.join("dist"));
+        }
+    }
+
+    candidates.into_iter().find(|candidate| candidate.join("index.html").is_file())
+}
+
+/// 将共享守护进程状态映射为 Web 访问状态。
+///
+/// `settings`：应用设置；`tcp_status`：共享守护进程的最新状态。
+async fn build_web_access_status(
+    settings: &AppSettings,
+    tcp_status: TcpDaemonStatus,
+) -> WebAccessStatus {
+    let listen_addr = Some(configured_web_access_listen_addr(settings));
+    let local_url = configured_web_access_local_url(settings);
+    let token_missing = settings
+        .remote_backend_token
+        .as_deref()
+        .map(str::trim)
+        .map(|value| value.is_empty())
+        .unwrap_or(true);
+
+    if !settings.web_access_enabled {
+        return WebAccessStatus {
+            enabled: false,
+            state: TcpDaemonState::Stopped,
+            pid: tcp_status.pid,
+            started_at_ms: tcp_status.started_at_ms,
+            last_error: None,
+            listen_addr,
+            local_url,
+        };
+    }
+
+    if token_missing {
+        return WebAccessStatus {
+            enabled: true,
+            state: TcpDaemonState::Error,
+            pid: tcp_status.pid,
+            started_at_ms: tcp_status.started_at_ms,
+            last_error: Some("请先配置远程访问令牌。".to_string()),
+            listen_addr,
+            local_url,
+        };
+    }
+
+    if !matches!(tcp_status.state, TcpDaemonState::Running) {
+        return WebAccessStatus {
+            enabled: true,
+            state: tcp_status.state,
+            pid: tcp_status.pid,
+            started_at_ms: tcp_status.started_at_ms,
+            last_error: tcp_status.last_error,
+            listen_addr,
+            local_url,
+        };
+    }
+
+    let web_running = probe_configured_web_access(settings).await;
+    WebAccessStatus {
+        enabled: true,
+        state: if web_running {
+            TcpDaemonState::Running
+        } else {
+            TcpDaemonState::Error
+        },
+        pid: tcp_status.pid,
+        started_at_ms: tcp_status.started_at_ms,
+        last_error: if web_running {
+            None
+        } else {
+            Some("守护进程正在运行，但当前未探测到 Web listener。".to_string())
+        },
+        listen_addr,
+        local_url,
+    }
 }
 
 fn sync_tcp_daemon_listen_addr(status: &mut TcpDaemonStatus, configured_listen_addr: &str) {
@@ -682,4 +864,34 @@ pub(crate) async fn tailscale_daemon_status(
     state: State<'_, AppState>,
 ) -> Result<TcpDaemonStatus, String> {
     daemon_commands::tailscale_daemon_status(state).await
+}
+
+#[tauri::command]
+pub(crate) async fn web_access_start(
+    state: State<'_, AppState>,
+) -> Result<WebAccessStatus, String> {
+    let settings = state.app_settings.lock().await.clone();
+    if !settings.web_access_enabled {
+        return Err("请先开启 Web 访问开关。".to_string());
+    }
+    let tcp_status = daemon_commands::tailscale_daemon_start(state).await?;
+    Ok(build_web_access_status(&settings, tcp_status).await)
+}
+
+#[tauri::command]
+pub(crate) async fn web_access_stop(
+    state: State<'_, AppState>,
+) -> Result<WebAccessStatus, String> {
+    let settings = state.app_settings.lock().await.clone();
+    let tcp_status = daemon_commands::tailscale_daemon_stop(state).await?;
+    Ok(build_web_access_status(&settings, tcp_status).await)
+}
+
+#[tauri::command]
+pub(crate) async fn web_access_status(
+    state: State<'_, AppState>,
+) -> Result<WebAccessStatus, String> {
+    let settings = state.app_settings.lock().await.clone();
+    let tcp_status = daemon_commands::tailscale_daemon_status(state).await?;
+    Ok(build_web_access_status(&settings, tcp_status).await)
 }

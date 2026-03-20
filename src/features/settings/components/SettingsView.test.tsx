@@ -20,6 +20,7 @@ import {
   isMobileRuntime,
   getModelList,
   listWorkspaces,
+  webAccessStatus,
 } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
@@ -27,6 +28,10 @@ import { SettingsView } from "./SettingsView";
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   ask: vi.fn(),
   open: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
 }));
 
 vi.mock("@services/tauri", async () => {
@@ -43,6 +48,7 @@ vi.mock("@services/tauri", async () => {
     getAgentsSettings: vi.fn(),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
+    webAccessStatus: vi.fn(),
   };
 });
 
@@ -54,11 +60,21 @@ const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
+const webAccessStatusMock = vi.mocked(webAccessStatus);
 connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
 listWorkspacesMock.mockResolvedValue([]);
+webAccessStatusMock.mockResolvedValue({
+  enabled: false,
+  state: "stopped",
+  pid: null,
+  startedAtMs: null,
+  lastError: null,
+  listenAddr: "127.0.0.1:4733",
+  localUrl: "http://127.0.0.1:4733",
+});
 getAgentsSettingsMock.mockResolvedValue({
   configPath: "/Users/me/.codex/config.toml",
   multiAgentEnabled: false,
@@ -74,6 +90,10 @@ const baseSettings: AppSettings = {
   remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
+  webAccessEnabled: false,
+  webAccessListenAddr: "127.0.0.1",
+  webAccessPort: 4733,
+  webAccessPublicBaseUrl: null,
   remoteBackends: [
     {
       id: "remote-default",

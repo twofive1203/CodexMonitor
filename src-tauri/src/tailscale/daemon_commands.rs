@@ -101,6 +101,7 @@ pub(super) async fn tailscale_daemon_start(
     let listen_addr = configured_daemon_listen_addr(&settings);
     let listen_port = parse_port_from_remote_host(&listen_addr)
         .ok_or_else(|| format!("Invalid daemon listen address: {listen_addr}"))?;
+    let desired_web_access_enabled = settings.web_access_enabled;
     let daemon_binary = resolve_daemon_binary_path()?;
 
     let data_dir = state
@@ -119,9 +120,19 @@ pub(super) async fn tailscale_daemon_start(
             info,
         } => {
             let pid = resolve_daemon_pid(listen_port, info.as_ref()).await;
-            let restart_required = should_restart_daemon(info.as_ref());
+            let actual_web_access_enabled = probe_configured_web_access(&settings).await;
+            let restart_required =
+                should_restart_daemon(info.as_ref())
+                    || actual_web_access_enabled != desired_web_access_enabled;
             let restart_reason = if restart_required {
-                Some(daemon_restart_reason(info.as_ref()))
+                Some(if should_restart_daemon(info.as_ref()) {
+                    daemon_restart_reason(info.as_ref())
+                } else if desired_web_access_enabled {
+                    "Daemon is running but Web listener is not enabled.".to_string()
+                } else {
+                    "Daemon is running with Web listener enabled, but current settings have it disabled."
+                        .to_string()
+                })
             } else {
                 None
             };
@@ -212,13 +223,23 @@ pub(super) async fn tailscale_daemon_start(
 
     ensure_listen_addr_available(&listen_addr).await?;
 
-    let child = tokio_command(&daemon_binary)
+    let mut command = tokio_command(&daemon_binary);
+    command
         .arg("--listen")
         .arg(&listen_addr)
         .arg("--data-dir")
         .arg(data_dir)
         .arg("--token")
-        .arg(token)
+        .arg(token);
+    if desired_web_access_enabled {
+        command
+            .arg("--web-listen")
+            .arg(configured_web_access_listen_addr(&settings));
+        if let Some(static_dir) = resolve_web_static_dir() {
+            command.arg("--web-static-dir").arg(static_dir);
+        }
+    }
+    let child = command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

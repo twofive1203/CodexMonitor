@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GitLogEntry } from "../../../types";
 import { GitDiffPanel } from "./GitDiffPanel";
 import { fileManagerName } from "../../../utils/platformPaths";
@@ -67,6 +67,10 @@ const baseProps = {
   unstagedFiles: [],
 };
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("GitDiffPanel", () => {
   it("shows an initialize git button when the repo is missing", () => {
     const onInitGitRepo = vi.fn();
@@ -78,7 +82,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const initButton = within(container).getByRole("button", { name: "Initialize Git" });
+    const initButton = within(container).getByRole("button", { name: "初始化 Git" });
     fireEvent.click(initButton);
     expect(onInitGitRepo).toHaveBeenCalledTimes(1);
   });
@@ -92,7 +96,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    expect(within(container).queryByRole("button", { name: "Initialize Git" })).toBeNull();
+    expect(within(container).queryByRole("button", { name: "初始化 Git" })).toBeNull();
   });
 
   it("enables commit when message exists and only unstaged changes", () => {
@@ -109,7 +113,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const commitButton = screen.getByRole("button", { name: "Commit" });
+    const commitButton = screen.getByRole("button", { name: "提交" });
     expect((commitButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(commitButton);
     expect(onCommit).toHaveBeenCalledTimes(1);
@@ -128,9 +132,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const reviewButton = screen.getByRole("button", {
-      name: "Review uncommitted changes",
-    });
+    const reviewButton = screen.getByRole("button", { name: "审查未提交改动" });
     fireEvent.click(reviewButton);
     expect(onReviewUncommittedChanges).toHaveBeenCalledTimes(1);
     expect(onReviewUncommittedChanges).toHaveBeenCalledWith("ws-2");
@@ -156,7 +158,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[0]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
+      (item: { text: string }) => item.text === `在 ${fileManagerName()} 中显示`,
     );
 
     expect(revealItem).toBeDefined();
@@ -184,10 +186,10 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const copyNameItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Copy file name",
+      (item: { text: string }) => item.text === "复制文件名",
     );
     const copyPathItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Copy file path",
+      (item: { text: string }) => item.text === "复制文件路径",
     );
 
     expect(copyNameItem).toBeDefined();
@@ -221,7 +223,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
+      (item: { text: string }) => item.text === `在 ${fileManagerName()} 中显示`,
     );
 
     expect(revealItem).toBeDefined();
@@ -249,7 +251,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const copyPathItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Copy file path",
+      (item: { text: string }) => item.text === "复制文件路径",
     );
 
     expect(copyPathItem).toBeDefined();
@@ -278,7 +280,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const copyPathItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Copy file path",
+      (item: { text: string }) => item.text === "复制文件路径",
     );
 
     expect(copyPathItem).toBeDefined();
@@ -289,8 +291,37 @@ describe("GitDiffPanel", () => {
 
   it("shows Agent edits option in mode selector", () => {
     render(<GitDiffPanel {...baseProps} />);
-    const options = screen.getAllByRole("option", { name: "Agent edits" });
+    const options = screen.getAllByRole("option", { name: "智能体改动" });
     expect(options.length).toBeGreaterThan(0);
+  });
+
+  it("supports web read-only mode by hiding native menus and write actions", () => {
+    menuNew.mockClear();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        nativeContextMenuEnabled={false}
+        workspacePath="/tmp/repo"
+        gitRoot="/tmp/repo"
+        commitsAhead={2}
+        logBehind={1}
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "获取远端" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "提交" })).toBeNull();
+    expect(screen.queryByText("拉取")).toBeNull();
+    expect(screen.queryByText("推送")).toBeNull();
+    expect(document.querySelector(".diff-row-action--stage")).toBeNull();
+    expect(document.querySelector(".diff-row-action--discard")).toBeNull();
+
+    const row = document.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+    expect(menuNew).not.toHaveBeenCalled();
   });
 
   it("renders per-file groups and edit rows", () => {

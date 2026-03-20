@@ -29,6 +29,7 @@ import "./styles/terminal.css";
 import "./styles/plan.css";
 import "./styles/about.css";
 import "./styles/tabbar.css";
+import "./styles/web-runtime.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
 import "./styles/workspace-from-url-modal.css";
@@ -40,7 +41,9 @@ import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
 import { useWindowLabel } from "@/features/layout/hooks/useWindowLabel";
+import { WebRuntimeGate } from "@app/bootstrap/WebRuntimeGate";
 import MainApp from "@app/components/MainApp";
+import { isWebRuntime } from "@services/runtime/client";
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -56,6 +59,14 @@ export default function App() {
       <Suspense fallback={null}>
         <AboutView />
       </Suspense>
+    );
+  }
+
+  if (isWebRuntime()) {
+    return (
+      <WebRuntimeGate>
+        <MainApp />
+      </WebRuntimeGate>
     );
   }
 

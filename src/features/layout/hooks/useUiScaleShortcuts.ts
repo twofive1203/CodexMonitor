@@ -29,9 +29,12 @@ export function useUiScaleShortcuts({
     if (typeof window === "undefined") {
       return;
     }
-    getCurrentWebview()
-      .setZoom(uiScale)
-      .catch(() => undefined);
+    try {
+      const webview = getCurrentWebview();
+      webview.setZoom(uiScale).catch(() => undefined);
+    } catch {
+      // Web runtime 下没有 webview 缩放桥接，直接忽略。
+    }
   }, [uiScale]);
 
   const scaleShortcutLabel = useMemo(() => {

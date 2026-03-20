@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import Eye from "lucide-react/dist/esm/icons/eye";
+import EyeOff from "lucide-react/dist/esm/icons/eye-off";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import X from "lucide-react/dist/esm/icons/x";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type {
   AppSettings,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
+  WebAccessStatus,
 } from "@/types";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import {
@@ -36,6 +41,7 @@ type SettingsServerSectionProps = {
   remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
+  remoteTokenGenerationBlockedReason: string | null;
   nextRemoteNameSuggestion: string;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
@@ -45,16 +51,37 @@ type SettingsServerSectionProps = {
   tailscaleCommandError: string | null;
   tcpDaemonStatus: TcpDaemonStatus | null;
   tcpDaemonBusyAction: "start" | "stop" | "status" | null;
+  webAccessStatus: WebAccessStatus | null;
+  webAccessBusy: boolean;
+  webAccessStatusText: string | null;
+  webAccessStatusError: boolean;
+  webAccessListenAddrError: string | null;
+  webAccessPortError: string | null;
+  webAccessPublicBaseUrlError: string | null;
+  webAccessListenAddrDraft: string;
+  webAccessPortDraft: string;
+  webAccessPublicBaseUrlDraft: string;
+  webAccessLocalUrl: string | null;
+  webAccessRemoteUrl: string | null;
   onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessListenAddrDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessPortDraft: Dispatch<SetStateAction<string>>;
+  onSetWebAccessPublicBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onCommitRemoteName: () => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
+  onGenerateRemoteToken: () => Promise<void>;
+  onToggleWebAccessEnabled: () => Promise<void>;
+  onCommitWebAccessListenAddr: () => Promise<void>;
+  onCommitWebAccessPort: () => Promise<void>;
+  onCommitWebAccessPublicBaseUrl: () => Promise<void>;
   onSelectRemoteBackend: (id: string) => Promise<void>;
   onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
   onDeleteRemoteBackend: (id: string) => Promise<void>;
+  onRefreshWebAccessStatus: () => void;
   onRefreshTailscaleStatus: () => void;
   onRefreshTailscaleCommandPreview: () => void;
   onUseSuggestedTailscaleHost: () => Promise<void>;
@@ -80,6 +107,7 @@ export function SettingsServerSection({
   remoteNameDraft,
   remoteHostDraft,
   remoteTokenDraft,
+  remoteTokenGenerationBlockedReason,
   nextRemoteNameSuggestion,
   tailscaleStatus,
   tailscaleStatusBusy,
@@ -89,16 +117,37 @@ export function SettingsServerSection({
   tailscaleCommandError,
   tcpDaemonStatus,
   tcpDaemonBusyAction,
+  webAccessStatus,
+  webAccessBusy,
+  webAccessStatusText,
+  webAccessStatusError,
+  webAccessListenAddrError,
+  webAccessPortError,
+  webAccessPublicBaseUrlError,
+  webAccessListenAddrDraft,
+  webAccessPortDraft,
+  webAccessPublicBaseUrlDraft,
+  webAccessLocalUrl,
+  webAccessRemoteUrl,
   onSetRemoteNameDraft,
   onSetRemoteHostDraft,
   onSetRemoteTokenDraft,
+  onSetWebAccessListenAddrDraft,
+  onSetWebAccessPortDraft,
+  onSetWebAccessPublicBaseUrlDraft,
   onCommitRemoteName,
   onCommitRemoteHost,
   onCommitRemoteToken,
+  onGenerateRemoteToken,
+  onToggleWebAccessEnabled,
+  onCommitWebAccessListenAddr,
+  onCommitWebAccessPort,
+  onCommitWebAccessPublicBaseUrl,
   onSelectRemoteBackend,
   onAddRemoteBackend,
   onMoveRemoteBackend,
   onDeleteRemoteBackend,
+  onRefreshWebAccessStatus,
   onRefreshTailscaleStatus,
   onRefreshTailscaleCommandPreview,
   onUseSuggestedTailscaleHost,
@@ -113,6 +162,7 @@ export function SettingsServerSection({
   const [addRemoteOpen, setAddRemoteOpen] = useState(false);
   const [addRemoteBusy, setAddRemoteBusy] = useState(false);
   const [addRemoteError, setAddRemoteError] = useState<string | null>(null);
+  const [showRemoteToken, setShowRemoteToken] = useState(false);
   const [addRemoteNameDraft, setAddRemoteNameDraft] = useState("");
   const [addRemoteHostDraft, setAddRemoteHostDraft] = useState("");
   const [addRemoteTokenDraft, setAddRemoteTokenDraft] = useState("");
@@ -138,6 +188,59 @@ export function SettingsServerSection({
     }
     return `移动端守护进程已停止${tcpDaemonStatus.listenAddr ? `（${tcpDaemonStatus.listenAddr}）` : ""}。`;
   })();
+  const webAccessStatusLabel = (() => {
+    if (!webAccessStatus) {
+      return "未探测";
+    }
+    if (!webAccessStatus.enabled) {
+      return "已关闭";
+    }
+    if (webAccessStatus.state === "running") {
+      return "运行中";
+    }
+    if (webAccessStatus.state === "error") {
+      return "异常";
+    }
+    return "已停止";
+  })();
+  const webAccessStatusTone =
+    !webAccessStatus || !webAccessStatus.enabled
+      ? "is-muted"
+      : webAccessStatus.state === "running"
+        ? "is-running"
+        : webAccessStatus.state === "error"
+          ? "is-error"
+          : "is-stopped";
+  const webAccessStatusSummary = (() => {
+    if (!webAccessStatus) {
+      return "正在等待状态探测。";
+    }
+    if (!webAccessStatus.enabled) {
+      return "Web 访问当前未启用。";
+    }
+    if (webAccessStatus.state === "running") {
+      return webAccessStatus.pid
+        ? `Web 服务正在运行（PID ${webAccessStatus.pid}）。`
+        : "Web 服务正在运行。";
+    }
+    if (webAccessStatus.state === "error") {
+      return webAccessStatus.lastError ?? "Web 服务当前处于异常状态。";
+    }
+    return "Web 服务当前已停止。";
+  })();
+
+  const handleCopyValue = (value: string | null) => {
+    if (!value) {
+      return;
+    }
+    const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
+    if (!clipboard) {
+      return;
+    }
+    void clipboard.writeText(value).catch(() => {
+      // Ignore clipboard failures and keep the settings UI responsive.
+    });
+  };
 
   const openAddRemoteModal = () => {
     setAddRemoteError(null);
@@ -349,9 +452,197 @@ export function SettingsServerSection({
           </SettingsToggleRow>
         )}
 
+        {!isMobileSimplified && (
+          <>
+              <SettingsToggleRow
+                title="Web 访问"
+                subtitle="开启后会复用当前守护进程，在桌面端暴露浏览器访问入口。关闭时会停止当前受管 Web 服务。"
+              >
+                <SettingsToggleSwitch
+                  pressed={appSettings.webAccessEnabled}
+                  aria-label="切换 Web 访问"
+                  onClick={() => {
+                    void onToggleWebAccessEnabled();
+                  }}
+                  disabled={webAccessBusy}
+                />
+              </SettingsToggleRow>
+
+              <div className="settings-field">
+                <div className="settings-web-status-header">
+                  <div>
+                    <div className="settings-field-label">Web 服务状态</div>
+                    <div className={`settings-web-status-badge ${webAccessStatusTone}`}>
+                      {webAccessBusy ? "检测中..." : webAccessStatusLabel}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="button settings-button-compact"
+                    aria-label="刷新 Web 服务状态"
+                    onClick={onRefreshWebAccessStatus}
+                    disabled={webAccessBusy}
+                  >
+                    {webAccessBusy ? "刷新中..." : "刷新状态"}
+                  </button>
+                </div>
+                <div className="settings-help">{webAccessStatusSummary}</div>
+                {webAccessStatus?.listenAddr && (
+                  <div className="settings-help">
+                    当前监听：<code>{webAccessStatus.listenAddr}</code>
+                  </div>
+                )}
+                {webAccessStatus?.startedAtMs && (
+                  <div className="settings-help">
+                    最近启动：{new Date(webAccessStatus.startedAtMs).toLocaleString()}
+                  </div>
+                )}
+                {webAccessStatusText && (
+                  <div className={`settings-help${webAccessStatusError ? " settings-help-error" : ""}`}>
+                    {webAccessStatusText}
+                  </div>
+                )}
+              </div>
+
+              <div className="settings-field">
+                <label className="settings-field-label" htmlFor="web-access-listen-addr">
+                  Web 监听地址
+                </label>
+                <input
+                  id="web-access-listen-addr"
+                  className="settings-input settings-input--compact"
+                  value={webAccessListenAddrDraft}
+                  placeholder="127.0.0.1 或 0.0.0.0"
+                  onChange={(event) => onSetWebAccessListenAddrDraft(event.target.value)}
+                  onBlur={() => {
+                    void onCommitWebAccessListenAddr();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void onCommitWebAccessListenAddr();
+                    }
+                  }}
+                />
+                {webAccessListenAddrError && (
+                  <div className="settings-help settings-help-error">{webAccessListenAddrError}</div>
+                )}
+                <div className="settings-help">
+                  默认仅本机开放；如需通过 Tailscale 或局域网访问，可改为 <code>0.0.0.0</code>。
+                </div>
+              </div>
+
+              <div className="settings-field">
+                <label className="settings-field-label" htmlFor="web-access-port">
+                  Web 端口
+                </label>
+                <input
+                  id="web-access-port"
+                  className="settings-input settings-input--compact"
+                  inputMode="numeric"
+                  value={webAccessPortDraft}
+                  placeholder="4733"
+                  onChange={(event) => onSetWebAccessPortDraft(event.target.value)}
+                  onBlur={() => {
+                    void onCommitWebAccessPort();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void onCommitWebAccessPort();
+                    }
+                  }}
+                />
+                {webAccessPortError && (
+                  <div className="settings-help settings-help-error">{webAccessPortError}</div>
+                )}
+              </div>
+
+              <div className="settings-field">
+                <label className="settings-field-label" htmlFor="web-access-public-url">
+                  外部访问地址（可选）
+                </label>
+                <input
+                  id="web-access-public-url"
+                  className="settings-input settings-input--compact"
+                  value={webAccessPublicBaseUrlDraft}
+                  placeholder="https://macbook.tailnet.ts.net:4733"
+                  onChange={(event) => onSetWebAccessPublicBaseUrlDraft(event.target.value)}
+                  onBlur={() => {
+                    void onCommitWebAccessPublicBaseUrl();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void onCommitWebAccessPublicBaseUrl();
+                    }
+                  }}
+                />
+                {webAccessPublicBaseUrlError && (
+                  <div className="settings-help settings-help-error">
+                    {webAccessPublicBaseUrlError}
+                  </div>
+                )}
+                <div className="settings-help">
+                  如果你已经固定了 Tailscale、反向代理或自定义域名入口，可以在这里覆盖推荐地址。
+                </div>
+              </div>
+
+              <div className="settings-field">
+                <div className="settings-field-label">推荐访问地址</div>
+                <div className="settings-web-link-grid">
+                  <div className="settings-web-link-card">
+                    <div className="settings-web-link-title">本机访问</div>
+                    <code>{webAccessStatus?.localUrl ?? webAccessLocalUrl ?? "未生成"}</code>
+                    <div className="settings-field-row">
+                      <button
+                        type="button"
+                        className="button settings-button-compact"
+                        onClick={() => handleCopyValue(webAccessStatus?.localUrl ?? webAccessLocalUrl)}
+                        disabled={!webAccessStatus?.localUrl && !webAccessLocalUrl}
+                      >
+                        复制地址
+                      </button>
+                      <button
+                        type="button"
+                        className="button settings-button-compact"
+                        onClick={() => {
+                          const nextUrl = webAccessStatus?.localUrl ?? webAccessLocalUrl;
+                          if (nextUrl) {
+                            void openUrl(nextUrl);
+                          }
+                        }}
+                        disabled={!webAccessStatus?.localUrl && !webAccessLocalUrl}
+                      >
+                        浏览器打开
+                      </button>
+                    </div>
+                  </div>
+                  <div className="settings-web-link-card">
+                    <div className="settings-web-link-title">远程访问</div>
+                    <code>{webAccessRemoteUrl ?? "未生成"}</code>
+                    <div className="settings-field-row">
+                      <button
+                        type="button"
+                        className="button settings-button-compact"
+                        onClick={() => handleCopyValue(webAccessRemoteUrl)}
+                        disabled={!webAccessRemoteUrl}
+                      >
+                        复制地址
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="settings-help">
+                  推荐优先使用 Tailscale 设备名地址；如果你填了“外部访问地址”，这里会优先展示该地址。
+                </div>
+              </div>
+          </>
+        )}
+
         <div className="settings-field">
           <div className="settings-field-label">远程后端</div>
-          <div className="settings-field-row">
+          <div className="settings-field-row settings-remote-backend-row">
             <input
               className="settings-input settings-input--compact"
               value={remoteHostDraft}
@@ -368,29 +659,56 @@ export function SettingsServerSection({
               }}
               aria-label="远程后端主机"
             />
-            <input
-              type="password"
-              className="settings-input settings-input--compact"
-              value={remoteTokenDraft}
-              placeholder="令牌（必填）"
-              onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
-              onBlur={() => {
-                void onCommitRemoteToken();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
+            <div className="settings-remote-token-group">
+              <input
+                type={showRemoteToken ? "text" : "password"}
+                className="settings-input settings-input--compact settings-remote-token-input"
+                value={remoteTokenDraft}
+                placeholder="令牌（必填）"
+                onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
+                onBlur={() => {
                   void onCommitRemoteToken();
-                }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onCommitRemoteToken();
+                  }
+                }}
+                aria-label="远程后端令牌"
+              />
+              <button
+                type="button"
+                className="ghost icon-button settings-remote-token-visibility"
+                aria-label={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+                title={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+                onClick={() => setShowRemoteToken((current) => !current)}
+              >
+                {showRemoteToken ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="button settings-button-compact settings-remote-token-generate"
+              onClick={() => {
+                void onGenerateRemoteToken();
               }}
-              aria-label="远程后端令牌"
-            />
+              disabled={remoteTokenGenerationBlockedReason !== null}
+              title={remoteTokenGenerationBlockedReason ?? "生成新的随机远程令牌"}
+              aria-label="生成随机远程令牌"
+            >
+              <RefreshCw aria-hidden />
+              生成令牌
+            </button>
           </div>
           {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
           <div className="settings-help">
             {isMobileSimplified
               ? "请使用桌面端 CodexMonitor（服务分区）中的 Tailscale 主机，例如 `macbook.your-tailnet.ts.net:4732`。"
               : "此主机和令牌会用于移动端访问以及桌面端远程模式测试。"}
+          </div>
+          <div className={`settings-help${remoteTokenGenerationBlockedReason ? " settings-help-error" : ""}`}>
+            {remoteTokenGenerationBlockedReason ?? "可一键生成新的随机令牌，生成后会立即保存到当前远程配置。"}
           </div>
         </div>
 

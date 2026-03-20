@@ -29,7 +29,7 @@ pub(crate) async fn update_app_settings(
     if should_reset_remote_backend(&previous, &updated) {
         *state.remote_backend.lock().await = None;
     }
-    ensure_remote_runtime_for_settings(&updated, state).await;
+    ensure_remote_runtime_for_settings(&previous, &updated, state).await;
     let _ = window::apply_window_appearance(&window, updated.theme.as_str());
     Ok(updated)
 }
@@ -56,15 +56,27 @@ fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) ->
         || previous.remote_backend_token != updated.remote_backend_token
 }
 
-async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State<'_, AppState>) {
+async fn ensure_remote_runtime_for_settings(
+    previous: &AppSettings,
+    updated: &AppSettings,
+    state: State<'_, AppState>,
+) {
     if cfg!(any(target_os = "android", target_os = "ios")) {
         return;
     }
-    if !matches!(settings.backend_mode, BackendMode::Remote) {
+
+    let should_run_managed_daemon =
+        matches!(updated.backend_mode, BackendMode::Remote) || updated.web_access_enabled;
+    if should_run_managed_daemon {
+        let _ = crate::tailscale::tailscale_daemon_start(state).await;
         return;
     }
 
-    let _ = crate::tailscale::tailscale_daemon_start(state).await;
+    let should_stop_managed_daemon = matches!(previous.backend_mode, BackendMode::Remote)
+        || previous.web_access_enabled;
+    if should_stop_managed_daemon {
+        let _ = crate::tailscale::tailscale_daemon_stop(state).await;
+    }
 }
 
 #[cfg(test)]

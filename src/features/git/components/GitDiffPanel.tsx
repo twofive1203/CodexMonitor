@@ -52,6 +52,7 @@ type GitDiffPanelProps = {
   onModeChange: (mode: GitPanelMode) => void;
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
+  nativeContextMenuEnabled?: boolean;
   worktreeApplyLabel?: string;
   worktreeApplyTitle?: string | null;
   worktreeApplyLoading?: boolean;
@@ -153,6 +154,7 @@ export function GitDiffPanel({
   onModeChange,
   filePanelMode,
   onFilePanelModeChange,
+  nativeContextMenuEnabled = true,
   worktreeApplyTitle = null,
   worktreeApplyLoading = false,
   worktreeApplyError = null,
@@ -754,7 +756,7 @@ export function GitDiffPanel({
           selectedPath={selectedPath}
           onSelectFile={onSelectFile}
           onFileClick={handleFileClick}
-          onShowFileMenu={showFileMenu}
+          onShowFileMenu={nativeContextMenuEnabled ? showFileMenu : undefined}
           onDiffListClick={handleDiffListClick}
         />
       ) : mode === "perFile" ? (
@@ -774,7 +776,7 @@ export function GitDiffPanel({
           logBehindEntries={logBehindEntries}
           selectedCommitSha={selectedCommitSha}
           onSelectCommit={onSelectCommit}
-          onShowLogMenu={showLogMenu}
+          onShowLogMenu={nativeContextMenuEnabled ? showLogMenu : undefined}
         />
       ) : mode === "issues" ? (
         <GitIssuesModeContent
@@ -789,7 +791,9 @@ export function GitDiffPanel({
           pullRequests={pullRequests}
           selectedPullRequest={selectedPullRequest}
           onSelectPullRequest={onSelectPullRequest}
-          onShowPullRequestMenu={showPullRequestMenu}
+          onShowPullRequestMenu={
+            nativeContextMenuEnabled ? showPullRequestMenu : undefined
+          }
         />
       )}
 

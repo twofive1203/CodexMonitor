@@ -139,7 +139,10 @@ pub fn run() {
                         settings.remote_backend_provider,
                         crate::types::RemoteBackendProvider::Tcp
                     ) {
-                        if matches!(settings.backend_mode, crate::types::BackendMode::Remote) {
+                        if settings.web_access_enabled {
+                            let state = app_handle.state::<state::AppState>();
+                            let _ = tailscale::web_access_start(state).await;
+                        } else if matches!(settings.backend_mode, crate::types::BackendMode::Remote) {
                             // Remote mode: ensure daemon is up and version-current.
                             let state = app_handle.state::<state::AppState>();
                             let _ = tailscale::tailscale_daemon_start(state).await;
@@ -303,6 +306,9 @@ pub fn run() {
             tailscale::tailscale_daemon_start,
             tailscale::tailscale_daemon_stop,
             tailscale::tailscale_daemon_status,
+            tailscale::web_access_start,
+            tailscale::web_access_stop,
+            tailscale::web_access_status,
             is_mobile_runtime
         ])
         .build(tauri::generate_context!())

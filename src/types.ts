@@ -240,6 +240,10 @@ export type AppSettings = {
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
+  webAccessEnabled: boolean;
+  webAccessListenAddr: string;
+  webAccessPort: number;
+  webAccessPublicBaseUrl: string | null;
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
   keepDaemonRunningAfterAppClose: boolean;
@@ -335,6 +339,16 @@ export type TcpDaemonStatus = {
   startedAtMs: number | null;
   lastError: string | null;
   listenAddr: string | null;
+};
+
+export type WebAccessStatus = {
+  enabled: boolean;
+  state: TcpDaemonState;
+  pid: number | null;
+  startedAtMs: number | null;
+  lastError: string | null;
+  listenAddr: string | null;
+  localUrl: string | null;
 };
 
 export type TailscaleStatus = {

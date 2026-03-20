@@ -124,20 +124,22 @@ export function GitBranchRow({ mode, branchName, onFetch, fetchLoading }: GitBra
   return (
     <div className="diff-branch-row">
       <div className="diff-branch">{branchName || "未知"}</div>
-      <button
-        type="button"
-        className="diff-branch-refresh"
-        onClick={() => void onFetch?.()}
-        disabled={!onFetch || fetchLoading}
-        title={fetchLoading ? "正在获取远端..." : "获取远端"}
-        aria-label={fetchLoading ? "正在获取远端" : "获取远端"}
-      >
-        {fetchLoading ? (
-          <span className="git-panel-spinner" aria-hidden />
-        ) : (
-          <RotateCw size={12} aria-hidden />
-        )}
-      </button>
+      {onFetch ? (
+        <button
+          type="button"
+          className="diff-branch-refresh"
+          onClick={() => void onFetch()}
+          disabled={fetchLoading}
+          title={fetchLoading ? "正在获取远端..." : "获取远端"}
+          aria-label={fetchLoading ? "正在获取远端" : "获取远端"}
+        >
+          {fetchLoading ? (
+            <span className="git-panel-spinner" aria-hidden />
+          ) : (
+            <RotateCw size={12} aria-hidden />
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -355,7 +357,7 @@ type GitDiffModeContentProps = {
         path: string,
         section: "staged" | "unstaged",
     ) => void;
-    onShowFileMenu: (
+    onShowFileMenu?: (
         event: ReactMouseEvent<HTMLDivElement>,
         path: string,
         section: "staged" | "unstaged",
@@ -429,6 +431,10 @@ export function GitDiffModeContent({
     const showWorktreeApplyInUnstaged = showApplyWorktree && unstagedFiles.length > 0;
     const showWorktreeApplyInStaged =
         showApplyWorktree && unstagedFiles.length === 0 && stagedFiles.length > 0;
+    const showPullButton = commitsBehind > 0 && Boolean(onPull);
+    const showPushButton = commitsAhead > 0 && Boolean(onPush);
+    const showSyncButton = commitsAhead > 0 && commitsBehind > 0 && Boolean(onSync);
+    const showRemoteSyncActions = showPullButton || showPushButton || showSyncButton;
 
     return (
         <div className="diff-list" onClick={onDiffListClick}>
@@ -570,15 +576,15 @@ export function GitDiffModeContent({
                     />
                 </div>
             )}
-            {(commitsAhead > 0 || commitsBehind > 0) && !stagedFiles.length && (
+            {showRemoteSyncActions && !stagedFiles.length && (
                 <div className="push-section">
                     <div className="push-sync-buttons">
-                        {commitsBehind > 0 && (
+                        {showPullButton && (
                             <button
                                 type="button"
                                 className="push-button-secondary"
                                 onClick={() => void onPull?.()}
-                                disabled={!onPull || pullLoading || syncLoading}
+                                disabled={pullLoading || syncLoading}
                                 title={`拉取 ${commitsBehind} 个提交`}
                             >
                                 {pullLoading ? (
@@ -590,12 +596,12 @@ export function GitDiffModeContent({
                                 <span className="push-count">{commitsBehind}</span>
                             </button>
                         )}
-                        {commitsAhead > 0 && (
+                        {showPushButton && (
                             <button
                                 type="button"
                                 className="push-button"
                                 onClick={() => void onPush?.()}
-                                disabled={!onPush || pushLoading || commitsBehind > 0}
+                                disabled={pushLoading || commitsBehind > 0}
                                 title={
                                     commitsBehind > 0
                                         ? "远端领先，请先拉取，或使用同步。"
@@ -612,12 +618,12 @@ export function GitDiffModeContent({
                             </button>
                         )}
                     </div>
-                    {commitsAhead > 0 && commitsBehind > 0 && (
+                    {showSyncButton && (
                         <button
                             type="button"
                             className="push-button-secondary"
                             onClick={() => void onSync?.()}
-                            disabled={!onSync || syncLoading || pullLoading}
+                            disabled={syncLoading || pullLoading}
                             title="拉取最新改动并推送本地提交"
                         >
                             {syncLoading ? (
@@ -695,7 +701,7 @@ type GitLogModeContentProps = {
     logBehindEntries: GitLogEntry[];
     selectedCommitSha: string | null;
     onSelectCommit?: (entry: GitLogEntry) => void;
-    onShowLogMenu: (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => void;
+    onShowLogMenu?: (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => void;
 };
 
 export function GitLogModeContent({
@@ -731,7 +737,11 @@ export function GitLogModeContent({
                                     isSelected={isSelected}
                                     compact
                                     onSelect={onSelectCommit}
-                                    onContextMenu={(event) => onShowLogMenu(event, entry)}
+                                    onContextMenu={
+                                      onShowLogMenu
+                                        ? (event) => onShowLogMenu(event, entry)
+                                        : undefined
+                                    }
                                 />
                             );
                         })}
@@ -751,7 +761,11 @@ export function GitLogModeContent({
                                     isSelected={isSelected}
                                     compact
                                     onSelect={onSelectCommit}
-                                    onContextMenu={(event) => onShowLogMenu(event, entry)}
+                                    onContextMenu={
+                                      onShowLogMenu
+                                        ? (event) => onShowLogMenu(event, entry)
+                                        : undefined
+                                    }
                                 />
                             );
                         })}
@@ -770,7 +784,11 @@ export function GitLogModeContent({
                                     entry={entry}
                                     isSelected={isSelected}
                                     onSelect={onSelectCommit}
-                                    onContextMenu={(event) => onShowLogMenu(event, entry)}
+                                    onContextMenu={
+                                      onShowLogMenu
+                                        ? (event) => onShowLogMenu(event, entry)
+                                        : undefined
+                                    }
                                 />
                             );
                         })}
@@ -828,7 +846,7 @@ type GitPullRequestsModeContentProps = {
     pullRequests: GitHubPullRequest[];
     selectedPullRequest: number | null;
     onSelectPullRequest?: (pullRequest: GitHubPullRequest) => void;
-    onShowPullRequestMenu: (
+    onShowPullRequestMenu?: (
         event: ReactMouseEvent<HTMLDivElement>,
         pullRequest: GitHubPullRequest,
     ) => void;
@@ -857,7 +875,11 @@ export function GitPullRequestsModeContent({
                         key={pullRequest.number}
                         className={`git-pr-entry ${isSelected ? "active" : ""}`}
                         onClick={() => onSelectPullRequest?.(pullRequest)}
-                        onContextMenu={(event) => onShowPullRequestMenu(event, pullRequest)}
+                        onContextMenu={
+                          onShowPullRequestMenu
+                            ? (event) => onShowPullRequestMenu(event, pullRequest)
+                            : undefined
+                        }
                         role="button"
                         tabIndex={0}
                         onKeyDown={(event) => {

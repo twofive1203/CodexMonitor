@@ -27,6 +27,8 @@ const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
 const DEFAULT_REMOTE_BACKEND_NAME = "主远程配置";
 const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
+const DEFAULT_WEB_ACCESS_LISTEN_ADDR = "127.0.0.1";
+const DEFAULT_WEB_ACCESS_PORT = 4733;
 
 type RemoteBackendTarget = AppSettings["remoteBackends"][number];
 
@@ -45,6 +47,24 @@ function normalizeRemoteHost(value: string | null | undefined): string {
 
 function normalizeRemoteName(value: string | null | undefined, fallback: string): string {
   return value?.trim() ? value.trim() : fallback;
+}
+
+function normalizeWebAccessListenAddr(value: string | null | undefined): string {
+  return value?.trim() ? value.trim() : DEFAULT_WEB_ACCESS_LISTEN_ADDR;
+}
+
+function normalizeWebAccessPort(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const normalized = Math.trunc(value);
+    if (normalized >= 1 && normalized <= 65535) {
+      return normalized;
+    }
+  }
+  return DEFAULT_WEB_ACCESS_PORT;
+}
+
+function normalizeWebAccessPublicBaseUrl(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
 }
 
 function normalizeRemoteBackends(settings: AppSettings): {
@@ -140,6 +160,10 @@ function buildDefaultSettings(): AppSettings {
     remoteBackendProvider: defaultRemote.provider,
     remoteBackendHost: defaultRemote.host,
     remoteBackendToken: null,
+    webAccessEnabled: false,
+    webAccessListenAddr: DEFAULT_WEB_ACCESS_LISTEN_ADDR,
+    webAccessPort: DEFAULT_WEB_ACCESS_PORT,
+    webAccessPublicBaseUrl: null,
     remoteBackends: [defaultRemote],
     activeRemoteBackendId: defaultRemote.id,
     keepDaemonRunningAfterAppClose: false,
@@ -245,6 +269,12 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...remoteBackendSettings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    webAccessEnabled: Boolean(settings.webAccessEnabled),
+    webAccessListenAddr: normalizeWebAccessListenAddr(settings.webAccessListenAddr),
+    webAccessPort: normalizeWebAccessPort(settings.webAccessPort),
+    webAccessPublicBaseUrl: normalizeWebAccessPublicBaseUrl(
+      settings.webAccessPublicBaseUrl,
+    ),
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     uiFontFamily: normalizeFontFamily(

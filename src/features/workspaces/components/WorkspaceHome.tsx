@@ -98,6 +98,14 @@ type WorkspaceHomeProps = {
   onAgentMdSave: () => void;
 };
 
+function resolveWorkspaceHomeIconSrc(path: string) {
+  try {
+    return convertFileSrc(path);
+  } catch {
+    return "";
+  }
+}
+
 export function WorkspaceHome({
   workspace,
   showGitInitBanner,
@@ -163,7 +171,7 @@ export function WorkspaceHome({
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
-  const iconSrc = useMemo(() => convertFileSrc(iconPath), [iconPath]);
+  const iconSrc = useMemo(() => resolveWorkspaceHomeIconSrc(iconPath), [iconPath]);
   const fallbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = textareaRefProp ?? fallbackTextareaRef;
   const {
@@ -350,7 +358,7 @@ export function WorkspaceHome({
   return (
     <div className="workspace-home">
       <div className="workspace-home-hero">
-        {showIcon && (
+        {showIcon && iconSrc && (
           <img
             className="workspace-home-icon"
             src={iconSrc}

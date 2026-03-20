@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
@@ -9,6 +8,7 @@ import type {
   DictationSessionState,
   LocalUsageSnapshot,
   TcpDaemonStatus,
+  WebAccessStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TrayRecentThreadEntry,
@@ -28,6 +28,7 @@ import type {
   GitLogResponse,
   ReviewTarget,
 } from "../types";
+import { getRuntimeClient, isWebRuntime } from "./runtime/client";
 
 function isMissingTauriInvokeError(error: unknown) {
   return (
@@ -37,7 +38,142 @@ function isMissingTauriInvokeError(error: unknown) {
   );
 }
 
+/**
+ * 统一运行时 RPC 调用入口。
+ *
+ * `command`：后端命令名；`args`：命令参数对象。
+ */
+async function invoke<T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  if (args === undefined) {
+    return getRuntimeClient().invoke<T>(command);
+  }
+  return getRuntimeClient().invoke<T>(command, args);
+}
+
+function canUseBrowserApis() {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
+/**
+ * 将浏览器文件读取为 data URL。
+ *
+ * `file`：浏览器文件对象。
+ */
+function readBrowserFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () =>
+      reject(reader.error ?? new Error(`failed to read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * 使用浏览器原生文件选择器读取图片。
+ *
+ * 无入参，返回图片 data URL 列表。
+ */
+function pickBrowserImageFiles(): Promise<string[]> {
+  if (!canUseBrowserApis()) {
+    return Promise.resolve([]);
+  }
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.accept = "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff,image/tif";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+
+    const cleanup = () => {
+      input.value = "";
+      input.remove();
+    };
+
+    input.addEventListener(
+      "change",
+      () => {
+        const files = Array.from(input.files ?? []).filter((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (files.length === 0) {
+          cleanup();
+          resolve([]);
+          return;
+        }
+        void Promise.all(files.map((file) => readBrowserFileAsDataUrl(file)))
+          .then((items) => items.filter(Boolean))
+          .then((items) => {
+            cleanup();
+            resolve(items);
+          })
+          .catch(() => {
+            cleanup();
+            resolve([]);
+          });
+      },
+      { once: true },
+    );
+
+    input.click();
+  });
+}
+
+/**
+ * 在浏览器中下载文本文件。
+ *
+ * `content`：文件内容；`fileName`：建议文件名。
+ */
+function downloadBrowserTextFile(content: string, fileName: string): string | null {
+  if (!canUseBrowserApis()) {
+    return null;
+  }
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  return fileName;
+}
+
+/**
+ * 发送浏览器系统通知。
+ *
+ * `title`：通知标题；`body`：通知正文。
+ */
+async function sendBrowserNotification(title: string, body: string): Promise<void> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return;
+  }
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+    return;
+  }
+  if (Notification.permission === "denied") {
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    new Notification(title, { body });
+  }
+}
+
 export async function pickWorkspacePath(): Promise<string | null> {
+  if (isWebRuntime()) {
+    return null;
+  }
   const selection = await open({ directory: true, multiple: false });
   if (!selection || Array.isArray(selection)) {
     return null;
@@ -46,6 +182,9 @@ export async function pickWorkspacePath(): Promise<string | null> {
 }
 
 export async function pickWorkspacePaths(): Promise<string[]> {
+  if (isWebRuntime()) {
+    return [];
+  }
   const selection = await open({ directory: true, multiple: true });
   if (!selection) {
     return [];
@@ -54,6 +193,9 @@ export async function pickWorkspacePaths(): Promise<string[]> {
 }
 
 export async function pickImageFiles(): Promise<string[]> {
+  if (isWebRuntime()) {
+    return pickBrowserImageFiles();
+  }
   const selection = await open({
     multiple: true,
     filters: [
@@ -73,6 +215,9 @@ export async function exportMarkdownFile(
   content: string,
   defaultFileName = "plan.md",
 ): Promise<string | null> {
+  if (isWebRuntime()) {
+    return downloadBrowserTextFile(content, defaultFileName);
+  }
   const selection = await save({
     title: "Export plan as Markdown",
     defaultPath: defaultFileName,
@@ -882,6 +1027,18 @@ export async function tailscaleDaemonStatus(): Promise<TcpDaemonStatus> {
   return invoke<TcpDaemonStatus>("tailscale_daemon_status");
 }
 
+export async function webAccessStart(): Promise<WebAccessStatus> {
+  return invoke<WebAccessStatus>("web_access_start");
+}
+
+export async function webAccessStop(): Promise<WebAccessStatus> {
+  return invoke<WebAccessStatus>("web_access_stop");
+}
+
+export async function webAccessStatus(): Promise<WebAccessStatus> {
+  return invoke<WebAccessStatus>("web_access_status");
+}
+
 type MenuAcceleratorUpdate = {
   id: string;
   accelerator: string | null;
@@ -1118,6 +1275,10 @@ export async function sendNotification(
     extra?: Record<string, unknown>;
   },
 ): Promise<void> {
+  if (isWebRuntime()) {
+    await sendBrowserNotification(title, body);
+    return;
+  }
   const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(
     () => false,
   );

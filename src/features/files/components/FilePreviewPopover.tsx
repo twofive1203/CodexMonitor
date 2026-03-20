@@ -13,10 +13,12 @@ type FilePreviewPopoverProps = {
   truncated: boolean;
   previewKind?: "text" | "image";
   imageSrc?: string | null;
+  imageUnavailableMessage?: string | null;
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
   onSelectOpenAppId: (id: string) => void;
+  showOpenAppMenu?: boolean;
   selection: { start: number; end: number } | null;
   onSelectLine: (index: number, event: MouseEvent<HTMLButtonElement>) => void;
   onLineMouseDown?: (index: number, event: MouseEvent<HTMLButtonElement>) => void;
@@ -39,10 +41,12 @@ export function FilePreviewPopover({
   truncated,
   previewKind = "text",
   imageSrc = null,
+  imageUnavailableMessage = "图片预览不可用。",
   openTargets,
   openAppIconById,
   selectedOpenAppId,
   onSelectOpenAppId,
+  showOpenAppMenu = true,
   selection,
   onSelectLine,
   onLineMouseDown,
@@ -106,15 +110,17 @@ export function FilePreviewPopover({
         <div className="file-preview-body file-preview-body--image">
           <div className="file-preview-toolbar">
             <span className="file-preview-selection">{selectionLabel}</span>
-            <div className="file-preview-actions">
-              <OpenAppMenu
-                path={absolutePath}
-                openTargets={openTargets}
-                selectedOpenAppId={selectedOpenAppId}
-                onSelectOpenAppId={onSelectOpenAppId}
-                iconById={openAppIconById}
-              />
-            </div>
+            {showOpenAppMenu ? (
+              <div className="file-preview-actions">
+                <OpenAppMenu
+                  path={absolutePath}
+                  openTargets={openTargets}
+                  selectedOpenAppId={selectedOpenAppId}
+                  onSelectOpenAppId={onSelectOpenAppId}
+                  iconById={openAppIconById}
+                />
+              </div>
+            ) : null}
           </div>
           {imageSrc ? (
             <div className="file-preview-image">
@@ -122,7 +128,7 @@ export function FilePreviewPopover({
             </div>
           ) : (
             <div className="file-preview-status file-preview-error">
-              图片预览不可用。
+              {imageUnavailableMessage}
             </div>
           )}
         </div>
@@ -142,13 +148,15 @@ export function FilePreviewPopover({
               ) : null}
             </div>
             <div className="file-preview-actions">
-              <OpenAppMenu
-                path={absolutePath}
-                openTargets={openTargets}
-                selectedOpenAppId={selectedOpenAppId}
-                onSelectOpenAppId={onSelectOpenAppId}
-                iconById={openAppIconById}
-              />
+              {showOpenAppMenu ? (
+                <OpenAppMenu
+                  path={absolutePath}
+                  openTargets={openTargets}
+                  selectedOpenAppId={selectedOpenAppId}
+                  onSelectOpenAppId={onSelectOpenAppId}
+                  iconById={openAppIconById}
+                />
+              ) : null}
               <button
                 type="button"
                 className="ghost file-preview-action"

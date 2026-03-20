@@ -48,6 +48,8 @@ type FileTreePanelProps = {
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
   onSelectOpenAppId: (id: string) => void;
+  desktopFileActionsEnabled?: boolean;
+  imagePreviewEnabled?: boolean;
 };
 
 type FileTreeBuildNode = {
@@ -174,6 +176,8 @@ export function FileTreePanel({
   openAppIconById,
   selectedOpenAppId,
   onSelectOpenAppId,
+  desktopFileActionsEnabled = true,
+  imagePreviewEnabled = true,
 }: FileTreePanelProps) {
   const [filterMode, setFilterMode] = useState<"all" | "modified">("all");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -338,7 +342,7 @@ export function FileTreePanel({
   );
 
   const previewImageSrc = useMemo(() => {
-    if (!previewPath || previewKind !== "image") {
+    if (!previewPath || previewKind !== "image" || !imagePreviewEnabled) {
       return null;
     }
     try {
@@ -346,7 +350,7 @@ export function FileTreePanel({
     } catch {
       return null;
     }
-  }, [previewPath, previewKind, resolvePath]);
+  }, [imagePreviewEnabled, previewPath, previewKind, resolvePath]);
 
   const openPreview = useCallback((path: string, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
@@ -596,9 +600,13 @@ export function FileTreePanel({
             }
             openPreview(node.path, event.currentTarget);
           }}
-          onContextMenu={(event) => {
-            void showMenu(event, node.path);
-          }}
+          onContextMenu={
+            desktopFileActionsEnabled
+              ? (event) => {
+                  void showMenu(event, node.path);
+                }
+              : undefined
+          }
         >
           {isFolder ? (
             <span className={`file-tree-chevron${isExpanded ? " is-open" : ""}`}>
@@ -772,10 +780,16 @@ export function FileTreePanel({
               truncated={previewTruncated}
               previewKind={previewKind}
               imageSrc={previewImageSrc}
+              imageUnavailableMessage={
+                previewKind === "image" && !imagePreviewEnabled
+                  ? "Web 端暂不支持图片文件预览，请在桌面端查看。"
+                  : null
+              }
               openTargets={openTargets}
               openAppIconById={openAppIconById}
               selectedOpenAppId={selectedOpenAppId}
               onSelectOpenAppId={onSelectOpenAppId}
+              showOpenAppMenu={desktopFileActionsEnabled}
               selection={previewSelection}
               onSelectLine={handleSelectLine}
               onLineMouseDown={handleLineMouseDown}

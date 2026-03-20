@@ -145,7 +145,7 @@ type DiffFileRowProps = {
   section: "staged" | "unstaged";
   onClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
   onKeySelect: () => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLDivElement>) => void;
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
   onDiscardFile?: (path: string) => Promise<void> | void;
@@ -278,7 +278,7 @@ type DiffSectionProps = {
     path: string,
     section: "staged" | "unstaged",
   ) => void;
-  onShowFileMenu: (
+  onShowFileMenu?: (
     event: ReactMouseEvent<HTMLDivElement>,
     path: string,
     section: "staged" | "unstaged",
@@ -429,7 +429,11 @@ export function DiffSection({
               section={section}
               onClick={(event) => onFileClick(event, file.path, section)}
               onKeySelect={() => onSelectFile?.(file.path)}
-              onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
+              onContextMenu={
+                onShowFileMenu
+                  ? (event) => onShowFileMenu(event, file.path, section)
+                  : undefined
+              }
               onStageFile={onStageFile}
               onUnstageFile={onUnstageFile}
               onDiscardFile={onDiscardFile}
@@ -446,7 +450,7 @@ type GitLogEntryRowProps = {
   isSelected: boolean;
   compact?: boolean;
   onSelect?: (entry: GitLogEntry) => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLDivElement>) => void;
 };
 
 export function GitLogEntryRow({

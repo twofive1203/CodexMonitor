@@ -55,6 +55,7 @@ import {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  isTauri: vi.fn(() => true),
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
