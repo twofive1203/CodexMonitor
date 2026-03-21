@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense } from "react";
 import type { ComponentType } from "react";
-import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import type { AgentProvider, BranchInfo, WorkspaceInfo } from "../../../types";
 import type { SettingsViewProps } from "../../settings/components/SettingsView";
 import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
@@ -60,6 +60,7 @@ type MobileRemoteWorkspacePathPromptState = {
 } | null;
 
 export type AppModalsProps = {
+  claudeEnabled: boolean;
   renamePrompt: RenamePromptState;
   onRenamePromptChange: (value: string) => void;
   onRenamePromptCancel: () => void;
@@ -82,12 +83,14 @@ export type AppModalsProps = {
   worktreePrompt: WorktreePromptState;
   onWorktreePromptNameChange: (value: string) => void;
   onWorktreePromptChange: (value: string) => void;
+  onWorktreePromptProviderChange: (value: AgentProvider) => void;
   onWorktreePromptCopyAgentsMdChange: (value: boolean) => void;
   onWorktreeSetupScriptChange: (value: string) => void;
   onWorktreePromptCancel: () => void;
   onWorktreePromptConfirm: () => void;
   clonePrompt: ClonePromptState;
   onClonePromptCopyNameChange: (value: string) => void;
+  onClonePromptProviderChange: (value: AgentProvider) => void;
   onClonePromptChooseCopiesFolder: () => void;
   onClonePromptUseSuggestedFolder: () => void;
   onClonePromptClearCopiesFolder: () => void;
@@ -97,6 +100,7 @@ export type AppModalsProps = {
   workspaceFromUrlCanSubmit: boolean;
   onWorkspaceFromUrlPromptUrlChange: (value: string) => void;
   onWorkspaceFromUrlPromptTargetFolderNameChange: (value: string) => void;
+  onWorkspaceFromUrlPromptProviderChange: (value: AgentProvider) => void;
   onWorkspaceFromUrlPromptChooseDestinationPath: () => void;
   onWorkspaceFromUrlPromptClearDestinationPath: () => void;
   onWorkspaceFromUrlPromptCancel: () => void;
@@ -121,6 +125,7 @@ export type AppModalsProps = {
 };
 
 export const AppModals = memo(function AppModals({
+  claudeEnabled,
   renamePrompt,
   onRenamePromptChange,
   onRenamePromptCancel,
@@ -136,12 +141,14 @@ export const AppModals = memo(function AppModals({
   worktreePrompt,
   onWorktreePromptNameChange,
   onWorktreePromptChange,
+  onWorktreePromptProviderChange,
   onWorktreePromptCopyAgentsMdChange,
   onWorktreeSetupScriptChange,
   onWorktreePromptCancel,
   onWorktreePromptConfirm,
   clonePrompt,
   onClonePromptCopyNameChange,
+  onClonePromptProviderChange,
   onClonePromptChooseCopiesFolder,
   onClonePromptUseSuggestedFolder,
   onClonePromptClearCopiesFolder,
@@ -151,6 +158,7 @@ export const AppModals = memo(function AppModals({
   workspaceFromUrlCanSubmit,
   onWorkspaceFromUrlPromptUrlChange,
   onWorkspaceFromUrlPromptTargetFolderNameChange,
+  onWorkspaceFromUrlPromptProviderChange,
   onWorkspaceFromUrlPromptChooseDestinationPath,
   onWorkspaceFromUrlPromptClearDestinationPath,
   onWorkspaceFromUrlPromptCancel,
@@ -215,6 +223,8 @@ export const AppModals = memo(function AppModals({
             workspaceName={worktreePrompt.workspace.name}
             name={worktreePrompt.name}
             branch={worktreePrompt.branch}
+            provider={worktreePrompt.provider}
+            claudeEnabled={claudeEnabled}
             branchWasEdited={worktreePrompt.branchWasEdited}
             branchSuggestions={worktreeBranches}
             copyAgentsMd={worktreePrompt.copyAgentsMd}
@@ -225,6 +235,7 @@ export const AppModals = memo(function AppModals({
             isSavingScript={worktreePrompt.isSavingScript}
             onNameChange={onWorktreePromptNameChange}
             onChange={onWorktreePromptChange}
+            onProviderChange={onWorktreePromptProviderChange}
             onCopyAgentsMdChange={onWorktreePromptCopyAgentsMdChange}
             onSetupScriptChange={onWorktreeSetupScriptChange}
             onCancel={onWorktreePromptCancel}
@@ -237,11 +248,14 @@ export const AppModals = memo(function AppModals({
           <ClonePrompt
             workspaceName={clonePrompt.workspace.name}
             copyName={clonePrompt.copyName}
+            provider={clonePrompt.provider}
+            claudeEnabled={claudeEnabled}
             copiesFolder={clonePrompt.copiesFolder}
             suggestedCopiesFolder={clonePrompt.suggestedCopiesFolder}
             error={clonePrompt.error}
             isBusy={clonePrompt.isSubmitting}
             onCopyNameChange={onClonePromptCopyNameChange}
+            onProviderChange={onClonePromptProviderChange}
             onChooseCopiesFolder={onClonePromptChooseCopiesFolder}
             onUseSuggestedCopiesFolder={onClonePromptUseSuggestedFolder}
             onClearCopiesFolder={onClonePromptClearCopiesFolder}
@@ -256,11 +270,14 @@ export const AppModals = memo(function AppModals({
             url={workspaceFromUrlPrompt.url}
             destinationPath={workspaceFromUrlPrompt.destinationPath}
             targetFolderName={workspaceFromUrlPrompt.targetFolderName}
+            provider={workspaceFromUrlPrompt.provider}
+            claudeEnabled={claudeEnabled}
             error={workspaceFromUrlPrompt.error}
             isBusy={workspaceFromUrlPrompt.isSubmitting}
             canSubmit={workspaceFromUrlCanSubmit}
             onUrlChange={onWorkspaceFromUrlPromptUrlChange}
             onTargetFolderNameChange={onWorkspaceFromUrlPromptTargetFolderNameChange}
+            onProviderChange={onWorkspaceFromUrlPromptProviderChange}
             onChooseDestinationPath={onWorkspaceFromUrlPromptChooseDestinationPath}
             onClearDestinationPath={onWorkspaceFromUrlPromptClearDestinationPath}
             onCancel={onWorkspaceFromUrlPromptCancel}

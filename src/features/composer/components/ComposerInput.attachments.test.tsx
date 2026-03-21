@@ -212,7 +212,7 @@ describe("Composer attachments integration", () => {
       dispatchPaste(textarea, [textItem, imageItem]);
     });
 
-    expect(getAttachmentNames(harness.container)).toEqual(["Pasted image"]);
+    expect(getAttachmentNames(harness.container)).toEqual(["粘贴的图片"]);
 
     harness.unmount();
     restoreFileReader();

@@ -22,7 +22,9 @@ use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::{workspace_rpc, workspaces_core};
 use crate::state::AppState;
-use crate::types::{WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus};
+use crate::types::{
+    AgentProvider, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+};
 
 fn spawn_with_app(
     app: &AppHandle,
@@ -145,12 +147,13 @@ pub(crate) async fn is_workspace_path_dir(
 #[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
+    provider: Option<AgentProvider>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
-        let request = workspace_rpc::AddWorkspaceRequest { path };
+        let request = workspace_rpc::AddWorkspaceRequest { path, provider };
         let response = remote_backend::call_remote(
             &*state,
             app,
@@ -163,6 +166,7 @@ pub(crate) async fn add_workspace(
 
     workspaces_core::add_workspace_core(
         path,
+        provider,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -179,6 +183,7 @@ pub(crate) async fn add_workspace_from_git_url(
     url: String,
     destination_path: String,
     target_folder_name: Option<String>,
+    provider: Option<AgentProvider>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
@@ -188,6 +193,7 @@ pub(crate) async fn add_workspace_from_git_url(
             url,
             destination_path,
             target_folder_name,
+            provider,
         };
         let response = remote_backend::call_remote(
             &*state,
@@ -203,6 +209,7 @@ pub(crate) async fn add_workspace_from_git_url(
         url,
         destination_path,
         target_folder_name,
+        provider,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -219,6 +226,7 @@ pub(crate) async fn add_clone(
     source_workspace_id: String,
     copy_name: String,
     copies_folder: String,
+    provider: Option<AgentProvider>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
@@ -226,6 +234,7 @@ pub(crate) async fn add_clone(
         source_workspace_id,
         copy_name,
         copies_folder,
+        provider,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -243,6 +252,7 @@ pub(crate) async fn add_worktree(
     branch: String,
     name: Option<String>,
     copy_agents_md: Option<bool>,
+    provider: Option<AgentProvider>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
@@ -253,6 +263,7 @@ pub(crate) async fn add_worktree(
             branch,
             name,
             copy_agents_md,
+            provider,
         };
         let response = remote_backend::call_remote(
             &*state,
@@ -274,6 +285,7 @@ pub(crate) async fn add_worktree(
         branch,
         name,
         copy_agents_md,
+        provider,
         &data_dir,
         &state.workspaces,
         &state.sessions,
@@ -378,10 +390,7 @@ pub(crate) async fn remove_workspace(
             })
         },
         |error| is_missing_worktree_error(error),
-        |path| {
-            std::fs::remove_dir_all(path)
-                .map_err(|err| format!("无法删除工作树目录：{err}"))
-        },
+        |path| std::fs::remove_dir_all(path).map_err(|err| format!("无法删除工作树目录：{err}")),
         true,
         true,
     )
@@ -417,10 +426,7 @@ pub(crate) async fn remove_worktree(
             })
         },
         |error| is_missing_worktree_error(error),
-        |path| {
-            std::fs::remove_dir_all(path)
-                .map_err(|err| format!("无法删除工作树目录：{err}"))
-        },
+        |path| std::fs::remove_dir_all(path).map_err(|err| format!("无法删除工作树目录：{err}")),
     )
     .await
 }
@@ -553,11 +559,16 @@ pub(crate) async fn apply_worktree_changes(
 pub(crate) async fn update_workspace_settings(
     id: String,
     settings: WorkspaceSettings,
+    provider: Option<AgentProvider>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let request = workspace_rpc::UpdateWorkspaceSettingsRequest { id, settings };
+        let request = workspace_rpc::UpdateWorkspaceSettingsRequest {
+            id,
+            settings,
+            provider,
+        };
         let response = remote_backend::call_remote(
             &*state,
             app,
@@ -571,6 +582,7 @@ pub(crate) async fn update_workspace_settings(
     workspaces_core::update_workspace_settings_core(
         id,
         settings,
+        provider,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,

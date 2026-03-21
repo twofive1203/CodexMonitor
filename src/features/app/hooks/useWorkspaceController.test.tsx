@@ -99,7 +99,7 @@ describe("useWorkspaceController dialogs", () => {
     expect(added).toMatchObject({ id: workspaceTwo.id });
     expect(message).toHaveBeenCalledTimes(1);
     const [summary] = vi.mocked(message).mock.calls[0];
-    expect(String(summary)).toContain("Skipped 1 already added workspace");
+    expect(String(summary)).toContain("已跳过 1 个已添加的项目");
   });
 
   it("confirms workspace deletion and reports service errors", async () => {
@@ -128,7 +128,7 @@ describe("useWorkspaceController dialogs", () => {
     expect(message).toHaveBeenCalledTimes(1);
     const [, options] = vi.mocked(message).mock.calls[0];
     expect(options).toEqual(
-      expect.objectContaining({ title: "Delete workspace failed", kind: "error" }),
+      expect.objectContaining({ title: "删除项目失败", kind: "error" }),
     );
   });
 

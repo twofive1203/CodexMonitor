@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { ComponentType } from "react";
 import type {
+  AgentProvider,
   AppSettings,
   BranchInfo,
   CodexDoctorResult,
@@ -53,17 +54,23 @@ type UseMainAppModalsArgs = {
     addWorktreeAgent: (
       workspace: WorkspaceInfo,
       branch: string,
-      options?: { displayName?: string | null; copyAgentsMd?: boolean },
+      options?: {
+        displayName?: string | null;
+        copyAgentsMd?: boolean;
+        provider?: AgentProvider | null;
+      },
     ) => Promise<WorkspaceInfo | null>;
     addCloneAgent: (
       workspace: WorkspaceInfo,
       copyName: string,
       copiesFolder: string,
+      provider?: AgentProvider | null,
     ) => Promise<WorkspaceInfo | null>;
     connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
     updateWorkspaceSettings: (
       id: string,
       settings: Partial<WorkspaceSettings>,
+      provider?: AgentProvider | null,
     ) => Promise<WorkspaceInfo>;
     selectWorkspace: (workspaceId: string) => void;
     handleWorktreeCreated: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void>;
@@ -85,6 +92,7 @@ type UseMainAppModalsArgs = {
       | "workspaceFromUrlCanSubmit"
       | "onWorkspaceFromUrlPromptUrlChange"
       | "onWorkspaceFromUrlPromptTargetFolderNameChange"
+      | "onWorkspaceFromUrlPromptProviderChange"
       | "onWorkspaceFromUrlPromptChooseDestinationPath"
       | "onWorkspaceFromUrlPromptClearDestinationPath"
       | "onWorkspaceFromUrlPromptCancel"
@@ -119,6 +127,7 @@ type UseMainAppModalsArgs = {
     updateWorkspaceSettings: (
       id: string,
       settings: Partial<WorkspaceSettings>,
+      provider?: AgentProvider | null,
     ) => Promise<WorkspaceInfo>;
     scaleShortcutTitle: string;
     scaleShortcutText: string;
@@ -217,6 +226,7 @@ export function useMainAppModals({
     cancelPrompt: cancelWorktreePrompt,
     updateName: updateWorktreeName,
     updateBranch: updateWorktreeBranch,
+    updateProvider: updateWorktreeProvider,
     updateCopyAgentsMd: updateWorktreeCopyAgentsMd,
     updateSetupScript: updateWorktreeSetupScript,
   } = useWorktreePrompt({
@@ -227,6 +237,7 @@ export function useMainAppModals({
     onWorktreeCreated: workspacePrompts.handleWorktreeCreated,
     onCompactActivate: workspacePrompts.onCompactActivate,
     onError: (message) => workspacePrompts.onWorkspacePromptError(message, "worktree"),
+    experimentalClaudeEnabled: settings.appSettings.experimentalClaudeEnabled,
   });
 
   const {
@@ -235,6 +246,7 @@ export function useMainAppModals({
     confirmPrompt: confirmClonePrompt,
     cancelPrompt: cancelClonePrompt,
     updateCopyName: updateCloneCopyName,
+    updateProvider: updateCloneProvider,
     chooseCopiesFolder: chooseCloneCopiesFolder,
     useSuggestedCopiesFolder: useSuggestedCloneCopiesFolder,
     clearCopiesFolder: clearCloneCopiesFolder,
@@ -246,6 +258,7 @@ export function useMainAppModals({
     persistProjectCopiesFolder: workspacePrompts.persistProjectCopiesFolder,
     onCompactActivate: workspacePrompts.onCompactActivate,
     onError: (message) => workspacePrompts.onWorkspacePromptError(message, "clone"),
+    experimentalClaudeEnabled: settings.appSettings.experimentalClaudeEnabled,
   });
 
   const settingsViewProps = useMemo<Omit<SettingsViewProps, "initialSection" | "onClose">>(
@@ -273,8 +286,8 @@ export function useMainAppModals({
         settings.handleToggleAutomaticAppUpdateChecks,
       onRunDoctor: settings.doctor,
       onRunCodexUpdate: settings.codexUpdate,
-      onUpdateWorkspaceSettings: async (id, nextSettings) => {
-        await settings.updateWorkspaceSettings(id, nextSettings);
+      onUpdateWorkspaceSettings: async (id, nextSettings, provider) => {
+        await settings.updateWorkspaceSettings(id, nextSettings, provider);
       },
       scaleShortcutTitle: settings.scaleShortcutTitle,
       scaleShortcutText: settings.scaleShortcutText,
@@ -296,6 +309,7 @@ export function useMainAppModals({
 
   const appModalsProps = useMemo<AppModalsProps>(
     () => ({
+      claudeEnabled: settings.appSettings.experimentalClaudeEnabled,
       renamePrompt,
       onRenamePromptChange: handleRenamePromptChange,
       onRenamePromptCancel: handleRenamePromptCancel,
@@ -311,12 +325,14 @@ export function useMainAppModals({
       worktreePrompt,
       onWorktreePromptNameChange: updateWorktreeName,
       onWorktreePromptChange: updateWorktreeBranch,
+      onWorktreePromptProviderChange: updateWorktreeProvider,
       onWorktreePromptCopyAgentsMdChange: updateWorktreeCopyAgentsMd,
       onWorktreeSetupScriptChange: updateWorktreeSetupScript,
       onWorktreePromptCancel: cancelWorktreePrompt,
       onWorktreePromptConfirm: confirmWorktreePrompt,
       clonePrompt,
       onClonePromptCopyNameChange: updateCloneCopyName,
+      onClonePromptProviderChange: updateCloneProvider,
       onClonePromptChooseCopiesFolder: chooseCloneCopiesFolder,
       onClonePromptUseSuggestedFolder: useSuggestedCloneCopiesFolder,
       onClonePromptClearCopiesFolder: clearCloneCopiesFolder,
@@ -377,9 +393,12 @@ export function useMainAppModals({
       settingsSection,
       settingsViewComponent,
       settingsViewProps,
+      settings.appSettings.experimentalClaudeEnabled,
       updateCloneCopyName,
+      updateCloneProvider,
       workspacePrompts,
       updateWorktreeBranch,
+      updateWorktreeProvider,
       updateWorktreeCopyAgentsMd,
       updateWorktreeName,
       updateWorktreeSetupScript,

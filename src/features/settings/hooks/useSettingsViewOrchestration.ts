@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type {
+  AgentProvider,
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
@@ -10,6 +11,7 @@ import type {
 import { isMacPlatform, isWindowsPlatform } from "@utils/platformPaths";
 import { useSettingsOpenAppDrafts } from "./useSettingsOpenAppDrafts";
 import { useSettingsShortcutDrafts } from "./useSettingsShortcutDrafts";
+import { useSettingsClaudeSection } from "./useSettingsClaudeSection";
 import { useSettingsCodexSection } from "./useSettingsCodexSection";
 import { useSettingsDisplaySection } from "./useSettingsDisplaySection";
 import { useSettingsEnvironmentsSection } from "./useSettingsEnvironmentsSection";
@@ -46,6 +48,7 @@ type UseSettingsViewOrchestrationArgs = {
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
+    provider?: AgentProvider | null,
   ) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
@@ -161,6 +164,7 @@ export function useSettingsViewOrchestration({
     onUpdateAppSettings,
     onMoveWorkspace,
     onDeleteWorkspace,
+    onUpdateWorkspaceSettings,
     onCreateWorkspaceGroup,
     onRenameWorkspaceGroup,
     onMoveWorkspaceGroup,
@@ -196,6 +200,10 @@ export function useSettingsViewOrchestration({
     onUpdateAppSettings,
     onRunDoctor,
     onRunCodexUpdate,
+  });
+  const claudeSectionProps = useSettingsClaudeSection({
+    appSettings,
+    onUpdateAppSettings,
   });
 
   const gitSectionProps = useSettingsGitSection({
@@ -270,7 +278,12 @@ export function useSettingsViewOrchestration({
     gitSectionProps,
     serverSectionProps,
     agentsSectionProps,
+    runtimeSectionProps: {
+      appSettings,
+      onUpdateAppSettings,
+    },
     codexSectionProps,
+    claudeSectionProps,
     featuresSectionProps,
   };
 }

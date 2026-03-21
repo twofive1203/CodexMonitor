@@ -316,11 +316,7 @@ async fn probe_configured_web_access(settings: &AppSettings) -> bool {
         Ok(client) => client,
         Err(_) => return false,
     };
-    let response = match client
-        .get(web_access_healthz_url(&local_url))
-        .send()
-        .await
-    {
+    let response = match client.get(web_access_healthz_url(&local_url)).send().await {
         Ok(response) => response,
         Err(_) => return false,
     };
@@ -870,9 +866,7 @@ pub(crate) async fn web_access_start(
 }
 
 #[tauri::command]
-pub(crate) async fn web_access_stop(
-    state: State<'_, AppState>,
-) -> Result<WebAccessStatus, String> {
+pub(crate) async fn web_access_stop(state: State<'_, AppState>) -> Result<WebAccessStatus, String> {
     let settings = state.app_settings.lock().await.clone();
     let tcp_status = daemon_commands::tailscale_daemon_stop(state).await?;
     Ok(build_web_access_status(&settings, tcp_status).await)

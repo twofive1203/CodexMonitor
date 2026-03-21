@@ -142,7 +142,8 @@ pub fn run() {
                         if settings.web_access_enabled {
                             let state = app_handle.state::<state::AppState>();
                             let _ = tailscale::web_access_start(state).await;
-                        } else if matches!(settings.backend_mode, crate::types::BackendMode::Remote) {
+                        } else if matches!(settings.backend_mode, crate::types::BackendMode::Remote)
+                        {
                             // Remote mode: ensure daemon is up and version-current.
                             let state = app_handle.state::<state::AppState>();
                             let _ = tailscale::tailscale_daemon_start(state).await;
@@ -263,6 +264,7 @@ pub fn run() {
             git::checkout_git_branch,
             git::create_git_branch,
             codex::model_list,
+            codex::get_provider_capabilities,
             codex::experimental_feature_list,
             codex::set_codex_feature_flag,
             codex::get_agents_settings,

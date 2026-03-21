@@ -175,7 +175,7 @@ describe("useSettingsDefaultModels", () => {
 
     await waitFor(() => {
       expect(result.current.models[0]?.model).toBe("gpt-5-codex");
-      expect(result.current.models[0]?.displayName).toContain("(config)");
+      expect(result.current.models[0]?.displayName).toContain("（配置）");
       expect(getModelListMock).not.toHaveBeenCalled();
     });
   });

@@ -124,7 +124,7 @@ describe("Composer send triggers", () => {
     const onSend = vi.fn();
     render(<ComposerHarness onSend={onSend} selectedServiceTier="fast" />);
 
-    expect(screen.getByLabelText("Fast mode enabled")).toBeTruthy();
+    expect(screen.getByLabelText("快速模式已开启")).toBeTruthy();
   });
 
   it("blurs the textarea after Enter send on mobile", () => {
@@ -232,7 +232,7 @@ describe("Composer send triggers", () => {
 
     expect(
       screen.getByText(
-        "Default: Queue (Steer unavailable). Both Enter and Shift+Ctrl+Enter will queue this message.",
+        "默认：排队（引导不可用）。按 Enter 或 Shift+Ctrl+Enter 都会把这条消息加入队列。",
       ),
     ).toBeTruthy();
     expect(onSend).toHaveBeenCalledTimes(1);

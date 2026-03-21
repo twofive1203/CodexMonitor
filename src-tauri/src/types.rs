@@ -263,11 +263,78 @@ pub(crate) struct BranchInfo {
     pub(crate) last_commit: i64,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum AgentProvider {
+    Codex,
+    Claude,
+}
+
+impl Default for AgentProvider {
+    fn default() -> Self {
+        AgentProvider::Codex
+    }
+}
+
+impl AgentProvider {
+    /// 返回 provider 的稳定字符串值。
+    ///
+    /// `self`：当前 provider 枚举值。
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            AgentProvider::Codex => "codex",
+            AgentProvider::Claude => "claude",
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderCapabilities {
+    pub(crate) supports_login: bool,
+    pub(crate) supports_rate_limits: bool,
+    pub(crate) supports_skills: bool,
+    pub(crate) supports_apps: bool,
+    pub(crate) supports_steer: bool,
+    pub(crate) supports_review: bool,
+    pub(crate) supports_collaboration_modes: bool,
+}
+
+impl ProviderCapabilities {
+    /// 构建指定 provider 的能力快照。
+    ///
+    /// `provider`：目标 provider。
+    pub(crate) fn from_provider(provider: &AgentProvider) -> Self {
+        match provider {
+            AgentProvider::Codex => Self {
+                supports_login: true,
+                supports_rate_limits: true,
+                supports_skills: true,
+                supports_apps: true,
+                supports_steer: true,
+                supports_review: true,
+                supports_collaboration_modes: true,
+            },
+            AgentProvider::Claude => Self {
+                supports_login: false,
+                supports_rate_limits: false,
+                supports_skills: false,
+                supports_apps: false,
+                supports_steer: false,
+                supports_review: false,
+                supports_collaboration_modes: false,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct WorkspaceEntry {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) path: String,
+    #[serde(default)]
+    pub(crate) provider: AgentProvider,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -284,6 +351,8 @@ pub(crate) struct WorkspaceInfo {
     pub(crate) name: String,
     pub(crate) path: String,
     pub(crate) connected: bool,
+    #[serde(default)]
+    pub(crate) provider: AgentProvider,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -398,6 +467,19 @@ pub(crate) struct AppSettings {
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default = "default_agent_provider", rename = "defaultAgentProvider")]
+    pub(crate) default_agent_provider: AgentProvider,
+    #[serde(default, rename = "claudeBin")]
+    pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
+    #[serde(default, rename = "claudePermissionMode")]
+    pub(crate) claude_permission_mode: Option<String>,
+    #[serde(
+        default = "default_claude_use_sdk_sidecar",
+        rename = "claudeUseSdkSidecar"
+    )]
+    pub(crate) claude_use_sdk_sidecar: bool,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default, rename = "remoteBackendProvider")]
@@ -609,6 +691,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) unified_exec_enabled: bool,
     #[serde(
+        default = "default_experimental_claude_enabled",
+        rename = "experimentalClaudeEnabled"
+    )]
+    pub(crate) experimental_claude_enabled: bool,
+    #[serde(
         default = "default_experimental_apps_enabled",
         rename = "experimentalAppsEnabled"
     )]
@@ -705,6 +792,14 @@ impl Default for RemoteBackendProvider {
 
 fn default_access_mode() -> String {
     "current".to_string()
+}
+
+fn default_agent_provider() -> AgentProvider {
+    AgentProvider::Codex
+}
+
+fn default_claude_use_sdk_sidecar() -> bool {
+    true
 }
 
 fn default_review_delivery_mode() -> String {
@@ -988,6 +1083,10 @@ fn default_experimental_apps_enabled() -> bool {
     false
 }
 
+fn default_experimental_claude_enabled() -> bool {
+    false
+}
+
 fn default_personality() -> String {
     "friendly".to_string()
 }
@@ -1169,6 +1268,11 @@ impl Default for AppSettings {
         Self {
             codex_bin: None,
             codex_args: None,
+            default_agent_provider: default_agent_provider(),
+            claude_bin: None,
+            claude_args: None,
+            claude_permission_mode: None,
+            claude_use_sdk_sidecar: default_claude_use_sdk_sidecar(),
             backend_mode: default_backend_mode(),
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
@@ -1226,6 +1330,7 @@ impl Default for AppSettings {
             pause_queued_messages_when_response_required:
                 default_pause_queued_messages_when_response_required(),
             unified_exec_enabled: true,
+            experimental_claude_enabled: default_experimental_claude_enabled(),
             experimental_apps_enabled: false,
             personality: default_personality(),
             dictation_enabled: false,
@@ -1254,14 +1359,22 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, RemoteBackendProvider, WorkspaceEntry, WorkspaceGroup,
-        WorkspaceKind, WorkspaceSettings,
+        AgentProvider, AppSettings, BackendMode, ProviderCapabilities, RemoteBackendProvider,
+        WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
+        assert!(matches!(
+            settings.default_agent_provider,
+            AgentProvider::Codex
+        ));
+        assert!(settings.claude_bin.is_none());
+        assert!(settings.claude_args.is_none());
+        assert!(settings.claude_permission_mode.is_none());
+        assert!(settings.claude_use_sdk_sidecar);
         let expected_backend_mode = if cfg!(target_os = "ios") {
             BackendMode::Remote
         } else {
@@ -1394,6 +1507,7 @@ mod tests {
         assert!(settings.composer_follow_up_hint_enabled);
         assert!(settings.pause_queued_messages_when_response_required);
         assert!(settings.unified_exec_enabled);
+        assert!(!settings.experimental_claude_enabled);
         assert!(!settings.experimental_apps_enabled);
         assert_eq!(settings.personality, "friendly");
         assert!(!settings.dictation_enabled);
@@ -1452,11 +1566,40 @@ mod tests {
         let entry: WorkspaceEntry =
             serde_json::from_str(r#"{"id":"1","name":"Test","path":"/tmp"}"#)
                 .expect("workspace deserialize");
+        assert!(matches!(entry.provider, AgentProvider::Codex));
         assert!(matches!(entry.kind, WorkspaceKind::Main));
         assert!(entry.parent_id.is_none());
         assert!(entry.worktree.is_none());
         assert!(entry.settings.sort_order.is_none());
         assert!(entry.settings.group_id.is_none());
+    }
+
+    #[test]
+    fn provider_capabilities_match_phase_one_expectations() {
+        assert_eq!(
+            ProviderCapabilities::from_provider(&AgentProvider::Codex),
+            ProviderCapabilities {
+                supports_login: true,
+                supports_rate_limits: true,
+                supports_skills: true,
+                supports_apps: true,
+                supports_steer: true,
+                supports_review: true,
+                supports_collaboration_modes: true,
+            }
+        );
+        assert_eq!(
+            ProviderCapabilities::from_provider(&AgentProvider::Claude),
+            ProviderCapabilities {
+                supports_login: false,
+                supports_rate_limits: false,
+                supports_skills: false,
+                supports_apps: false,
+                supports_steer: false,
+                supports_review: false,
+                supports_collaboration_modes: false,
+            }
+        );
     }
 
     #[test]

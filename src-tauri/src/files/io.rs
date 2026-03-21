@@ -37,8 +37,7 @@ fn resolve_root(
 }
 
 fn resolve_or_create_root(root: &Path, root_context: &str) -> Result<PathBuf, String> {
-    std::fs::create_dir_all(root)
-        .map_err(|err| format!("无法创建{root_context}：{err}"))?;
+    std::fs::create_dir_all(root).map_err(|err| format!("无法创建{root_context}：{err}"))?;
     let canonical_root = root
         .canonicalize()
         .map_err(|err| format!("无法解析{root_context}：{err}"))?;
@@ -78,13 +77,13 @@ pub(crate) fn read_text_file_within(
         return Err(format!("{file_context} 路径无效。"));
     }
 
-    let mut file = File::open(&canonical_path)
-        .map_err(|err| format!("无法打开{file_context}：{err}"))?;
+    let mut file =
+        File::open(&canonical_path).map_err(|err| format!("无法打开{file_context}：{err}"))?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
         .map_err(|err| format!("无法读取{file_context}：{err}"))?;
-    let content = String::from_utf8(buffer)
-        .map_err(|_| format!("{file_context} 不是有效的 UTF-8 文本。"))?;
+    let content =
+        String::from_utf8(buffer).map_err(|_| format!("{file_context} 不是有效的 UTF-8 文本。"))?;
 
     Ok(TextFileResponse {
         exists: true,

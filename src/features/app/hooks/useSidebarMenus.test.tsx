@@ -92,7 +92,7 @@ describe("useSidebarMenus", () => {
 
     const menuArgs = menuNew.mock.calls[0]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
+      (item: { text: string }) => item.text === `在 ${fileManagerName()} 中显示`,
     );
 
     expect(revealItem).toBeDefined();

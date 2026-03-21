@@ -1,5 +1,6 @@
 pub(crate) mod account;
 pub(crate) mod agents_config_core;
+pub(crate) mod claude_config_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod codex_update_core;
@@ -9,6 +10,9 @@ pub(crate) mod git_core;
 pub(crate) mod git_rpc;
 pub(crate) mod git_ui_core;
 pub(crate) mod local_usage_core;
+pub(crate) mod agent_runtime_core;
+pub(crate) mod provider_core;
+pub(crate) mod provider_runtime_core;
 pub(crate) mod process_core;
 pub(crate) mod prompts_core;
 pub(crate) mod settings_core;

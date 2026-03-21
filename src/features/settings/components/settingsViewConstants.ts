@@ -85,7 +85,9 @@ export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
   git: "Git",
   server: "服务",
   agents: "智能体",
+  runtime: "运行时",
   codex: "Codex",
+  claude: "Claude",
   features: "功能",
 };
 

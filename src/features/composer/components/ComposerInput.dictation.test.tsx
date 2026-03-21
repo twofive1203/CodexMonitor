@@ -49,7 +49,7 @@ describe("ComposerInput dictation controls", () => {
     );
 
     const cancelButton = screen.getByRole("button", {
-      name: "Cancel transcription",
+      name: "取消转写",
     });
     fireEvent.click(cancelButton);
 

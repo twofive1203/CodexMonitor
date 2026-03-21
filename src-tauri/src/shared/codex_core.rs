@@ -16,7 +16,9 @@ use crate::codex::config as codex_config;
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
-use crate::types::WorkspaceEntry;
+use crate::shared::claude_config_core;
+use crate::shared::provider_core;
+use crate::types::{AgentProvider, WorkspaceEntry};
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
 #[allow(dead_code)]
@@ -129,11 +131,7 @@ async fn get_session_clone(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: &str,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let sessions = sessions.lock().await;
-    sessions
-        .get(workspace_id)
-        .cloned()
-        .ok_or_else(|| "workspace not connected".to_string())
+    provider_core::get_workspace_session(sessions, workspace_id).await
 }
 
 async fn resolve_workspace_and_parent(
@@ -539,8 +537,9 @@ pub(crate) async fn account_read_core(
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = {
-        let sessions = sessions.lock().await;
-        sessions.get(&workspace_id).cloned()
+        provider_core::get_workspace_session(sessions, &workspace_id)
+            .await
+            .ok()
     };
     let response = if let Some(session) = session {
         session
@@ -792,8 +791,14 @@ pub(crate) async fn get_config_model_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
 ) -> Result<Value, String> {
-    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
-    let model = codex_config::read_config_model(Some(codex_home))?;
+    let model = match provider_core::resolve_workspace_provider(workspaces, &workspace_id).await? {
+        AgentProvider::Codex => {
+            let codex_home =
+                resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+            codex_config::read_config_model(Some(codex_home))?
+        }
+        AgentProvider::Claude => claude_config_core::read_config_model()?,
+    };
     Ok(json!({ "model": model }))
 }
 

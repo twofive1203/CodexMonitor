@@ -1073,9 +1073,36 @@
 }
 
 .settings-project-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-strong);
+}
+
+.settings-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card-muted);
+  color: var(--text-subtle);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.settings-provider-badge.is-codex {
+  border-color: color-mix(in srgb, var(--brand-primary) 38%, var(--border-muted));
+  color: color-mix(in srgb, var(--brand-primary) 68%, var(--text-strong));
+}
+
+.settings-provider-badge.is-claude {
+  border-color: color-mix(in srgb, var(--status-warning) 38%, var(--border-muted));
+  color: color-mix(in srgb, var(--status-warning) 68%, var(--text-strong));
 }
 
 .settings-project-path {

@@ -121,9 +121,8 @@ pub(super) async fn tailscale_daemon_start(
         } => {
             let pid = resolve_daemon_pid(listen_port, info.as_ref()).await;
             let actual_web_access_enabled = probe_configured_web_access(&settings).await;
-            let restart_required =
-                should_restart_daemon(info.as_ref())
-                    || actual_web_access_enabled != desired_web_access_enabled;
+            let restart_required = should_restart_daemon(info.as_ref())
+                || actual_web_access_enabled != desired_web_access_enabled;
             let restart_reason = if restart_required {
                 Some(if should_restart_daemon(info.as_ref()) {
                     daemon_restart_reason(info.as_ref())

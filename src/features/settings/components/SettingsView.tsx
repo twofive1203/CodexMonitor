@@ -1,6 +1,7 @@
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import X from "lucide-react/dist/esm/icons/x";
 import type {
+  AgentProvider,
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
@@ -54,6 +55,7 @@ export type SettingsViewProps = {
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
+    provider?: AgentProvider | null,
   ) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
@@ -99,6 +101,7 @@ export function SettingsView({
   onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
+  const claudeEnabled = appSettings.experimentalClaudeEnabled;
   const {
     activeSection,
     showMobileDetail,
@@ -140,7 +143,9 @@ export function SettingsView({
 
   useSettingsViewCloseShortcuts(onClose);
 
-  const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
+  const resolvedActiveSection =
+    !claudeEnabled && activeSection === "claude" ? "features" : activeSection;
+  const activeSectionLabel = SETTINGS_SECTION_LABELS[resolvedActiveSection];
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
@@ -169,9 +174,10 @@ export function SettingsView({
         {(!useMobileMasterDetail || !showMobileDetail) && (
           <div className="settings-master">
             <SettingsNav
-              activeSection={activeSection}
+              activeSection={resolvedActiveSection}
               onSelectSection={handleSelectSection}
               showDisclosure={useMobileMasterDetail}
+              showClaudeSection={claudeEnabled}
             />
           </div>
         )}
@@ -193,7 +199,7 @@ export function SettingsView({
             )}
             <div className="settings-content">
               <SettingsSectionContainers
-                activeSection={activeSection}
+                activeSection={resolvedActiveSection}
                 orchestration={orchestration}
               />
             </div>

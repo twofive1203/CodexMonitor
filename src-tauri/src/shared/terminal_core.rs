@@ -279,8 +279,11 @@ pub(crate) async fn close_terminal_session(session: Arc<TerminalSession>) -> Res
 
 #[cfg(test)]
 mod tests {
-    use super::{unix_shell_args, windows_shell_args};
+    #[cfg(not(target_os = "windows"))]
+    use super::unix_shell_args;
+    use super::windows_shell_args;
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn unix_shell_args_contains_interactive_flag() {
         assert_eq!(unix_shell_args(), vec!["-i"]);

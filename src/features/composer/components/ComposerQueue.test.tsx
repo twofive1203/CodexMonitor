@@ -19,18 +19,18 @@ describe("ComposerQueue", () => {
   it("opens inline menu on queue item action tap", () => {
     render(<ComposerQueue queuedMessages={[queuedItem]} />);
 
-    expect(screen.queryByText("Edit")).toBeNull();
-    fireEvent.click(screen.getByLabelText("Queue item menu"));
-    expect(screen.getByText("Edit")).toBeTruthy();
-    expect(screen.getByText("Delete")).toBeTruthy();
+    expect(screen.queryByText("编辑")).toBeNull();
+    fireEvent.click(screen.getByLabelText("队列项菜单"));
+    expect(screen.getByText("编辑")).toBeTruthy();
+    expect(screen.getByText("删除")).toBeTruthy();
   });
 
   it("calls edit callback for selected queued item", () => {
     const onEditQueued = vi.fn();
     render(<ComposerQueue queuedMessages={[queuedItem]} onEditQueued={onEditQueued} />);
 
-    fireEvent.click(screen.getByLabelText("Queue item menu"));
-    fireEvent.click(screen.getByText("Edit"));
+    fireEvent.click(screen.getByLabelText("队列项菜单"));
+    fireEvent.click(screen.getByText("编辑"));
 
     expect(onEditQueued).toHaveBeenCalledTimes(1);
     expect(onEditQueued).toHaveBeenCalledWith(queuedItem);
@@ -40,8 +40,8 @@ describe("ComposerQueue", () => {
     const onDeleteQueued = vi.fn();
     render(<ComposerQueue queuedMessages={[queuedItem]} onDeleteQueued={onDeleteQueued} />);
 
-    fireEvent.click(screen.getByLabelText("Queue item menu"));
-    fireEvent.click(screen.getByText("Delete"));
+    fireEvent.click(screen.getByLabelText("队列项菜单"));
+    fireEvent.click(screen.getByText("删除"));
 
     expect(onDeleteQueued).toHaveBeenCalledTimes(1);
     expect(onDeleteQueued).toHaveBeenCalledWith(queuedItem.id);

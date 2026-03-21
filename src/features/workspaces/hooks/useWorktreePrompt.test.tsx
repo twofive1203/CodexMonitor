@@ -127,6 +127,33 @@ describe("useWorktreePrompt", () => {
     expect(addWorktreeAgent).toHaveBeenCalledWith(parentWorkspace, branch, {
       displayName: null,
       copyAgentsMd: false,
+      provider: "codex",
     });
+  });
+
+  it("falls back to Codex when Claude experimental support is disabled", () => {
+    const addWorktreeAgent = vi.fn().mockResolvedValue(null);
+    const updateWorkspaceSettings = vi.fn().mockResolvedValue(parentWorkspace);
+    const connectWorkspace = vi.fn().mockResolvedValue(undefined);
+    const onSelectWorkspace = vi.fn();
+
+    const { result } = renderHook(() =>
+      useWorktreePrompt({
+        addWorktreeAgent,
+        updateWorkspaceSettings,
+        connectWorkspace,
+        onSelectWorkspace,
+        experimentalClaudeEnabled: false,
+      }),
+    );
+
+    act(() => {
+      result.current.openPrompt({
+        ...parentWorkspace,
+        provider: "claude",
+      });
+    });
+
+    expect(result.current.worktreePrompt?.provider).toBe("codex");
   });
 });

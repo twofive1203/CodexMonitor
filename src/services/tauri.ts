@@ -1,6 +1,7 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
+  AgentProvider,
   AppSettings,
   CodexUpdateResult,
   CodexDoctorResult,
@@ -16,6 +17,7 @@ import type {
   WorkspaceInfo,
   AppMention,
   WorkspaceSettings,
+  ProviderCapabilities,
 } from "../types";
 import type {
   GitFileDiff,
@@ -393,19 +395,24 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export async function addWorkspace(path: string): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path });
+export async function addWorkspace(
+  path: string,
+  provider?: AgentProvider | null,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_workspace", { path, provider: provider ?? null });
 }
 
 export async function addWorkspaceFromGitUrl(
   url: string,
   destinationPath: string,
   targetFolderName: string | null,
+  provider?: AgentProvider | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
     url,
     destinationPath,
     targetFolderName,
+    provider: provider ?? null,
   });
 }
 
@@ -417,11 +424,13 @@ export async function addClone(
   sourceWorkspaceId: string,
   copiesFolder: string,
   copyName: string,
+  provider?: AgentProvider | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_clone", {
     sourceWorkspaceId,
     copiesFolder,
     copyName,
+    provider: provider ?? null,
   });
 }
 
@@ -430,8 +439,15 @@ export async function addWorktree(
   branch: string,
   name: string | null,
   copyAgentsMd = true,
+  provider?: AgentProvider | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
+  return invoke<WorkspaceInfo>("add_worktree", {
+    parentId,
+    branch,
+    name,
+    copyAgentsMd,
+    provider: provider ?? null,
+  });
 }
 
 export type WorktreeSetupStatus = {
@@ -452,8 +468,13 @@ export async function markWorktreeSetupRan(workspaceId: string): Promise<void> {
 export async function updateWorkspaceSettings(
   id: string,
   settings: WorkspaceSettings,
+  provider?: AgentProvider | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
+  return invoke<WorkspaceInfo>("update_workspace_settings", {
+    id,
+    settings,
+    provider: provider ?? null,
+  });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -509,6 +530,12 @@ export async function getOpenAppIcon(appName: string): Promise<string | null> {
 
 export async function connectWorkspace(id: string): Promise<void> {
   return invoke("connect_workspace", { id });
+}
+
+export async function getProviderCapabilities(
+  provider: AgentProvider,
+): Promise<ProviderCapabilities> {
+  return invoke<ProviderCapabilities>("get_provider_capabilities", { provider });
 }
 
 export async function setWorkspaceRuntimeCodexArgs(

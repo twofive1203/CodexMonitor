@@ -85,6 +85,10 @@ import {
 import { subscribeTrayOpenThread } from "@services/events";
 import { getRuntimeCapabilities } from "@services/runtime/client";
 import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
+import {
+  getWorkspaceProvider,
+  providerSupportsRuntimeCodexArgs,
+} from "@utils/agentProvider";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -451,16 +455,32 @@ export default function MainApp() {
     },
     [getThreadCodexParams, patchThreadCodexParams],
   );
+  const activeWorkspaceSupportsRuntimeCodexArgs =
+    activeWorkspace !== null &&
+    providerSupportsRuntimeCodexArgs(getWorkspaceProvider(activeWorkspace));
   const codexArgsOptions = useMemo(
     () =>
-      buildCodexArgsOptions({
-        appCodexArgs: appSettings.codexArgs ?? null,
-        additionalCodexArgs: [selectedCodexArgsOverride],
-      }),
-    [appSettings.codexArgs, selectedCodexArgsOverride],
+      activeWorkspaceSupportsRuntimeCodexArgs
+        ? buildCodexArgsOptions({
+            appCodexArgs: appSettings.codexArgs ?? null,
+            additionalCodexArgs: [selectedCodexArgsOverride],
+          })
+        : [],
+    [
+      activeWorkspaceSupportsRuntimeCodexArgs,
+      appSettings.codexArgs,
+      selectedCodexArgsOverride,
+    ],
   );
   const ensureWorkspaceRuntimeCodexArgs = useCallback(
     async (workspaceId: string, threadId: string | null) => {
+      const workspace = workspacesById.get(workspaceId);
+      if (
+        workspace &&
+        !providerSupportsRuntimeCodexArgs(getWorkspaceProvider(workspace))
+      ) {
+        return;
+      }
       const sanitizedCodexArgsOverride = resolveWorkspaceRuntimeCodexArgsOverride({
         workspaceId,
         threadId,
@@ -468,16 +488,24 @@ export default function MainApp() {
       });
       await setWorkspaceRuntimeCodexArgs(workspaceId, sanitizedCodexArgsOverride);
     },
-    [getThreadCodexParams],
+    [getThreadCodexParams, workspacesById],
   );
   const getThreadArgsBadge = useCallback(
-    (workspaceId: string, threadId: string) =>
-      resolveWorkspaceRuntimeCodexArgsBadgeLabel({
+    (workspaceId: string, threadId: string) => {
+      const workspace = workspacesById.get(workspaceId);
+      if (
+        workspace &&
+        !providerSupportsRuntimeCodexArgs(getWorkspaceProvider(workspace))
+      ) {
+        return null;
+      }
+      return resolveWorkspaceRuntimeCodexArgsBadgeLabel({
         workspaceId,
         threadId,
         getThreadCodexParams,
-      }),
-    [getThreadCodexParams],
+      });
+    },
+    [getThreadCodexParams, workspacesById],
   );
 
   const { collaborationModePayload } = useCollaborationModeSelection({
@@ -1052,11 +1080,18 @@ export default function MainApp() {
     submitWorkspaceFromUrlPrompt,
     updateWorkspaceFromUrlUrl,
     updateWorkspaceFromUrlTargetFolderName,
+    updateWorkspaceFromUrlProvider,
     clearWorkspaceFromUrlDestinationPath,
     canSubmitWorkspaceFromUrlPrompt,
   } = useWorkspaceFromUrlPrompt({
-    onSubmit: async (url, destinationPath, targetFolderName) => {
-      await handleAddWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
+    defaultProvider: appSettings.defaultAgentProvider,
+    onSubmit: async (url, destinationPath, targetFolderName, provider) => {
+      await handleAddWorkspaceFromGitUrl(
+        url,
+        destinationPath,
+        targetFolderName,
+        provider,
+      );
     },
   });
 
@@ -1113,6 +1148,7 @@ export default function MainApp() {
         onWorkspaceFromUrlPromptUrlChange: updateWorkspaceFromUrlUrl,
         onWorkspaceFromUrlPromptTargetFolderNameChange:
           updateWorkspaceFromUrlTargetFolderName,
+        onWorkspaceFromUrlPromptProviderChange: updateWorkspaceFromUrlProvider,
         onWorkspaceFromUrlPromptChooseDestinationPath:
           chooseWorkspaceFromUrlDestinationPath,
         onWorkspaceFromUrlPromptClearDestinationPath:
@@ -1189,6 +1225,7 @@ export default function MainApp() {
     ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
     : null;
   const {
+    homeAccountWorkspace,
     homeAccount,
     homeRateLimits,
   } = useHomeAccount({
@@ -1747,6 +1784,7 @@ export default function MainApp() {
     activeAccount,
     homeRateLimits,
     homeAccount,
+    homeAccountWorkspace,
     accountSwitching,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
@@ -1836,8 +1874,12 @@ export default function MainApp() {
     onSelectEffort: handleSelectEffort,
     reasoningSupported,
     codexArgsOptions,
-    selectedCodexArgsOverride,
-    onSelectCodexArgsOverride: handleSelectCodexArgsOverride,
+    selectedCodexArgsOverride: activeWorkspaceSupportsRuntimeCodexArgs
+      ? selectedCodexArgsOverride
+      : null,
+    onSelectCodexArgsOverride: activeWorkspaceSupportsRuntimeCodexArgs
+      ? handleSelectCodexArgsOverride
+      : undefined,
     accessMode,
     onSelectAccessMode: handleSelectAccessMode,
     skills,

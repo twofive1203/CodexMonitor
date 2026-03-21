@@ -82,12 +82,7 @@ fn count_effective_dir_entries(root: &Path) -> Result<usize, String> {
     let entries = fs::read_dir(root).map_err(|err| format!("读取目录失败：{err}"))?;
     let mut count = 0usize;
     for entry in entries {
-        let entry = entry.map_err(|err| {
-            format!(
-                "读取目录项失败（{}）：{err}",
-                root.display()
-            )
-        })?;
+        let entry = entry.map_err(|err| format!("读取目录项失败（{}）：{err}", root.display()))?;
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name == ".git" || name == ".DS_Store" || name == "Thumbs.db" {
@@ -172,9 +167,7 @@ fn normalize_repo_full_name(value: &str) -> String {
 pub(super) fn validate_normalized_repo_name(value: &str) -> Result<String, String> {
     let normalized = normalize_repo_full_name(value);
     if normalized.is_empty() {
-        return Err(
-            "规范化后仓库名称为空。请使用 'repo' 或 'owner/repo'。".to_string(),
-        );
+        return Err("规范化后仓库名称为空。请使用 'repo' 或 'owner/repo'。".to_string());
     }
     Ok(normalized)
 }
@@ -605,8 +598,8 @@ pub(super) async fn create_github_repo_inner(
         other => return Err(format!("无效的仓库可见性：{other}")),
     };
 
-    let local_repo = Repository::open(&repo_root)
-        .map_err(|_| "这个目录尚未初始化 Git。".to_string())?;
+    let local_repo =
+        Repository::open(&repo_root).map_err(|_| "这个目录尚未初始化 Git。".to_string())?;
     let origin_url_before = local_repo
         .find_remote("origin")
         .ok()

@@ -1394,8 +1394,8 @@ describe("useThreads UX integration", () => {
         (item) =>
           item.kind === "message" &&
           item.role === "assistant" &&
-          item.text.includes("Detached review started.") &&
-          item.text.includes("[Open review thread](/thread/thread-review-1)"),
+          item.text.includes("独立审查已开始。") &&
+          item.text.includes("[打开审查会话](/thread/thread-review-1)"),
       ),
     ).toBe(true);
 
@@ -1413,8 +1413,8 @@ describe("useThreads UX integration", () => {
         (item) =>
           item.kind === "message" &&
           item.role === "assistant" &&
-          item.text.includes("Detached review completed.") &&
-          item.text.includes("[Open review thread](/thread/thread-review-1)"),
+          item.text.includes("独立审查已完成。") &&
+          item.text.includes("[打开审查会话](/thread/thread-review-1)"),
       ),
     ).toBe(true);
   });
@@ -1461,8 +1461,8 @@ describe("useThreads UX integration", () => {
         (item) =>
           item.kind === "message" &&
           item.role === "assistant" &&
-          item.text.includes("Detached review completed.") &&
-          item.text.includes("[Open review thread](/thread/thread-review-1)"),
+          item.text.includes("独立审查已完成。") &&
+          item.text.includes("[打开审查会话](/thread/thread-review-1)"),
       ),
     ).toBe(true);
   });
@@ -1503,8 +1503,8 @@ describe("useThreads UX integration", () => {
       (item) =>
         item.kind === "message" &&
         item.role === "assistant" &&
-        item.text.includes("Detached review completed.") &&
-        item.text.includes("[Open review thread](/thread/thread-review-1)"),
+        item.text.includes("独立审查已完成。") &&
+        item.text.includes("[打开审查会话](/thread/thread-review-1)"),
     );
     expect(notices).toHaveLength(1);
   });
@@ -1543,7 +1543,7 @@ describe("useThreads UX integration", () => {
         (item) =>
           item.kind === "message" &&
           item.role === "assistant" &&
-          item.text.includes("[Open review thread](/thread/thread-linked-1)"),
+          item.text.includes("[打开审查会话](/thread/thread-linked-1)"),
       ),
     ).toBe(false);
   });

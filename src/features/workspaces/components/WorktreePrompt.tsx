@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FocusEvent } from "react";
-import type { BranchInfo } from "../../../types";
+import type { AgentProvider, BranchInfo } from "../../../types";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { BranchList } from "../../git/components/BranchList";
 import { filterBranches } from "../../git/utils/branchSearch";
@@ -9,6 +9,8 @@ type WorktreePromptProps = {
   workspaceName: string;
   name: string;
   branch: string;
+  provider?: AgentProvider;
+  claudeEnabled?: boolean;
   branchWasEdited?: boolean;
   branchSuggestions?: BranchInfo[];
   copyAgentsMd: boolean;
@@ -17,6 +19,7 @@ type WorktreePromptProps = {
   error?: string | null;
   onNameChange: (value: string) => void;
   onChange: (value: string) => void;
+  onProviderChange?: (value: AgentProvider) => void;
   onCopyAgentsMdChange: (value: boolean) => void;
   onSetupScriptChange: (value: string) => void;
   onCancel: () => void;
@@ -29,6 +32,8 @@ export function WorktreePrompt({
   workspaceName,
   name,
   branch,
+  provider = "codex",
+  claudeEnabled = true,
   branchWasEdited = false,
   branchSuggestions = [],
   copyAgentsMd,
@@ -37,6 +42,7 @@ export function WorktreePrompt({
   error = null,
   onNameChange,
   onChange,
+  onProviderChange = () => {},
   onCopyAgentsMdChange,
   onSetupScriptChange,
   onCancel,
@@ -55,6 +61,7 @@ export function WorktreePrompt({
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
+  const resolvedProvider = claudeEnabled || provider !== "claude" ? provider : "codex";
 
   const filteredBranches = useMemo(() => {
     const query = !branchWasEdited && branchMenuOpen ? "" : branch;
@@ -227,6 +234,19 @@ export function WorktreePrompt({
           />
         )}
       </div>
+      <label className="ds-modal-label worktree-modal-label" htmlFor="worktree-provider">
+        Provider
+      </label>
+      <select
+        id="worktree-provider"
+        className="ds-modal-input worktree-modal-input"
+        value={resolvedProvider}
+        disabled={isBusy}
+        onChange={(event) => onProviderChange(event.target.value as AgentProvider)}
+      >
+        <option value="codex">Codex</option>
+        {claudeEnabled && <option value="claude">Claude</option>}
+      </select>
       <div className="worktree-modal-checkbox-row">
         <input
           id="worktree-copy-agents"

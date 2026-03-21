@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  AgentProvider,
   AppSettings,
   DebugEntry,
   WorkspaceGroup,
@@ -36,16 +37,24 @@ export type UseWorkspacesResult = {
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
-  addWorkspaceFromPath: (path: string, options?: { activate?: boolean }) => Promise<WorkspaceInfo | null>;
+  addWorkspaceFromPath: (
+    path: string,
+    options?: { activate?: boolean; provider?: AgentProvider | null },
+  ) => Promise<WorkspaceInfo | null>;
   addWorkspaceFromGitUrl: (
     url: string,
     destinationPath: string,
     targetFolderName?: string | null,
-    options?: { activate?: boolean },
+    options?: { activate?: boolean; provider?: AgentProvider | null },
   ) => Promise<WorkspaceInfo | null>;
   addWorkspacesFromPaths: (paths: string[]) => Promise<AddWorkspacesFromPathsResult>;
   filterWorkspacePaths: (paths: string[]) => Promise<string[]>;
-  addCloneAgent: (source: WorkspaceInfo, copyName: string, copiesFolder: string) => Promise<WorkspaceInfo | null>;
+  addCloneAgent: (
+    source: WorkspaceInfo,
+    copyName: string,
+    copiesFolder: string,
+    provider?: AgentProvider | null,
+  ) => Promise<WorkspaceInfo | null>;
   addWorktreeAgent: (
     parent: WorkspaceInfo,
     branch: string,
@@ -53,11 +62,16 @@ export type UseWorkspacesResult = {
       activate?: boolean;
       displayName?: string | null;
       copyAgentsMd?: boolean;
+      provider?: AgentProvider | null;
     },
   ) => Promise<WorkspaceInfo | null>;
   connectWorkspace: (entry: WorkspaceInfo) => Promise<void>;
   markWorkspaceConnected: (id: string) => void;
-  updateWorkspaceSettings: (workspaceId: string, patch: Partial<WorkspaceSettings>) => Promise<WorkspaceInfo>;
+  updateWorkspaceSettings: (
+    workspaceId: string,
+    patch: Partial<WorkspaceSettings>,
+    provider?: AgentProvider | null,
+  ) => Promise<WorkspaceInfo>;
   createWorkspaceGroup: (name: string) => Promise<WorkspaceGroup | null>;
   renameWorkspaceGroup: (groupId: string, name: string) => Promise<true | null>;
   moveWorkspaceGroup: (groupId: string, direction: "up" | "down") => Promise<true | null>;

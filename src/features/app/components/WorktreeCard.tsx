@@ -1,6 +1,10 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import {
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+} from "@utils/agentProvider";
 
 type WorktreeCardProps = {
   worktree: WorkspaceInfo;
@@ -27,6 +31,8 @@ export function WorktreeCard({
   const worktreeBranch = worktree.worktree?.branch ?? "";
   const worktreeLabel = worktree.name?.trim() || worktreeBranch;
   const contentCollapsedClass = worktreeCollapsed ? " collapsed" : "";
+  const provider = getWorkspaceProvider(worktree);
+  const providerLabel = getAgentProviderLabel(provider);
 
   return (
     <div className={`worktree-card${isDeleting ? " deleting" : ""}`}>
@@ -55,7 +61,15 @@ export function WorktreeCard({
           }
         }}
       >
-        <div className="worktree-label">{worktreeLabel}</div>
+        <div className="worktree-label">
+          <span>{worktreeLabel}</span>
+          <span
+            className={`workspace-provider-badge is-${provider}`}
+            title={`${providerLabel} provider`}
+          >
+            {providerLabel}
+          </span>
+        </div>
         <div className="worktree-actions">
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">
@@ -79,7 +93,7 @@ export function WorktreeCard({
               {!worktree.connected && (
                 <span
                   className="connect"
-                  title="连接项目上下文到共享 Codex 服务"
+                  title={`连接项目上下文到共享 ${providerLabel} 运行时`}
                   onClick={(event) => {
                     event.stopPropagation();
                     onConnectWorkspace(worktree);

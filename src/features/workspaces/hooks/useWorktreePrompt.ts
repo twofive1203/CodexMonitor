@@ -1,11 +1,20 @@
 import { useCallback, useState } from "react";
-import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
+import type {
+  AgentProvider,
+  WorkspaceInfo,
+  WorkspaceSettings,
+} from "../../../types";
+import {
+  getWorkspaceProvider,
+  resolveAgentProviderForSettings,
+} from "@utils/agentProvider";
 
 type WorktreePromptState = {
   workspace: WorkspaceInfo;
   name: string;
   branch: string;
   branchWasEdited: boolean;
+  provider: AgentProvider;
   copyAgentsMd: boolean;
   setupScript: string;
   savedSetupScript: string | null;
@@ -19,7 +28,11 @@ type UseWorktreePromptOptions = {
   addWorktreeAgent: (
     workspace: WorkspaceInfo,
     branch: string,
-    options?: { displayName?: string | null; copyAgentsMd?: boolean },
+    options?: {
+      displayName?: string | null;
+      copyAgentsMd?: boolean;
+      provider?: AgentProvider | null;
+    },
   ) => Promise<WorkspaceInfo | null>;
   updateWorkspaceSettings: (
     id: string,
@@ -30,6 +43,7 @@ type UseWorktreePromptOptions = {
   onWorktreeCreated?: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void> | void;
   onCompactActivate?: () => void;
   onError?: (message: string) => void;
+  experimentalClaudeEnabled?: boolean;
 };
 
 type UseWorktreePromptResult = {
@@ -39,6 +53,7 @@ type UseWorktreePromptResult = {
   cancelPrompt: () => void;
   updateName: (value: string) => void;
   updateBranch: (value: string) => void;
+  updateProvider: (value: AgentProvider) => void;
   updateCopyAgentsMd: (value: boolean) => void;
   updateSetupScript: (value: string) => void;
 };
@@ -71,6 +86,7 @@ export function useWorktreePrompt({
   onWorktreeCreated,
   onCompactActivate,
   onError,
+  experimentalClaudeEnabled = false,
 }: UseWorktreePromptOptions): UseWorktreePromptResult {
   const [worktreePrompt, setWorktreePrompt] = useState<WorktreePromptState>(null);
 
@@ -84,6 +100,10 @@ export function useWorktreePrompt({
       name: "",
       branch: defaultBranch,
       branchWasEdited: false,
+      provider: resolveAgentProviderForSettings(
+        getWorkspaceProvider(workspace),
+        { experimentalClaudeEnabled },
+      ),
       copyAgentsMd: true,
       setupScript: savedSetupScript ?? "",
       savedSetupScript,
@@ -120,6 +140,20 @@ export function useWorktreePrompt({
       prev ? { ...prev, branch: value, branchWasEdited: true, error: null } : prev,
     );
   }, []);
+
+  const updateProvider = useCallback((value: AgentProvider) => {
+    setWorktreePrompt((prev) =>
+      prev
+        ? {
+            ...prev,
+            provider: resolveAgentProviderForSettings(value, {
+              experimentalClaudeEnabled,
+            }),
+            error: null,
+          }
+        : prev,
+    );
+  }, [experimentalClaudeEnabled]);
 
   const updateCopyAgentsMd = useCallback((value: boolean) => {
     setWorktreePrompt((prev) => (prev ? { ...prev, copyAgentsMd: value } : prev));
@@ -199,6 +233,7 @@ export function useWorktreePrompt({
       const worktreeWorkspace = await addWorktreeAgent(parentWorkspace, snapshot.branch, {
         displayName: displayName.length > 0 ? displayName : null,
         copyAgentsMd: snapshot.copyAgentsMd,
+        provider: snapshot.provider,
       });
       if (!worktreeWorkspace) {
         setWorktreePrompt(null);
@@ -241,6 +276,7 @@ export function useWorktreePrompt({
     cancelPrompt,
     updateName,
     updateBranch,
+    updateProvider,
     updateCopyAgentsMd,
     updateSetupScript,
   };

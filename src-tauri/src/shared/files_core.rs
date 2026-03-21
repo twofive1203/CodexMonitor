@@ -10,8 +10,7 @@ use crate::files::policy::{policy_for, FileKind, FileScope};
 use crate::types::WorkspaceEntry;
 
 fn resolve_default_codex_home() -> Result<PathBuf, String> {
-    codex_home::resolve_default_codex_home()
-        .ok_or_else(|| "无法解析 CODEX_HOME 目录。".to_string())
+    codex_home::resolve_default_codex_home().ok_or_else(|| "无法解析 CODEX_HOME 目录。".to_string())
 }
 
 async fn resolve_workspace_root(

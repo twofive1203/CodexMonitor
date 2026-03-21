@@ -5,6 +5,7 @@ import type { DebugEntry } from "../../../types";
 type DebugPanelProps = {
   entries: DebugEntry[];
   isOpen: boolean;
+  providerLabel?: string | null;
   onClear: () => void;
   onCopy: () => void;
   onResizeStart?: (event: ReactMouseEvent) => void;
@@ -41,6 +42,7 @@ function formatDebugSource(source: DebugEntry["source"]) {
 export function DebugPanel({
   entries,
   isOpen,
+  providerLabel = null,
   onClear,
   onCopy,
   onResizeStart,
@@ -114,7 +116,12 @@ export function DebugPanel({
         />
       ) : null}
       <div className="debug-header">
-        <div className="debug-title">调试</div>
+        <div className="debug-title-row">
+          <div className="debug-title">调试</div>
+          {providerLabel ? (
+            <div className="debug-provider-badge">当前运行时：{providerLabel}</div>
+          ) : null}
+        </div>
         <div className="debug-actions">
           <button className="ghost" onClick={onCopy}>
             复制

@@ -1,15 +1,19 @@
 import { useEffect, useRef } from "react";
+import type { AgentProvider } from "../../../types";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type WorkspaceFromUrlPromptProps = {
   url: string;
   destinationPath: string;
   targetFolderName: string;
+  provider: AgentProvider;
+  claudeEnabled?: boolean;
   error: string | null;
   isBusy: boolean;
   canSubmit: boolean;
   onUrlChange: (value: string) => void;
   onTargetFolderNameChange: (value: string) => void;
+  onProviderChange: (value: AgentProvider) => void;
   onChooseDestinationPath: () => void;
   onClearDestinationPath: () => void;
   onCancel: () => void;
@@ -20,17 +24,21 @@ export function WorkspaceFromUrlPrompt({
   url,
   destinationPath,
   targetFolderName,
+  provider,
+  claudeEnabled = true,
   error,
   isBusy,
   canSubmit,
   onUrlChange,
   onTargetFolderNameChange,
+  onProviderChange,
   onChooseDestinationPath,
   onClearDestinationPath,
   onCancel,
   onConfirm,
 }: WorkspaceFromUrlPromptProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const resolvedProvider = claudeEnabled || provider !== "claude" ? provider : "codex";
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -70,6 +78,19 @@ export function WorkspaceFromUrlPrompt({
           onChange={(event) => onTargetFolderNameChange(event.target.value)}
           placeholder="默认使用仓库名"
         />
+        <label className="ds-modal-label" htmlFor="workspace-url-provider">
+          Provider
+        </label>
+        <select
+          id="workspace-url-provider"
+          className="ds-modal-input"
+          value={resolvedProvider}
+          disabled={isBusy}
+          onChange={(event) => onProviderChange(event.target.value as AgentProvider)}
+        >
+          <option value="codex">Codex</option>
+          {claudeEnabled && <option value="claude">Claude</option>}
+        </select>
         <label className="ds-modal-label" htmlFor="workspace-url-destination">
           目标父目录
         </label>

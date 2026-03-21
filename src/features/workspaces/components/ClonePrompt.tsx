@@ -1,13 +1,17 @@
 import { useEffect, useRef } from "react";
+import type { AgentProvider } from "../../../types";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type ClonePromptProps = {
   workspaceName: string;
   copyName: string;
+  provider?: AgentProvider;
+  claudeEnabled?: boolean;
   copiesFolder: string;
   suggestedCopiesFolder?: string | null;
   error?: string | null;
   onCopyNameChange: (value: string) => void;
+  onProviderChange?: (value: AgentProvider) => void;
   onChooseCopiesFolder: () => void;
   onUseSuggestedCopiesFolder: () => void;
   onClearCopiesFolder: () => void;
@@ -19,10 +23,13 @@ type ClonePromptProps = {
 export function ClonePrompt({
   workspaceName,
   copyName,
+  provider = "codex",
+  claudeEnabled = true,
   copiesFolder,
   suggestedCopiesFolder = null,
   error = null,
   onCopyNameChange,
+  onProviderChange = () => {},
   onChooseCopiesFolder,
   onUseSuggestedCopiesFolder,
   onClearCopiesFolder,
@@ -40,6 +47,7 @@ export function ClonePrompt({
   const canCreate = copyName.trim().length > 0 && copiesFolder.trim().length > 0;
   const showSuggested =
     Boolean(suggestedCopiesFolder) && copiesFolder.trim().length === 0;
+  const resolvedProvider = claudeEnabled || provider !== "claude" ? provider : "codex";
 
   return (
     <ModalShell
@@ -77,6 +85,19 @@ export function ClonePrompt({
           }
         }}
       />
+      <label className="ds-modal-label clone-modal-label" htmlFor="clone-provider">
+        Provider
+      </label>
+      <select
+        id="clone-provider"
+        className="ds-modal-input clone-modal-input"
+        value={resolvedProvider}
+        disabled={isBusy}
+        onChange={(event) => onProviderChange(event.target.value as AgentProvider)}
+      >
+        <option value="codex">Codex</option>
+        {claudeEnabled && <option value="claude">Claude</option>}
+      </select>
       <label className="ds-modal-label clone-modal-label" htmlFor="clone-copies-folder">
         副本目录
       </label>

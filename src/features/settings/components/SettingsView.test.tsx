@@ -86,6 +86,11 @@ getAgentsSettingsMock.mockResolvedValue({
 const baseSettings: AppSettings = {
   codexBin: null,
   codexArgs: null,
+  defaultAgentProvider: "codex",
+  claudeBin: null,
+  claudeArgs: null,
+  claudePermissionMode: null,
+  claudeUseSdkSidecar: true,
   backendMode: "local",
   remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
@@ -153,6 +158,7 @@ const baseSettings: AppSettings = {
   composerFollowUpHintEnabled: true,
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
+  experimentalClaudeEnabled: false,
   experimentalAppsEnabled: false,
   personality: "friendly",
   dictationEnabled: false,
@@ -840,7 +846,154 @@ describe("SettingsView Environments", () => {
 });
 
 describe("SettingsView Codex section", () => {
-  it("updates review mode in codex section", async () => {
+  it("updates default provider in runtime section", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="runtime"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("默认 provider"), {
+      target: { value: "claude" },
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultAgentProvider: "claude" }),
+      );
+    });
+  });
+
+  it("hides Claude settings when the experimental feature is disabled", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="claude"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Claude" })).toBeNull();
+    expect(screen.queryByLabelText("Claude 路径")).toBeNull();
+    expect(screen.getByText("Claude Provider")).toBeTruthy();
+  });
+
+  it("disables Claude experimental feature and resets the default provider", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          experimentalClaudeEnabled: true,
+          defaultAgentProvider: "claude",
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="features"
+      />,
+    );
+
+    const claudeFeatureRow = screen
+      .getByText("Claude Provider")
+      .closest(".settings-toggle-row");
+    expect(claudeFeatureRow).toBeTruthy();
+    if (!claudeFeatureRow) {
+      throw new Error("Expected Claude Provider toggle row");
+    }
+
+    fireEvent.click(within(claudeFeatureRow as HTMLElement).getByRole("button"));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          experimentalClaudeEnabled: false,
+          defaultAgentProvider: "codex",
+        }),
+      );
+    });
+  });
+
+  it("updates review mode in runtime section", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     render(
@@ -872,7 +1025,7 @@ describe("SettingsView Codex section", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        initialSection="codex"
+        initialSection="runtime"
       />,
     );
 
@@ -883,6 +1036,64 @@ describe("SettingsView Codex section", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ reviewDeliveryMode: "detached" }),
+      );
+    });
+  });
+
+  it("saves Claude runtime settings in Claude section", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="claude"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Claude 路径"), {
+      target: { value: "  C:/tools/claude.exe  " },
+    });
+    fireEvent.change(screen.getByLabelText("Claude 参数"), {
+      target: { value: "  --verbose  " },
+    });
+    fireEvent.change(screen.getByLabelText("权限模式"), {
+      target: { value: "acceptEdits" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          claudeBin: "C:/tools/claude.exe",
+          claudeArgs: "--verbose",
+          claudePermissionMode: "acceptEdits",
+        }),
       );
     });
   });
@@ -928,7 +1139,9 @@ describe("SettingsView Codex section", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "启动守护进程" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "停止守护进程" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "刷新状态" })).toBeTruthy();
+      expect(screen.getAllByRole("button", { name: /刷新(状态|中\.\.\.)/ }).length).toBeGreaterThan(
+        0,
+      );
       expect(screen.getByLabelText("远程后端主机")).toBeTruthy();
       expect(screen.getByLabelText("远程后端令牌")).toBeTruthy();
     });

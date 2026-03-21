@@ -32,7 +32,7 @@ describe("MobileRemoteWorkspacePrompt", () => {
     const recentPathButton = screen.getByRole("button", { name: recentPath });
     fireEvent.click(recentPathButton);
 
-    const textarea = screen.getByLabelText("Paths");
+    const textarea = screen.getByLabelText("路径");
     await waitFor(() => {
       expect(document.activeElement).toBe(textarea);
       const expectedPosition = recentPath.length;

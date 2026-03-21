@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import * as Sentry from "@sentry/react";
-import type { DebugEntry, WorkspaceInfo } from "../../../types";
+import type { AgentProvider, DebugEntry, WorkspaceInfo } from "../../../types";
 import {
   addClone as addCloneService,
   addWorktree as addWorktreeService,
@@ -33,6 +33,7 @@ export function useWorktreeOps({
         activate?: boolean;
         displayName?: string | null;
         copyAgentsMd?: boolean;
+        provider?: AgentProvider | null;
       },
     ) => {
       const trimmed = branch.trim();
@@ -51,6 +52,7 @@ export function useWorktreeOps({
           branch: trimmed,
           name: trimmedName,
           copyAgentsMd,
+          provider: options?.provider ?? null,
         },
       });
       try {
@@ -59,6 +61,7 @@ export function useWorktreeOps({
           trimmed,
           trimmedName,
           copyAgentsMd,
+          options?.provider,
         );
         setWorkspaces((prev) => [...prev, workspace]);
         if (options?.activate !== false) {
@@ -86,7 +89,12 @@ export function useWorktreeOps({
   );
 
   const addCloneAgent = useCallback(
-    async (source: WorkspaceInfo, copyName: string, copiesFolder: string) => {
+    async (
+      source: WorkspaceInfo,
+      copyName: string,
+      copiesFolder: string,
+      provider?: AgentProvider | null,
+    ) => {
       const trimmedName = copyName.trim();
       if (!trimmedName) {
         return null;
@@ -104,10 +112,16 @@ export function useWorktreeOps({
           sourceWorkspaceId: source.id,
           copyName: trimmedName,
           copiesFolder: trimmedFolder,
+          provider: provider ?? null,
         },
       });
       try {
-        const workspace = await addCloneService(source.id, trimmedFolder, trimmedName);
+        const workspace = await addCloneService(
+          source.id,
+          trimmedFolder,
+          trimmedName,
+          provider,
+        );
         setWorkspaces((prev) => [...prev, workspace]);
         setActiveWorkspaceId(workspace.id);
         Sentry.metrics.count("clone_agent_created", 1, {

@@ -70,8 +70,7 @@ pub(super) async fn apply_worktree_changes_inner_core(
         git_core::run_git_command_bytes(&parent_root, &["status", "--porcelain"]).await?;
     if !String::from_utf8_lossy(&parent_status).trim().is_empty() {
         return Err(
-            "当前分支有未提交的改动。请先提交、暂存或丢弃这些改动，再应用工作树改动。"
-                .to_string(),
+            "当前分支有未提交的改动。请先提交、暂存或丢弃这些改动，再应用工作树改动。".to_string(),
         );
     }
 
@@ -116,8 +115,7 @@ pub(super) async fn apply_worktree_changes_inner_core(
         return Err("没有可应用的改动。".to_string());
     }
 
-    let git_bin =
-        crate::utils::resolve_git_binary().map_err(|e| format!("执行 git 失败：{e}"))?;
+    let git_bin = crate::utils::resolve_git_binary().map_err(|e| format!("执行 git 失败：{e}"))?;
     let mut child = tokio_command(git_bin)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
@@ -157,15 +155,9 @@ pub(super) async fn apply_worktree_changes_inner_core(
 
     if detail.contains("Applied patch to") {
         if detail.contains("with conflicts") {
-            return Err(
-                "补丁已应用，但存在冲突。请先在父仓库中解决冲突后再重试。"
-                    .to_string(),
-            );
+            return Err("补丁已应用，但存在冲突。请先在父仓库中解决冲突后再重试。".to_string());
         }
-        return Err(
-            "补丁仅部分应用成功。请先在父仓库中处理相关改动后再重试。"
-                .to_string(),
-        );
+        return Err("补丁仅部分应用成功。请先在父仓库中处理相关改动后再重试。".to_string());
     }
 
     Err(detail.to_string())

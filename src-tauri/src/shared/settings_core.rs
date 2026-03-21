@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tokio::sync::Mutex;
 
 use crate::codex::config as codex_config;
+use crate::shared::provider_core::sanitize_provider_for_app_settings;
 use crate::storage::write_settings;
 use crate::types::AppSettings;
 
@@ -12,6 +13,12 @@ fn normalize_personality(value: &str) -> Option<&'static str> {
         "pragmatic" => Some("pragmatic"),
         _ => None,
     }
+}
+
+fn sanitize_app_settings(mut settings: AppSettings) -> AppSettings {
+    settings.default_agent_provider =
+        sanitize_provider_for_app_settings(settings.default_agent_provider.clone(), &settings);
+    settings
 }
 
 pub(crate) async fn get_app_settings_core(app_settings: &Mutex<AppSettings>) -> AppSettings {
@@ -36,7 +43,7 @@ pub(crate) async fn get_app_settings_core(app_settings: &Mutex<AppSettings>) -> 
             .unwrap_or("friendly")
             .to_string();
     }
-    settings
+    sanitize_app_settings(settings)
 }
 
 pub(crate) async fn update_app_settings_core(
@@ -44,6 +51,7 @@ pub(crate) async fn update_app_settings_core(
     app_settings: &Mutex<AppSettings>,
     settings_path: &PathBuf,
 ) -> Result<AppSettings, String> {
+    let settings = sanitize_app_settings(settings);
     let _ = codex_config::write_collaboration_modes_enabled(settings.collaboration_modes_enabled);
     let _ = codex_config::write_steer_enabled(settings.steer_enabled);
     let _ = codex_config::write_unified_exec_enabled(settings.unified_exec_enabled);

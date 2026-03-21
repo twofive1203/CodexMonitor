@@ -7,12 +7,14 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::shared::provider_core::{
+    build_provider_session_key, ensure_provider_enabled, provider_supports_live_runtime,
+};
+use crate::shared::provider_runtime_core::resolve_provider_runtime_config;
 use crate::storage::write_workspaces;
 use crate::types::{
-    AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
-    WorktreeSetupStatus,
+    AgentProvider, AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings,
+    WorktreeInfo, WorktreeSetupStatus,
 };
 
 use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
@@ -62,8 +64,7 @@ pub(crate) async fn worktree_setup_mark_ran_core(
     }
     let marker_path = worktree_setup_marker_path(data_dir, &entry.id);
     if let Some(parent) = marker_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("准备工作树标记目录失败：{err}"))?;
+        std::fs::create_dir_all(parent).map_err(|err| format!("准备工作树标记目录失败：{err}"))?;
     }
     let ran_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -90,6 +91,7 @@ pub(crate) async fn add_worktree_core<
     branch: String,
     name: Option<String>,
     copy_agents_md: bool,
+    provider: Option<AgentProvider>,
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
@@ -148,8 +150,7 @@ where
             data_dir.join("worktrees").join(&parent_entry.id)
         }
     };
-    std::fs::create_dir_all(&worktree_root)
-        .map_err(|err| format!("创建工作树目录失败：{err}"))?;
+    std::fs::create_dir_all(&worktree_root).map_err(|err| format!("创建工作树目录失败：{err}"))?;
 
     let safe_name = sanitize_worktree_name(&branch);
     let worktree_path = unique_worktree_path(&worktree_root, &safe_name)?;
@@ -203,10 +204,18 @@ where
         }
     }
 
+    let provider = {
+        let next_provider = provider.unwrap_or_else(|| parent_entry.provider.clone());
+        let settings = app_settings.lock().await;
+        ensure_provider_enabled(&next_provider, &settings)?;
+        next_provider
+    };
+
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: name.clone().unwrap_or_else(|| branch.clone()),
         path: worktree_path_string,
+        provider,
         kind: WorkspaceKind::Worktree,
         parent_id: Some(parent_entry.id.clone()),
         worktree: Some(WorktreeInfo { branch }),
@@ -218,20 +227,42 @@ where
         },
     };
 
+    if !provider_supports_live_runtime(&entry.provider) {
+        {
+            let mut workspaces = workspaces.lock().await;
+            workspaces.insert(entry.id.clone(), entry.clone());
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            write_workspaces(storage_path, &list)?;
+        }
+        return Ok(WorkspaceInfo {
+            id: entry.id,
+            name: entry.name,
+            path: entry.path,
+            connected: false,
+            provider: entry.provider,
+            kind: entry.kind,
+            parent_id: entry.parent_id,
+            worktree: entry.worktree,
+            settings: entry.settings,
+        });
+    }
+
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
-    let existing_session = take_live_shared_session(sessions).await;
+    let existing_session = take_live_shared_session(sessions, &entry.provider).await;
     let session = if let Some(existing_session) = existing_session {
         existing_session
     } else {
-        let (default_bin, codex_args) = {
+        let runtime_config = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
-            )
+            resolve_provider_runtime_config(&entry, Some(&parent_entry), &settings)
         };
-        let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
-        spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?
+        spawn_session(
+            entry.clone(),
+            runtime_config.default_bin,
+            runtime_config.runtime_args,
+            runtime_config.runtime_home,
+        )
+        .await?
     };
 
     {
@@ -244,13 +275,17 @@ where
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
-    sessions.lock().await.insert(entry.id.clone(), session);
+    sessions.lock().await.insert(
+        build_provider_session_key(&entry.provider, &entry.id),
+        session,
+    );
 
     Ok(WorkspaceInfo {
         id: entry.id,
         name: entry.name,
         path: entry.path,
         connected: true,
+        provider: entry.provider,
         kind: entry.kind,
         parent_id: entry.parent_id,
         worktree: entry.worktree,
@@ -296,7 +331,7 @@ where
     let parent_path = PathBuf::from(&parent.path);
     let parent_path_exists = parent_path.is_dir();
     let entry_path = PathBuf::from(&entry.path);
-    kill_session_by_id(sessions, &entry.id).await;
+    kill_session_by_id(sessions, &entry.provider, &entry.id).await;
 
     if entry_path.exists() {
         if !parent_path_exists {
@@ -421,8 +456,7 @@ where
             data_dir.join("worktrees").join(&parent.id)
         }
     };
-    std::fs::create_dir_all(&worktree_root)
-        .map_err(|err| format!("创建工作树目录失败：{err}"))?;
+    std::fs::create_dir_all(&worktree_root).map_err(|err| format!("创建工作树目录失败：{err}"))?;
 
     let safe_name = sanitize_worktree_name(&final_branch);
     let current_path = PathBuf::from(&entry.path);
@@ -503,18 +537,26 @@ where
         return Err(error);
     }
 
-    if let Some(session) = sessions.lock().await.get(&entry_snapshot.id).cloned() {
+    let session_key = build_provider_session_key(&entry_snapshot.provider, &entry_snapshot.id);
+    if let Some(session) = sessions.lock().await.get(&session_key).cloned() {
         session
             .register_workspace_with_path(&entry_snapshot.id, Some(&entry_snapshot.path))
             .await;
     }
 
-    let connected = sessions.lock().await.contains_key(&entry_snapshot.id);
+    let connected = sessions
+        .lock()
+        .await
+        .contains_key(&build_provider_session_key(
+            &entry_snapshot.provider,
+            &entry_snapshot.id,
+        ));
     Ok(WorkspaceInfo {
         id: entry_snapshot.id,
         name: entry_snapshot.name,
         path: entry_snapshot.path,
         connected,
+        provider: entry_snapshot.provider,
         kind: entry_snapshot.kind,
         parent_id: entry_snapshot.parent_id,
         worktree: entry_snapshot.worktree,

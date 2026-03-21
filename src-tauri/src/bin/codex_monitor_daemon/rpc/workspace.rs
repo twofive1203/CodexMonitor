@@ -78,8 +78,12 @@ pub(super) async fn try_handle(
         "add_workspace" => {
             let request = parse_request_or_err!(params, workspace_rpc::AddWorkspaceRequest);
             Some(
-                serialize_result(state.add_workspace(request.path, client_version.to_string()))
-                    .await,
+                serialize_result(state.add_workspace(
+                    request.path,
+                    request.provider,
+                    client_version.to_string(),
+                ))
+                .await,
             )
         }
         "add_workspace_from_git_url" => {
@@ -90,6 +94,7 @@ pub(super) async fn try_handle(
                     request.url,
                     request.destination_path,
                     request.target_folder_name,
+                    request.provider,
                     client_version.to_string(),
                 ))
                 .await,
@@ -103,6 +108,7 @@ pub(super) async fn try_handle(
                     request.branch,
                     request.name,
                     request.copy_agents_md,
+                    request.provider,
                     client_version.to_string(),
                 ))
                 .await,
@@ -172,6 +178,7 @@ pub(super) async fn try_handle(
                 serialize_result(state.update_workspace_settings(
                     request.id,
                     request.settings,
+                    request.provider,
                     client_version.to_string(),
                 ))
                 .await,
@@ -195,6 +202,7 @@ pub(super) async fn try_handle(
                     request.source_workspace_id,
                     request.copies_folder,
                     request.copy_name,
+                    request.provider,
                     client_version.to_string(),
                 ))
                 .await,

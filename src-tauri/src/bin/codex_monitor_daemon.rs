@@ -86,14 +86,14 @@ use shared::codex_core::CodexLoginCancelState;
 use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
-    agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    agent_runtime_core, agents_config_core, codex_aux_core, codex_core, files_core, git_core,
+    git_ui_core, local_usage_core, settings_core, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
-    AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
-    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    AgentProvider, AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse,
+    GitHubPullRequestComment, GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
+    LocalUsageSnapshot, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
     DEFAULT_REMOTE_BACKEND_HOST, DEFAULT_WEB_ACCESS_LISTEN_ADDR, DEFAULT_WEB_ACCESS_PORT,
 };
 use workspace_settings::apply_workspace_settings_update;
@@ -110,12 +110,16 @@ fn spawn_with_client(
     default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
+    claude_permission_mode: Option<String>,
+    claude_use_sdk_sidecar: bool,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
     spawn_workspace_session(
         entry,
         default_bin,
         codex_args,
         codex_home,
+        claude_permission_mode,
+        claude_use_sdk_sidecar,
         client_version,
         event_sink,
     )
@@ -216,6 +220,17 @@ impl DaemonState {
         })
     }
 
+    /// 读取当前 Claude 启动配置快照。
+    ///
+    /// 无入参，返回值依次为权限模式和是否启用 SDK sidecar。
+    async fn current_claude_launch_settings(&self) -> (Option<String>, bool) {
+        let settings = self.app_settings.lock().await;
+        (
+            settings.claude_permission_mode.clone(),
+            settings.claude_use_sdk_sidecar,
+        )
+    }
+
     /// 返回 Web 登录允许使用的令牌。
     ///
     /// `fallback_token`：守护进程启动参数中的共享 token，作为设置未配置时的兜底。
@@ -289,7 +304,13 @@ impl DaemonState {
             let mut sessions = self.sessions.lock().await;
             sessions
                 .keys()
-                .filter(|id| !workspace_ids.contains(*id))
+                .filter(|key| {
+                    let workspace_id = key
+                        .split_once(shared::provider_core::PROVIDER_SESSION_KEY_SEPARATOR)
+                        .map(|(_, workspace_id)| workspace_id)
+                        .unwrap_or(key.as_str());
+                    !workspace_ids.contains(workspace_id)
+                })
                 .cloned()
                 .collect::<Vec<_>>()
                 .into_iter()
@@ -320,23 +341,30 @@ impl DaemonState {
     async fn add_workspace(
         &self,
         path: String,
+        provider: Option<AgentProvider>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::add_workspace_core(
             path,
+            provider,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -348,25 +376,32 @@ impl DaemonState {
         url: String,
         destination_path: String,
         target_folder_name: Option<String>,
+        provider: Option<AgentProvider>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::add_workspace_from_git_url_core(
             url,
             destination_path,
             target_folder_name,
+            provider,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -379,14 +414,19 @@ impl DaemonState {
         branch: String,
         name: Option<String>,
         copy_agents_md: bool,
+        provider: Option<AgentProvider>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::add_worktree_core(
             parent_id,
             branch,
             name,
             copy_agents_md,
+            provider,
             &self.data_dir,
             &self.workspaces,
             &self.sessions,
@@ -409,12 +449,14 @@ impl DaemonState {
             },
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -483,6 +525,9 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::rename_worktree_core(
             id,
             branch,
@@ -510,12 +555,14 @@ impl DaemonState {
             },
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -568,12 +615,17 @@ impl DaemonState {
         &self,
         id: String,
         settings: WorkspaceSettings,
+        provider: Option<AgentProvider>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::update_workspace_settings_core(
             id,
             settings,
+            provider,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
@@ -583,12 +635,14 @@ impl DaemonState {
             },
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -597,13 +651,24 @@ impl DaemonState {
 
     async fn connect_workspace(&self, id: String, client_version: String) -> Result<(), String> {
         {
+            let provider = {
+                let workspaces = self.workspaces.lock().await;
+                workspaces.get(&id).map(|entry| entry.provider.clone())
+            };
             let sessions = self.sessions.lock().await;
-            if sessions.contains_key(&id) {
+            if provider
+                .as_ref()
+                .map(|provider| shared::provider_core::build_provider_session_key(provider, &id))
+                .is_some_and(|session_key| sessions.contains_key(&session_key))
+            {
                 return Ok(());
             }
         }
 
         let client_version = client_version.clone();
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::connect_workspace_core(
             id,
             &self.workspaces,
@@ -611,12 +676,14 @@ impl DaemonState {
             &self.app_settings,
             move |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -629,6 +696,9 @@ impl DaemonState {
         codex_args: Option<String>,
         client_version: String,
     ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::set_workspace_runtime_codex_args_core(
             workspace_id,
             codex_args,
@@ -637,12 +707,14 @@ impl DaemonState {
             &self.app_settings,
             move |entry, default_bin, next_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     next_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -751,7 +823,7 @@ impl DaemonState {
     }
 
     async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::start_thread_core(&self.sessions, &self.workspaces, workspace_id).await
+        agent_runtime_core::start_thread_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
     async fn resume_thread(
@@ -759,7 +831,13 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
-        codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
+        agent_runtime_core::resume_thread_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            thread_id,
+        )
+        .await
     }
 
     async fn thread_live_subscribe(
@@ -877,7 +955,7 @@ impl DaemonState {
         app_mentions: Option<Vec<Value>>,
         collaboration_mode: Option<Value>,
     ) -> Result<Value, String> {
-        codex_core::send_user_message_core(
+        agent_runtime_core::send_user_message_core(
             &self.sessions,
             &self.workspaces,
             workspace_id,
@@ -921,7 +999,14 @@ impl DaemonState {
         thread_id: String,
         turn_id: String,
     ) -> Result<Value, String> {
-        codex_core::turn_interrupt_core(&self.sessions, workspace_id, thread_id, turn_id).await
+        agent_runtime_core::interrupt_turn_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            thread_id,
+            turn_id,
+        )
+        .await
     }
 
     async fn start_review(
@@ -931,12 +1016,24 @@ impl DaemonState {
         target: Value,
         delivery: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::start_review_core(&self.sessions, workspace_id, thread_id, target, delivery)
-            .await
+        agent_runtime_core::start_review_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            thread_id,
+            target,
+            delivery,
+        )
+        .await
     }
 
     async fn model_list(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::model_list_core(&self.sessions, workspace_id).await
+        agent_runtime_core::list_models_core(&self.sessions, &self.workspaces, workspace_id).await
+    }
+
+    async fn get_provider_capabilities(&self, provider: AgentProvider) -> Result<Value, String> {
+        serde_json::to_value(agent_runtime_core::get_provider_capabilities_core(provider))
+            .map_err(|err| err.to_string())
     }
 
     async fn experimental_feature_list(
@@ -990,8 +1087,9 @@ impl DaemonState {
         request_id: Value,
         result: Value,
     ) -> Result<Value, String> {
-        codex_core::respond_to_server_request_core(
+        agent_runtime_core::respond_to_server_request_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             request_id,
             result,
@@ -1017,24 +1115,31 @@ impl DaemonState {
         source_workspace_id: String,
         copies_folder: String,
         copy_name: String,
+        provider: Option<AgentProvider>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
+        let event_sink = self.event_sink.clone();
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
         workspaces_core::add_clone_core(
             source_workspace_id,
             copy_name,
             copies_folder,
+            provider,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
             |entry, default_bin, codex_args, codex_home| {
                 spawn_with_client(
-                    self.event_sink.clone(),
+                    event_sink.clone(),
                     client_version.clone(),
                     entry,
                     default_bin,
                     codex_args,
                     codex_home,
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
                 )
             },
         )
@@ -1686,6 +1791,7 @@ mod tests {
             data_dir: data_dir.to_path_buf(),
             workspaces: Mutex::new(HashMap::new()),
             sessions: Mutex::new(HashMap::new()),
+            terminal_sessions: Mutex::new(HashMap::new()),
             storage_path: data_dir.join("workspaces.json"),
             settings_path: data_dir.join("settings.json"),
             app_settings: Mutex::new(AppSettings::default()),
@@ -1701,6 +1807,7 @@ mod tests {
             id: workspace_id.to_string(),
             name: "Workspace".to_string(),
             path: workspace_path.to_string(),
+            provider: AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -1720,6 +1827,7 @@ mod tests {
             id: workspace_id.to_string(),
             name: workspace_id.to_string(),
             path: workspace_path.to_string(),
+            provider: AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -1882,6 +1990,7 @@ mod tests {
                 id: "ws-sync".to_string(),
                 name: "Synced Workspace".to_string(),
                 path: tmp.join("workspace").to_string_lossy().to_string(),
+                provider: AgentProvider::Codex,
                 kind: WorkspaceKind::Main,
                 parent_id: None,
                 worktree: None,

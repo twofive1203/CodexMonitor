@@ -40,6 +40,7 @@
     "tauri:build:win:local": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.local.conf.json"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.81",
     "@pierre/diffs": "^1.0.6",
     "@sentry/react": "^10.36.0",
     "@tanstack/react-virtual": "^3.13.18",
@@ -58,7 +59,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "tauri-plugin-liquid-glass-api": "^0.1.6",
-    "vscode-material-icons": "^0.1.1"
+    "vscode-material-icons": "^0.1.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",

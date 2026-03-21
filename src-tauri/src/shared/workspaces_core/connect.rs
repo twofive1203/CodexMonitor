@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use tokio::sync::Mutex;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::shared::provider_core::{
+    build_provider_session_key, build_provider_session_prefix, ensure_provider_enabled,
+    provider_not_ready_error, provider_supports_live_runtime, provider_supports_shared_session,
+};
+use crate::shared::provider_runtime_core::resolve_provider_runtime_config;
+use crate::types::{AgentProvider, AppSettings, WorkspaceEntry};
 
 use super::helpers::resolve_entry_and_parent;
 
@@ -35,11 +38,18 @@ async fn remove_session_references(
 
 pub(super) async fn take_live_shared_session(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    provider: &AgentProvider,
 ) -> Option<Arc<WorkspaceSession>> {
+    if !provider_supports_shared_session(provider) {
+        return None;
+    }
     loop {
         let existing_session = {
             let sessions = sessions.lock().await;
-            sessions.values().next().cloned()
+            let prefix = build_provider_session_prefix(provider);
+            sessions
+                .iter()
+                .find_map(|(key, session)| key.starts_with(&prefix).then(|| session.clone()))
         };
         let Some(existing_session) = existing_session else {
             return None;
@@ -63,49 +73,57 @@ where
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
+    {
+        let settings = app_settings.lock().await;
+        ensure_provider_enabled(&entry.provider, &settings)?;
+    }
+    if !provider_supports_live_runtime(&entry.provider) {
+        return Err(provider_not_ready_error(&entry.provider));
+    }
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let session_key = build_provider_session_key(&entry.provider, &entry.id);
     if let Some(existing_for_entry) = {
         let sessions = sessions.lock().await;
-        sessions.get(&entry.id).cloned()
+        sessions.get(&session_key).cloned()
     } {
         if session_process_is_alive(&existing_for_entry).await {
             return Ok(());
         }
         remove_session_references(sessions, &existing_for_entry).await;
     }
-    if let Some(existing_session) = take_live_shared_session(sessions).await {
+    if let Some(existing_session) = take_live_shared_session(sessions, &entry.provider).await {
         existing_session
             .register_workspace_with_path(&entry.id, Some(&entry.path))
             .await;
-        sessions
-            .lock()
-            .await
-            .insert(entry.id.clone(), existing_session);
+        sessions.lock().await.insert(session_key, existing_session);
         return Ok(());
     }
-    let (default_bin, codex_args) = {
+    let runtime_config = {
         let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
+        resolve_provider_runtime_config(&entry, parent_entry.as_ref(), &settings)
     };
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let session = spawn_session(
+        entry.clone(),
+        runtime_config.default_bin,
+        runtime_config.runtime_args,
+        runtime_config.runtime_home,
+    )
+    .await?;
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
-    sessions.lock().await.insert(entry.id, session);
+    sessions.lock().await.insert(session_key, session);
     Ok(())
 }
 
 pub(super) async fn kill_session_by_id(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    provider: &AgentProvider,
     id: &str,
 ) {
     let (removed, still_referenced) = {
         let mut sessions = sessions.lock().await;
-        let removed = sessions.remove(id);
+        let removed = sessions.remove(&build_provider_session_key(provider, id));
         let still_referenced = removed.as_ref().is_some_and(|session| {
             sessions
                 .values()
@@ -135,13 +153,18 @@ mod tests {
     use tokio::process::Command;
     use tokio::sync::Mutex;
 
-    use crate::types::{WorkspaceKind, WorkspaceSettings};
+    use crate::types::{AgentProvider, WorkspaceKind, WorkspaceSettings};
 
     fn make_workspace_entry(id: &str) -> WorkspaceEntry {
+        make_workspace_entry_with_provider(id, AgentProvider::Codex)
+    }
+
+    fn make_workspace_entry_with_provider(id: &str, provider: AgentProvider) -> WorkspaceEntry {
         WorkspaceEntry {
             id: id.to_string(),
             name: id.to_string(),
             path: "/tmp".to_string(),
+            provider,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -189,7 +212,7 @@ mod tests {
             let entry = make_workspace_entry("ws-1");
             let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
             let sessions = Mutex::new(HashMap::from([(
-                entry.id.clone(),
+                build_provider_session_key(&entry.provider, &entry.id),
                 make_session(entry.clone()),
             )]));
             let app_settings = Mutex::new(AppSettings::default());
@@ -213,7 +236,7 @@ mod tests {
             .expect("connect should be noop");
 
             assert_eq!(spawn_calls.load(Ordering::SeqCst), 0);
-            kill_session_by_id(&sessions, &entry.id).await;
+            kill_session_by_id(&sessions, &entry.provider, &entry.id).await;
         });
     }
 
@@ -246,8 +269,168 @@ mod tests {
             .expect("connect should spawn");
 
             assert_eq!(spawn_calls.load(Ordering::SeqCst), 1);
-            assert!(sessions.lock().await.contains_key(&entry.id));
-            kill_session_by_id(&sessions, &entry.id).await;
+            assert!(sessions
+                .lock()
+                .await
+                .contains_key(&build_provider_session_key(&entry.provider, &entry.id)));
+            kill_session_by_id(&sessions, &entry.provider, &entry.id).await;
+        });
+    }
+
+    #[test]
+    fn connect_workspace_reuses_codex_shared_session_between_workspaces() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let first = make_workspace_entry_with_provider("ws-codex-1", AgentProvider::Codex);
+            let second = make_workspace_entry_with_provider("ws-codex-2", AgentProvider::Codex);
+            let workspaces = Mutex::new(HashMap::from([
+                (first.id.clone(), first.clone()),
+                (second.id.clone(), second.clone()),
+            ]));
+            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+            let app_settings = Mutex::new(AppSettings::default());
+            let spawn_calls = Arc::new(AtomicUsize::new(0));
+            let spawn_calls_ref = spawn_calls.clone();
+            let first_for_spawn = first.clone();
+
+            let spawn = move |_entry, _default_bin, _codex_args, _codex_home| {
+                let spawn_calls_ref = spawn_calls_ref.clone();
+                let first_for_spawn = first_for_spawn.clone();
+                async move {
+                    spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
+                    Ok(make_session(first_for_spawn))
+                }
+            };
+
+            connect_workspace_core(
+                first.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                spawn,
+            )
+            .await
+            .expect("first codex workspace should connect");
+
+            connect_workspace_core(
+                second.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| async move {
+                    Err("codex shared session should have been reused".to_string())
+                },
+            )
+            .await
+            .expect("second codex workspace should reuse session");
+
+            let sessions_guard = sessions.lock().await;
+            let first_session = sessions_guard
+                .get(&build_provider_session_key(&first.provider, &first.id))
+                .expect("first session should exist");
+            let second_session = sessions_guard
+                .get(&build_provider_session_key(&second.provider, &second.id))
+                .expect("second session should exist");
+            assert_eq!(spawn_calls.load(Ordering::SeqCst), 1);
+            assert!(Arc::ptr_eq(first_session, second_session));
+            drop(sessions_guard);
+
+            kill_session_by_id(&sessions, &first.provider, &first.id).await;
+            kill_session_by_id(&sessions, &second.provider, &second.id).await;
+        });
+    }
+
+    #[test]
+    fn connect_workspace_keeps_claude_sessions_isolated_per_workspace() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let first = make_workspace_entry_with_provider("ws-claude-1", AgentProvider::Claude);
+            let second = make_workspace_entry_with_provider("ws-claude-2", AgentProvider::Claude);
+            let workspaces = Mutex::new(HashMap::from([
+                (first.id.clone(), first.clone()),
+                (second.id.clone(), second.clone()),
+            ]));
+            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+            let app_settings = Mutex::new(AppSettings::default());
+            let spawn_calls = Arc::new(AtomicUsize::new(0));
+
+            let first_for_spawn = first.clone();
+            let second_for_spawn = second.clone();
+            let spawn_calls_ref = spawn_calls.clone();
+
+            connect_workspace_core(
+                first.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| {
+                    let spawn_calls_ref = spawn_calls_ref.clone();
+                    let first_for_spawn = first_for_spawn.clone();
+                    async move {
+                        spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
+                        Ok(make_session(first_for_spawn))
+                    }
+                },
+            )
+            .await
+            .expect("first claude workspace should connect");
+
+            let spawn_calls_ref = spawn_calls.clone();
+            connect_workspace_core(
+                second.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| {
+                    let spawn_calls_ref = spawn_calls_ref.clone();
+                    let second_for_spawn = second_for_spawn.clone();
+                    async move {
+                        spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
+                        Ok(make_session(second_for_spawn))
+                    }
+                },
+            )
+            .await
+            .expect("second claude workspace should connect");
+
+            let sessions_guard = sessions.lock().await;
+            let first_session = sessions_guard
+                .get(&build_provider_session_key(&first.provider, &first.id))
+                .expect("first claude session should exist");
+            let second_session = sessions_guard
+                .get(&build_provider_session_key(&second.provider, &second.id))
+                .expect("second claude session should exist");
+            assert_eq!(spawn_calls.load(Ordering::SeqCst), 2);
+            assert!(!Arc::ptr_eq(first_session, second_session));
+            drop(sessions_guard);
+
+            kill_session_by_id(&sessions, &first.provider, &first.id).await;
+            kill_session_by_id(&sessions, &second.provider, &second.id).await;
+        });
+    }
+
+    #[test]
+    fn connect_workspace_rejects_claude_when_experimental_flag_is_disabled() {
+        let runtime = tokio::runtime::Runtime::new().expect("create runtime");
+        runtime.block_on(async {
+            let entry = make_workspace_entry_with_provider("ws-claude", AgentProvider::Claude);
+            let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
+            let sessions = Mutex::new(HashMap::new());
+            let app_settings = Mutex::new(AppSettings::default());
+
+            let result = connect_workspace_core(
+                entry.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                |_entry, _default_bin, _args, _home| async {
+                    panic!("claude should not spawn while experimental flag is disabled");
+                },
+            )
+            .await;
+
+            assert_eq!(
+                result.expect_err("claude connect should be rejected"),
+                "Claude Provider 当前属于实验功能，请先在设置 -> 功能 中开启。"
+            );
         });
     }
 }

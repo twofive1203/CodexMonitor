@@ -2,7 +2,7 @@ use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod args;
 pub(crate) mod config;
@@ -13,10 +13,11 @@ pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
+use crate::shared::agent_runtime_core;
 use crate::shared::agents_config_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
 use crate::state::AppState;
-use crate::types::WorkspaceEntry;
+use crate::types::{AgentProvider, WorkspaceEntry};
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
     let _ = app.emit(
@@ -39,12 +40,16 @@ pub(crate) async fn spawn_workspace_session(
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
+    let state = app_handle.state::<AppState>();
+    let app_settings = state.app_settings.lock().await.clone();
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
         default_codex_bin,
         codex_args,
         codex_home,
+        app_settings.claude_permission_mode,
+        app_settings.claude_use_sdk_sidecar,
         client_version,
         event_sink,
     )
@@ -87,7 +92,7 @@ pub(crate) async fn start_thread(
         .await;
     }
 
-    codex_core::start_thread_core(&state.sessions, &state.workspaces, workspace_id).await
+    agent_runtime_core::start_thread_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
 #[tauri::command]
@@ -107,7 +112,13 @@ pub(crate) async fn resume_thread(
         .await;
     }
 
-    codex_core::resume_thread_core(&state.sessions, workspace_id, thread_id).await
+    agent_runtime_core::resume_thread_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        thread_id,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -361,7 +372,7 @@ pub(crate) async fn send_user_message(
         .await;
     }
 
-    codex_core::send_user_message_core(
+    agent_runtime_core::send_user_message_core(
         &state.sessions,
         &state.workspaces,
         workspace_id,
@@ -461,7 +472,14 @@ pub(crate) async fn turn_interrupt(
         .await;
     }
 
-    codex_core::turn_interrupt_core(&state.sessions, workspace_id, thread_id, turn_id).await
+    agent_runtime_core::interrupt_turn_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        thread_id,
+        turn_id,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -488,8 +506,9 @@ pub(crate) async fn start_review(
         .await;
     }
 
-    codex_core::start_review_core(
+    agent_runtime_core::start_review_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         thread_id,
         target,
@@ -514,7 +533,7 @@ pub(crate) async fn model_list(
         .await;
     }
 
-    codex_core::model_list_core(&state.sessions, workspace_id).await
+    agent_runtime_core::list_models_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
 #[tauri::command]
@@ -834,8 +853,34 @@ pub(crate) async fn respond_to_server_request(
         return Ok(());
     }
 
-    codex_core::respond_to_server_request_core(&state.sessions, workspace_id, request_id, result)
-        .await
+    agent_runtime_core::respond_to_server_request_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        request_id,
+        result,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_provider_capabilities(
+    provider: AgentProvider,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "get_provider_capabilities",
+            json!({ "provider": provider }),
+        )
+        .await;
+    }
+
+    serde_json::to_value(agent_runtime_core::get_provider_capabilities_core(provider))
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]

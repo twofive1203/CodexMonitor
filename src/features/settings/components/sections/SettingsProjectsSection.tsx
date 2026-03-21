@@ -6,7 +6,11 @@ import {
   SettingsSection,
   SettingsSubsection,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
-import type { WorkspaceGroup, WorkspaceInfo } from "@/types";
+import type { AgentProvider, WorkspaceGroup, WorkspaceInfo } from "@/types";
+import {
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+} from "@utils/agentProvider";
 
 type GroupedWorkspaces = Array<{
   id: string | null;
@@ -18,6 +22,7 @@ type SettingsProjectsSectionProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: GroupedWorkspaces;
   ungroupedLabel: string;
+  claudeEnabled: boolean;
   groupDrafts: Record<string, string>;
   newGroupName: string;
   groupError: string | null;
@@ -32,6 +37,10 @@ type SettingsProjectsSectionProps = {
   onChooseGroupCopiesFolder: (group: WorkspaceGroup) => Promise<void>;
   onClearGroupCopiesFolder: (group: WorkspaceGroup) => Promise<void>;
   onAssignWorkspaceGroup: (workspaceId: string, groupId: string | null) => Promise<boolean | null>;
+  onUpdateWorkspaceProvider: (
+    workspaceId: string,
+    provider: AgentProvider,
+  ) => Promise<void>;
   onMoveWorkspace: (id: string, direction: "up" | "down") => void;
   onDeleteWorkspace: (id: string) => void;
 };
@@ -40,6 +49,7 @@ export function SettingsProjectsSection({
   workspaceGroups,
   groupedWorkspaces,
   ungroupedLabel,
+  claudeEnabled,
   groupDrafts,
   newGroupName,
   groupError,
@@ -54,6 +64,7 @@ export function SettingsProjectsSection({
   onChooseGroupCopiesFolder,
   onClearGroupCopiesFolder,
   onAssignWorkspaceGroup,
+  onUpdateWorkspaceProvider,
   onMoveWorkspace,
   onDeleteWorkspace,
 }: SettingsProjectsSectionProps) {
@@ -202,13 +213,37 @@ export function SettingsProjectsSection({
               )
                 ? workspace.settings.groupId ?? ""
                 : "";
+              const provider = getWorkspaceProvider(workspace);
+              const selectProvider = claudeEnabled || provider !== "claude" ? provider : "codex";
               return (
                 <div key={workspace.id} className="settings-project-row">
                   <div className="settings-project-info">
-                    <div className="settings-project-name">{workspace.name}</div>
+                    <div className="settings-project-name">
+                      <span>{workspace.name}</span>
+                      <span
+                        className={`settings-provider-badge is-${provider}`}
+                        title={`${getAgentProviderLabel(provider)} provider`}
+                      >
+                        {getAgentProviderLabel(provider)}
+                      </span>
+                    </div>
                     <div className="settings-project-path">{workspace.path}</div>
                   </div>
                   <div className="settings-project-actions">
+                    <select
+                      className="settings-select settings-select--compact"
+                      value={selectProvider}
+                      aria-label={`${workspace.name} provider`}
+                      onChange={(event) => {
+                        void onUpdateWorkspaceProvider(
+                          workspace.id,
+                          event.target.value as AgentProvider,
+                        );
+                      }}
+                    >
+                      <option value="codex">Codex</option>
+                      {claudeEnabled && <option value="claude">Claude</option>}
+                    </select>
                     <select
                       className="settings-select settings-select--compact"
                       value={groupValue}

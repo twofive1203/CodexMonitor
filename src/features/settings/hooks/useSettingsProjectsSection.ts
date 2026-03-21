@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
-import type { AppSettings, WorkspaceGroup, WorkspaceInfo } from "@/types";
+import type {
+  AgentProvider,
+  AppSettings,
+  WorkspaceGroup,
+  WorkspaceInfo,
+} from "@/types";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 
 type UseSettingsProjectsSectionArgs = {
@@ -13,6 +18,11 @@ type UseSettingsProjectsSectionArgs = {
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onMoveWorkspace: (id: string, direction: "up" | "down") => void;
   onDeleteWorkspace: (id: string) => void;
+  onUpdateWorkspaceSettings: (
+    id: string,
+    settings: WorkspaceInfo["settings"],
+    provider?: AgentProvider | null,
+  ) => Promise<void>;
   onCreateWorkspaceGroup: (name: string) => Promise<WorkspaceGroup | null>;
   onRenameWorkspaceGroup: (id: string, name: string) => Promise<boolean | null>;
   onMoveWorkspaceGroup: (id: string, direction: "up" | "down") => Promise<boolean | null>;
@@ -27,6 +37,7 @@ export type SettingsProjectsSectionProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: GroupedWorkspaces;
   ungroupedLabel: string;
+  claudeEnabled: boolean;
   groupDrafts: Record<string, string>;
   newGroupName: string;
   groupError: string | null;
@@ -44,6 +55,10 @@ export type SettingsProjectsSectionProps = {
     workspaceId: string,
     groupId: string | null,
   ) => Promise<boolean | null>;
+  onUpdateWorkspaceProvider: (
+    workspaceId: string,
+    provider: AgentProvider,
+  ) => Promise<void>;
   onMoveWorkspace: (id: string, direction: "up" | "down") => void;
   onDeleteWorkspace: (id: string) => void;
 };
@@ -57,6 +72,7 @@ export const useSettingsProjectsSection = ({
   onUpdateAppSettings,
   onMoveWorkspace,
   onDeleteWorkspace,
+  onUpdateWorkspaceSettings,
   onCreateWorkspaceGroup,
   onRenameWorkspaceGroup,
   onMoveWorkspaceGroup,
@@ -174,6 +190,7 @@ export const useSettingsProjectsSection = ({
     workspaceGroups,
     groupedWorkspaces,
     ungroupedLabel,
+    claudeEnabled: appSettings.experimentalClaudeEnabled,
     groupDrafts,
     newGroupName,
     groupError,
@@ -188,6 +205,13 @@ export const useSettingsProjectsSection = ({
     onChooseGroupCopiesFolder: handleChooseGroupCopiesFolder,
     onClearGroupCopiesFolder: handleClearGroupCopiesFolder,
     onAssignWorkspaceGroup,
+    onUpdateWorkspaceProvider: async (workspaceId, provider) => {
+      const workspace = projects.find((entry) => entry.id === workspaceId) ?? null;
+      if (!workspace) {
+        return;
+      }
+      await onUpdateWorkspaceSettings(workspaceId, workspace.settings, provider);
+    },
     onMoveWorkspace,
     onDeleteWorkspace,
   };

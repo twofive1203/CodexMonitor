@@ -88,7 +88,7 @@ describe("ThreadList", () => {
       />,
     );
 
-    const moreButton = screen.getByRole("button", { name: "More..." });
+    const moreButton = screen.getByRole("button", { name: "更多..." });
     fireEvent.click(moreButton);
     expect(onToggleExpanded).toHaveBeenCalledWith("ws-1");
   });
@@ -103,7 +103,7 @@ describe("ThreadList", () => {
       />,
     );
 
-    const loadButton = screen.getByRole("button", { name: "Load older..." });
+    const loadButton = screen.getByRole("button", { name: "加载更早会话..." });
     fireEvent.click(loadButton);
     expect(onLoadOlderThreads).toHaveBeenCalledWith("ws-1");
   });
@@ -169,11 +169,11 @@ describe("ThreadList", () => {
     );
 
     expect(getByText("Nested Agent")).toBeTruthy();
-    const hideButton = getByRole("button", { name: "Hide sub-agents" });
+    const hideButton = getByRole("button", { name: "隐藏子智能体" });
     fireEvent.click(hideButton);
     expect(queryByText("Nested Agent")).toBeNull();
 
-    const showButton = getByRole("button", { name: "Show sub-agents" });
+    const showButton = getByRole("button", { name: "显示子智能体" });
     fireEvent.click(showButton);
     expect(getByText("Nested Agent")).toBeTruthy();
   });
@@ -181,7 +181,7 @@ describe("ThreadList", () => {
   it("does not show sub-agent toggle for rows without descendants", () => {
     const { queryByRole } = render(<ThreadList {...baseProps} />);
 
-    expect(queryByRole("button", { name: "Hide sub-agents" })).toBeNull();
-    expect(queryByRole("button", { name: "Show sub-agents" })).toBeNull();
+    expect(queryByRole("button", { name: "隐藏子智能体" })).toBeNull();
+    expect(queryByRole("button", { name: "显示子智能体" })).toBeNull();
   });
 });

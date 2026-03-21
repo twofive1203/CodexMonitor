@@ -1,10 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
-import type { WorkspaceInfo } from "../../../types";
+import type { AgentProvider, WorkspaceInfo } from "../../../types";
 import { pickWorkspacePath } from "../../../services/tauri";
+import {
+  getWorkspaceProvider,
+  resolveAgentProviderForSettings,
+} from "@utils/agentProvider";
 
 type ClonePromptState = {
   workspace: WorkspaceInfo;
   copyName: string;
+  provider: AgentProvider;
   copiesFolder: string;
   initialCopiesFolder: string;
   groupId: string | null;
@@ -18,6 +23,7 @@ type UseClonePromptOptions = {
     workspace: WorkspaceInfo,
     copyName: string,
     copiesFolder: string,
+    provider?: AgentProvider | null,
   ) => Promise<WorkspaceInfo | null>;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   onSelectWorkspace: (workspaceId: string) => void;
@@ -27,6 +33,7 @@ type UseClonePromptOptions = {
   persistProjectCopiesFolder?: (groupId: string, copiesFolder: string) => Promise<void>;
   onCompactActivate?: () => void;
   onError?: (message: string) => void;
+  experimentalClaudeEnabled?: boolean;
 };
 
 type UseClonePromptResult = {
@@ -35,6 +42,7 @@ type UseClonePromptResult = {
   confirmPrompt: () => Promise<void>;
   cancelPrompt: () => void;
   updateCopyName: (value: string) => void;
+  updateProvider: (value: AgentProvider) => void;
   chooseCopiesFolder: () => Promise<void>;
   useSuggestedCopiesFolder: () => void;
   clearCopiesFolder: () => void;
@@ -104,6 +112,7 @@ export function useClonePrompt({
   persistProjectCopiesFolder,
   onCompactActivate,
   onError,
+  experimentalClaudeEnabled = false,
 }: UseClonePromptOptions): UseClonePromptResult {
   const [clonePrompt, setClonePrompt] = useState<ClonePromptState>(null);
 
@@ -113,6 +122,9 @@ export function useClonePrompt({
       setClonePrompt({
         workspace,
         copyName: defaultCopyName(workspace),
+        provider: resolveAgentProviderForSettings(getWorkspaceProvider(workspace), {
+          experimentalClaudeEnabled,
+        }),
         copiesFolder: copiesFolder ?? "",
         initialCopiesFolder: copiesFolder ?? "",
         groupId,
@@ -121,7 +133,7 @@ export function useClonePrompt({
         error: null,
       });
     },
-    [resolveProjectContext],
+    [experimentalClaudeEnabled, resolveProjectContext],
   );
 
   const updateCopyName = useCallback((value: string) => {
@@ -129,6 +141,20 @@ export function useClonePrompt({
       prev ? { ...prev, copyName: value, error: null } : prev,
     );
   }, []);
+
+  const updateProvider = useCallback((value: AgentProvider) => {
+    setClonePrompt((prev) =>
+      prev
+        ? {
+            ...prev,
+            provider: resolveAgentProviderForSettings(value, {
+              experimentalClaudeEnabled,
+            }),
+            error: null,
+          }
+        : prev,
+    );
+  }, [experimentalClaudeEnabled]);
 
   const cancelPrompt = useCallback(() => {
     setClonePrompt(null);
@@ -194,6 +220,7 @@ export function useClonePrompt({
         clonePrompt.workspace,
         copyName,
         copiesFolder,
+        clonePrompt.provider,
       );
       if (!cloneWorkspace) {
         setClonePrompt(null);
@@ -243,6 +270,7 @@ export function useClonePrompt({
     confirmPrompt,
     cancelPrompt,
     updateCopyName,
+    updateProvider,
     chooseCopiesFolder,
     useSuggestedCopiesFolder,
     clearCopiesFolder,

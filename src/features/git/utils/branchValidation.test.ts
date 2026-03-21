@@ -8,10 +8,10 @@ describe("validateBranchName", () => {
   });
 
   it("rejects invalid names", () => {
-    expect(validateBranchName(".")).toContain("cannot be '.' or '..'");
-    expect(validateBranchName("hello world")).toContain("cannot contain spaces");
-    expect(validateBranchName("feature//oops")).toContain("cannot contain '//'");
-    expect(validateBranchName("feature..oops")).toContain("cannot contain '..'");
-    expect(validateBranchName("topic@{x")).toContain("cannot contain '@{'");
+    expect(validateBranchName(".")).toContain("分支名不能是“.”或“..”。");
+    expect(validateBranchName("hello world")).toContain("分支名不能包含空格。");
+    expect(validateBranchName("feature//oops")).toContain("分支名不能包含“//”。");
+    expect(validateBranchName("feature..oops")).toContain("分支名不能包含“..”。");
+    expect(validateBranchName("topic@{x")).toContain("分支名不能包含“@{”。");
   });
 });

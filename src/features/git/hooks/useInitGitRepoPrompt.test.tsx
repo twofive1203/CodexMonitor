@@ -68,7 +68,7 @@ describe("useInitGitRepoPrompt", () => {
     });
 
     expect(result.current.initGitRepoPrompt?.error).toBe(
-      "Failed to initialize Git repository.",
+      "初始化 Git 仓库失败。",
     );
   });
 });

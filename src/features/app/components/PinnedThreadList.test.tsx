@@ -64,7 +64,7 @@ describe("PinnedThreadList", () => {
     expect(row.querySelector(".thread-status")?.className).toContain(
       "reviewing",
     );
-    expect(screen.getByLabelText("Pinned")).toBeTruthy();
+    expect(screen.getByLabelText("已置顶")).toBeTruthy();
 
     fireEvent.click(row);
     expect(onSelectThread).toHaveBeenCalledWith("ws-1", "thread-1");
@@ -144,9 +144,9 @@ describe("PinnedThreadList", () => {
     );
 
     expect(screen.getByText("Pinned Nested")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Hide sub-agents" }));
+    fireEvent.click(screen.getByRole("button", { name: "隐藏子智能体" }));
     expect(screen.queryByText("Pinned Nested")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Show sub-agents" }));
+    fireEvent.click(screen.getByRole("button", { name: "显示子智能体" }));
     expect(screen.getByText("Pinned Nested")).toBeTruthy();
   });
 });

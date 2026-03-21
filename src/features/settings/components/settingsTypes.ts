@@ -13,7 +13,12 @@ type SettingsSection =
   | "server"
   | "agents";
 
-export type CodexSection = SettingsSection | "codex" | "features";
+export type CodexSection =
+  | SettingsSection
+  | "runtime"
+  | "codex"
+  | "claude"
+  | "features";
 
 export type ShortcutSettingKey =
   | "composerModelShortcut"

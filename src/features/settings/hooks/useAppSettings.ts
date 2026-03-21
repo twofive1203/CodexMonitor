@@ -15,6 +15,7 @@ import {
   DEFAULT_OPEN_APP_TARGETS,
   OPEN_APP_STORAGE_KEY,
 } from "@app/constants";
+import { resolveAgentProviderForSettings } from "@utils/agentProvider";
 import { normalizeOpenAppTargets } from "@app/utils/openApp";
 import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
 import { isMobilePlatform } from "@utils/platformPaths";
@@ -156,6 +157,12 @@ function buildDefaultSettings(): AppSettings {
   return {
     codexBin: null,
     codexArgs: null,
+    defaultAgentProvider: "codex",
+    claudeBin: null,
+    claudeArgs: null,
+    claudePermissionMode: null,
+    claudeUseSdkSidecar: true,
+    experimentalClaudeEnabled: false,
     backendMode: isMobile ? "remote" : "local",
     remoteBackendProvider: defaultRemote.provider,
     remoteBackendHost: defaultRemote.host,
@@ -264,11 +271,28 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   const chatHistoryScrollbackItems = normalizeChatHistoryScrollbackItems(
     settings.chatHistoryScrollbackItems,
   );
+  const experimentalClaudeEnabled = Boolean(settings.experimentalClaudeEnabled);
   return {
     ...settings,
     ...remoteBackendSettings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    defaultAgentProvider: resolveAgentProviderForSettings(
+      settings.defaultAgentProvider,
+      {
+        experimentalClaudeEnabled,
+      },
+    ),
+    claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
+    claudeArgs: settings.claudeArgs?.trim() ? settings.claudeArgs.trim() : null,
+    claudePermissionMode: settings.claudePermissionMode?.trim()
+      ? settings.claudePermissionMode.trim()
+      : null,
+    claudeUseSdkSidecar:
+      typeof settings.claudeUseSdkSidecar === "boolean"
+        ? settings.claudeUseSdkSidecar
+        : true,
+    experimentalClaudeEnabled,
     webAccessEnabled: Boolean(settings.webAccessEnabled),
     webAccessListenAddr: normalizeWebAccessListenAddr(settings.webAccessListenAddr),
     webAccessPort: normalizeWebAccessPort(settings.webAccessPort),

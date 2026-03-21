@@ -81,6 +81,8 @@ type SidebarProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  showAccountSwitcher?: boolean;
+  showUsageFooter?: boolean;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
@@ -142,6 +144,8 @@ export const Sidebar = memo(function Sidebar({
   accountRateLimits,
   usageShowRemaining,
   accountInfo,
+  showAccountSwitcher: showAccountSwitcherProp = undefined,
+  showUsageFooter = true,
   onSwitchAccount,
   onCancelSwitchAccount,
   accountSwitching,
@@ -293,9 +297,11 @@ export const Sidebar = memo(function Sidebar({
       ? "API 密钥"
       : "登录 Codex";
   const accountActionLabel = accountEmail ? "切换账号" : "登录";
-  const showAccountSwitcher = Boolean(activeWorkspaceId);
-  const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
-  const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
+  const showAccountSwitcher = showAccountSwitcherProp ?? Boolean(activeWorkspaceId);
+  const accountSwitchDisabled =
+    accountSwitching || !activeWorkspaceId || !showAccountSwitcher;
+  const accountCancelDisabled =
+    !accountSwitching || !activeWorkspaceId || !showAccountSwitcher;
   const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
   const refreshInProgress = workspaces.some(
     (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
@@ -1185,14 +1191,16 @@ export const Sidebar = memo(function Sidebar({
             )}
         </div>
       </div>
-      <SidebarFooter
-        sessionPercent={sessionPercent}
-        weeklyPercent={weeklyPercent}
-        sessionResetLabel={sessionResetLabel}
-        weeklyResetLabel={weeklyResetLabel}
-        creditsLabel={creditsLabel}
-        showWeekly={showWeekly}
-      />
+      {showUsageFooter && (
+        <SidebarFooter
+          sessionPercent={sessionPercent}
+          weeklyPercent={weeklyPercent}
+          sessionResetLabel={sessionResetLabel}
+          weeklyResetLabel={weeklyResetLabel}
+          creditsLabel={creditsLabel}
+          showWeekly={showWeekly}
+        />
+      )}
       <SidebarCornerActions
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}

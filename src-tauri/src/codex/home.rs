@@ -189,6 +189,7 @@ mod tests {
             id: "workspace-id".to_string(),
             name: "workspace".to_string(),
             path: path.to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind,
             parent_id: None,
             worktree,

@@ -1,6 +1,10 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import {
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+} from "@utils/agentProvider";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
@@ -37,6 +41,8 @@ export function WorkspaceCard({
   children,
 }: WorkspaceCardProps) {
   const contentCollapsedClass = isCollapsed ? " collapsed" : "";
+  const provider = getWorkspaceProvider(workspace);
+  const providerLabel = getAgentProviderLabel(provider);
 
   return (
     <div className="workspace-card">
@@ -57,6 +63,12 @@ export function WorkspaceCard({
           <div className="workspace-name-row">
             <div className="workspace-title">
               <span className="workspace-name">{workspaceName ?? workspace.name}</span>
+              <span
+                className={`workspace-provider-badge is-${provider}`}
+                title={`${providerLabel} provider`}
+              >
+                {providerLabel}
+              </span>
               <button
                 className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
                 onClick={(event) => {
@@ -102,7 +114,7 @@ export function WorkspaceCard({
         {!workspace.connected && (
           <span
             className="connect"
-            title="连接项目上下文到共享 Codex 服务"
+            title={`连接项目上下文到共享 ${providerLabel} 运行时`}
             onClick={(event) => {
               event.stopPropagation();
               onConnectWorkspace(workspace);

@@ -1,4 +1,5 @@
 use super::*;
+use crate::shared::workspace_rpc;
 use serde::de::DeserializeOwned;
 
 fn parse_input<T: DeserializeOwned>(params: &Value) -> Result<T, String> {
@@ -29,6 +30,16 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             Some(state.get_config_model(workspace_id).await)
+        }
+        "get_provider_capabilities" => {
+            let request = match workspace_rpc::from_params::<
+                workspace_rpc::GetProviderCapabilitiesRequest,
+            >(params)
+            {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.get_provider_capabilities(request.provider).await)
         }
         "start_thread" => {
             let workspace_id = match parse_string(params, "workspaceId") {

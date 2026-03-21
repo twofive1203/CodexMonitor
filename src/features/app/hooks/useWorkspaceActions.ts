@@ -1,16 +1,20 @@
 import type { RefObject } from "react";
 import { useCallback } from "react";
 import * as Sentry from "@sentry/react";
-import type { DebugEntry, WorkspaceInfo } from "../../../types";
+import type { AgentProvider, DebugEntry, WorkspaceInfo } from "../../../types";
 
 type Params = {
   isCompact: boolean;
   addWorkspace: () => Promise<WorkspaceInfo | null>;
-  addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
+  addWorkspaceFromPath: (
+    path: string,
+    options?: { provider?: AgentProvider | null },
+  ) => Promise<WorkspaceInfo | null>;
   addWorkspaceFromGitUrl: (
     url: string,
     destinationPath: string,
     targetFolderName?: string | null,
+    options?: { provider?: AgentProvider | null },
   ) => Promise<WorkspaceInfo | null>;
   addWorkspacesFromPaths: (paths: string[]) => Promise<WorkspaceInfo | null>;
   setActiveThreadId: (threadId: string | null, workspaceId: string) => void;
@@ -92,9 +96,9 @@ export function useWorkspaceActions({
   );
 
   const handleAddWorkspaceFromPath = useCallback(
-    async (path: string) => {
+    async (path: string, provider?: AgentProvider | null) => {
       try {
-        const workspace = await addWorkspaceFromPath(path);
+        const workspace = await addWorkspaceFromPath(path, { provider });
         if (workspace) {
           handleWorkspaceAdded(workspace);
         }
@@ -115,9 +119,19 @@ export function useWorkspaceActions({
 
 
   const handleAddWorkspaceFromGitUrl = useCallback(
-    async (url: string, destinationPath: string, targetFolderName?: string | null) => {
+    async (
+      url: string,
+      destinationPath: string,
+      targetFolderName?: string | null,
+      provider?: AgentProvider | null,
+    ) => {
       try {
-        const workspace = await addWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
+        const workspace = await addWorkspaceFromGitUrl(
+          url,
+          destinationPath,
+          targetFolderName,
+          { provider },
+        );
         if (workspace) {
           handleWorkspaceAdded(workspace);
         }

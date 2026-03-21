@@ -1,7 +1,12 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import * as Sentry from "@sentry/react";
-import type { DebugEntry, WorkspaceInfo, WorkspaceSettings } from "../../../types";
+import type {
+  AgentProvider,
+  DebugEntry,
+  WorkspaceInfo,
+  WorkspaceSettings,
+} from "../../../types";
 import {
   addWorkspace as addWorkspaceService,
   addWorkspaceFromGitUrl as addWorkspaceFromGitUrlService,
@@ -115,7 +120,10 @@ export function useWorkspaceCrud({
   }, [setActiveWorkspaceId, setHasLoaded, setWorkspaces]);
 
   const addWorkspaceFromPath = useCallback(
-    async (path: string, options?: { activate?: boolean }) => {
+    async (
+      path: string,
+      options?: { activate?: boolean; provider?: AgentProvider | null },
+    ) => {
       const selection = path.trim();
       if (!selection) {
         return null;
@@ -129,7 +137,10 @@ export function useWorkspaceCrud({
         payload: { path: selection },
       });
       try {
-        const workspace = await addWorkspaceService(selection);
+        const workspace =
+          options?.provider === undefined
+            ? await addWorkspaceService(selection)
+            : await addWorkspaceService(selection, options.provider);
         setWorkspaces((prev) => [...prev, workspace]);
         if (shouldActivate) {
           setActiveWorkspaceId(workspace.id);
@@ -160,7 +171,7 @@ export function useWorkspaceCrud({
       url: string,
       destinationPath: string,
       targetFolderName?: string | null,
-      options?: { activate?: boolean },
+      options?: { activate?: boolean; provider?: AgentProvider | null },
     ) => {
       const trimmedUrl = url.trim();
       const trimmedDestination = destinationPath.trim();
@@ -184,11 +195,19 @@ export function useWorkspaceCrud({
         },
       });
       try {
-        const workspace = await addWorkspaceFromGitUrlService(
-          trimmedUrl,
-          trimmedDestination,
-          trimmedFolderName,
-        );
+        const workspace =
+          options?.provider === undefined
+            ? await addWorkspaceFromGitUrlService(
+                trimmedUrl,
+                trimmedDestination,
+                trimmedFolderName,
+              )
+            : await addWorkspaceFromGitUrlService(
+                trimmedUrl,
+                trimmedDestination,
+                trimmedFolderName,
+                options.provider,
+              );
         setWorkspaces((prev) => [...prev, workspace]);
         if (shouldActivate) {
           setActiveWorkspaceId(workspace.id);
@@ -360,13 +379,17 @@ export function useWorkspaceCrud({
   );
 
   const updateWorkspaceSettings = useCallback(
-    async (workspaceId: string, patch: Partial<WorkspaceSettings>) => {
+    async (
+      workspaceId: string,
+      patch: Partial<WorkspaceSettings>,
+      provider?: AgentProvider | null,
+    ) => {
       onDebug?.({
         id: `${Date.now()}-client-update-workspace-settings`,
         timestamp: Date.now(),
         source: "client",
         label: "workspace/settings",
-        payload: { workspaceId, patch },
+        payload: { workspaceId, patch, provider: provider ?? null },
       });
       const currentWorkspace = workspaces.find((entry) => entry.id === workspaceId) ?? null;
       const currentSettings =
@@ -375,6 +398,7 @@ export function useWorkspaceCrud({
         throw new Error("workspace not found");
       }
       const previousSettings = currentSettings;
+      const previousProvider = currentWorkspace.provider;
       const nextSettings = { ...currentSettings, ...patch };
       workspaceSettingsRef.current.set(workspaceId, nextSettings);
       setWorkspaces((prev) =>
@@ -382,11 +406,19 @@ export function useWorkspaceCrud({
           if (entry.id !== workspaceId) {
             return entry;
           }
-          return { ...entry, settings: nextSettings };
+          return {
+            ...entry,
+            settings: nextSettings,
+            provider: provider ?? entry.provider,
+          };
         }),
       );
       try {
-        const updated = await updateWorkspaceSettingsService(workspaceId, nextSettings);
+        const updated = await updateWorkspaceSettingsService(
+          workspaceId,
+          nextSettings,
+          provider,
+        );
         workspaceSettingsRef.current.set(workspaceId, updated.settings);
         setWorkspaces((prev) =>
           prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
@@ -397,7 +429,11 @@ export function useWorkspaceCrud({
         setWorkspaces((prev) =>
           prev.map((entry) =>
             entry.id === workspaceId
-              ? { ...entry, settings: previousSettings }
+              ? {
+                  ...entry,
+                  settings: previousSettings,
+                  provider: previousProvider,
+                }
               : entry,
           ),
         );

@@ -80,8 +80,8 @@ pub(crate) fn read_workspace_file_inner(
     if !canonical_path.starts_with(&canonical_root) {
         return Err("文件路径无效。".to_string());
     }
-    let metadata = std::fs::metadata(&canonical_path)
-        .map_err(|err| format!("无法读取文件元数据：{err}"))?;
+    let metadata =
+        std::fs::metadata(&canonical_path).map_err(|err| format!("无法读取文件元数据：{err}"))?;
     if !metadata.is_file() {
         return Err("路径不是文件。".to_string());
     }

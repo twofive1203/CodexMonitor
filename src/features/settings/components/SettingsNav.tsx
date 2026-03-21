@@ -10,6 +10,7 @@ import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import Bot from "lucide-react/dist/esm/icons/bot";
+import Cpu from "lucide-react/dist/esm/icons/cpu";
 import Info from "lucide-react/dist/esm/icons/info";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
@@ -18,12 +19,14 @@ type SettingsNavProps = {
   activeSection: CodexSection;
   onSelectSection: (section: CodexSection) => void;
   showDisclosure?: boolean;
+  showClaudeSection?: boolean;
 };
 
 export function SettingsNav({
   activeSection,
   onSelectSection,
   showDisclosure = false,
+  showClaudeSection = true,
 }: SettingsNavProps) {
   return (
     <aside className="settings-sidebar">
@@ -120,6 +123,15 @@ export function SettingsNav({
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
+          icon={<Cpu aria-hidden />}
+          active={activeSection === "runtime"}
+          showDisclosure={showDisclosure}
+          onClick={() => onSelectSection("runtime")}
+        >
+          运行时
+        </PanelNavItem>
+        <PanelNavItem
+          className="settings-nav"
           icon={<TerminalSquare aria-hidden />}
           active={activeSection === "codex"}
           showDisclosure={showDisclosure}
@@ -127,6 +139,17 @@ export function SettingsNav({
         >
           Codex
         </PanelNavItem>
+        {showClaudeSection && (
+          <PanelNavItem
+            className="settings-nav"
+            icon={<TerminalSquare aria-hidden />}
+            active={activeSection === "claude"}
+            showDisclosure={showDisclosure}
+            onClick={() => onSelectSection("claude")}
+          >
+            Claude
+          </PanelNavItem>
+        )}
         <PanelNavItem
           className="settings-nav"
           icon={<FlaskConical aria-hidden />}

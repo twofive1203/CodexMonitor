@@ -14,13 +14,12 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
+use crate::shared::claude_config_core;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
-use crate::types::WorkspaceEntry;
+use crate::types::{AgentProvider, WorkspaceEntry};
 
 #[cfg(target_os = "windows")]
 use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 
 fn extract_thread_id(value: &Value) -> Option<String> {
     fn extract_from_container(container: Option<&Value>) -> Option<String> {
@@ -431,6 +430,22 @@ fn build_initialize_params(client_version: &str) -> Value {
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
+fn extract_response_error_message(value: &Value) -> Option<String> {
+    let error = value.get("error")?;
+    if let Some(message) = error
+        .get("message")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+    {
+        return Some(message.to_string());
+    }
+    if let Some(message) = error.as_str().map(str::trim).filter(|message| !message.is_empty()) {
+        return Some(message.to_string());
+    }
+    Some("请求失败。".to_string())
+}
+
 pub(crate) struct WorkspaceSession {
     pub(crate) codex_args: Option<String>,
     pub(crate) child: Mutex<Child>,
@@ -528,7 +543,12 @@ impl WorkspaceSession {
             return Err(error);
         }
         match timeout(REQUEST_TIMEOUT, rx).await {
-            Ok(Ok(value)) => Ok(value),
+            Ok(Ok(value)) => {
+                if let Some(message) = extract_response_error_message(&value) {
+                    return Err(message);
+                }
+                Ok(value)
+            }
             Ok(Err(_)) => Err("请求已取消。".to_string()),
             Err(_) => {
                 self.pending.lock().await.remove(&id);
@@ -640,19 +660,16 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         .map(|joined| joined.to_string_lossy().to_string())
 }
 
-pub(crate) fn build_codex_command_with_bin(
-    codex_bin: Option<String>,
-    codex_args: Option<&str>,
-    args: Vec<String>,
+fn build_cli_command_with_bin(
+    bin_override: Option<String>,
+    default_bin: &str,
+    command_args: Vec<String>,
 ) -> Result<Command, String> {
-    let bin = codex_bin
+    let bin = bin_override
         .clone()
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "codex".into());
-
-    let path_env = build_codex_path_env(codex_bin.as_deref());
-    let mut command_args = parse_codex_args(codex_args)?;
-    command_args.extend(args);
+        .unwrap_or_else(|| default_bin.to_string());
+    let path_env = build_codex_path_env(bin_override.as_deref());
 
     #[cfg(target_os = "windows")]
     let mut command = {
@@ -692,6 +709,16 @@ pub(crate) fn build_codex_command_with_bin(
         command.env("PATH", path_env);
     }
     Ok(command)
+}
+
+pub(crate) fn build_codex_command_with_bin(
+    codex_bin: Option<String>,
+    codex_args: Option<&str>,
+    args: Vec<String>,
+) -> Result<Command, String> {
+    let mut command_args = parse_codex_args(codex_args)?;
+    command_args.extend(args);
+    build_cli_command_with_bin(codex_bin, "codex", command_args)
 }
 
 pub(crate) async fn check_codex_installation(
@@ -740,26 +767,151 @@ pub(crate) async fn check_codex_installation(
     })
 }
 
+async fn check_node_installation() -> Result<Option<String>, String> {
+    let mut command =
+        build_cli_command_with_bin(None, "node", vec!["--version".to_string()])?;
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let output = match timeout(Duration::from_secs(5), command.output()).await {
+        Ok(result) => result.map_err(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                "未找到 Node.js。请确认本机已安装 Node.js 18+。".to_string()
+            } else {
+                error.to_string()
+            }
+        })?,
+        Err(_) => {
+            return Err("检查 Node.js 超时。请确认能在终端执行 `node --version`。".to_string());
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            return Err("Node.js 启动失败。请尝试在终端执行 `node --version`。".to_string());
+        }
+        return Err(format!(
+            "Node.js 启动失败：{detail}。请尝试在终端执行 `node --version`。"
+        ));
+    }
+
+    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(if version.is_empty() {
+        None
+    } else {
+        Some(version)
+    })
+}
+
+fn resolve_claude_sdk_entry_path() -> Result<PathBuf, String> {
+    let candidate = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("node_modules")
+        .join("@anthropic-ai")
+        .join("claude-agent-sdk")
+        .join("sdk.mjs");
+    candidate.canonicalize().map_err(|error| {
+        format!(
+            "无法定位 Claude Agent SDK 入口：{}。请先执行 `npm install`。原始错误：{error}",
+            candidate.display()
+        )
+    })
+}
+
+fn ensure_claude_sidecar_script() -> Result<PathBuf, String> {
+    const CLAUDE_SDK_SIDECAR_SOURCE: &str =
+        include_str!("../../resources/claude_sdk_sidecar.mjs");
+
+    let sidecar_dir = env::temp_dir().join("codex-monitor");
+    std::fs::create_dir_all(&sidecar_dir)
+        .map_err(|error| format!("创建 Claude sidecar 临时目录失败：{error}"))?;
+    let sidecar_path = sidecar_dir.join("claude_sdk_sidecar.mjs");
+    std::fs::write(&sidecar_path, CLAUDE_SDK_SIDECAR_SOURCE)
+        .map_err(|error| format!("写入 Claude sidecar 临时脚本失败：{error}"))?;
+    Ok(sidecar_path)
+}
+
+fn build_claude_sidecar_command(sidecar_path: &Path) -> Result<Command, String> {
+    build_cli_command_with_bin(
+        None,
+        "node",
+        vec![sidecar_path.to_string_lossy().to_string()],
+    )
+}
+
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
-    codex_args: Option<String>,
-    codex_home: Option<PathBuf>,
+    default_provider_bin: Option<String>,
+    provider_runtime_args: Option<String>,
+    provider_runtime_home: Option<PathBuf>,
+    claude_permission_mode: Option<String>,
+    claude_use_sdk_sidecar: bool,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = default_codex_bin;
-    let _ = check_codex_installation(codex_bin.clone()).await?;
-
-    let mut command = build_codex_command_with_bin(
-        codex_bin,
-        codex_args.as_deref(),
-        vec!["app-server".to_string()],
-    )?;
+    let mut command = match entry.provider {
+        AgentProvider::Codex => {
+            let codex_bin = default_provider_bin.clone();
+            let _ = check_codex_installation(codex_bin.clone()).await?;
+            let mut command = build_codex_command_with_bin(
+                codex_bin,
+                provider_runtime_args.as_deref(),
+                vec!["app-server".to_string()],
+            )?;
+            if let Some(path) = provider_runtime_home.as_ref() {
+                command.env("CODEX_HOME", path);
+            }
+            command
+        }
+        AgentProvider::Claude => {
+            if !claude_use_sdk_sidecar {
+                return Err(
+                    "当前仅支持 Claude SDK sidecar，请在设置中开启 claudeUseSdkSidecar。"
+                        .to_string(),
+                );
+            }
+            let _ = check_node_installation().await?;
+            let sidecar_path = ensure_claude_sidecar_script()?;
+            let sdk_entry_path = resolve_claude_sdk_entry_path()?;
+            let launch_config = claude_config_core::read_launch_config()?;
+            let mut command = build_claude_sidecar_command(&sidecar_path)?;
+            command.env("CLAUDE_MONITOR_SDK_ENTRY", sdk_entry_path);
+            if let Some(config_dir) = launch_config.config_dir.as_ref() {
+                command.env("CLAUDE_CONFIG_DIR", config_dir);
+            }
+            if let Some(claude_bin) = default_provider_bin.as_deref() {
+                command.env("CLAUDE_MONITOR_PROVIDER_BIN", claude_bin);
+            }
+            if let Some(runtime_args) = provider_runtime_args.as_deref() {
+                command.env("CLAUDE_MONITOR_PROVIDER_ARGS", runtime_args);
+            }
+            let effective_permission_mode = claude_permission_mode
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .or(launch_config.permission_mode.clone());
+            if let Some(permission_mode) = effective_permission_mode.as_deref() {
+                command.env("CLAUDE_MONITOR_PERMISSION_MODE", permission_mode);
+            }
+            if let Some(default_model) = launch_config.default_model.as_deref() {
+                command.env("CLAUDE_MONITOR_DEFAULT_MODEL", default_model);
+            }
+            for (key, value) in launch_config.env_overrides {
+                command.env(key, value);
+            }
+            command.env("CLAUDE_MONITOR_CLIENT_VERSION", &client_version);
+            command
+        }
+    };
     command.current_dir(&entry.path);
-    if let Some(path) = codex_home.as_ref() {
-        command.env("CODEX_HOME", path);
-    }
     command.stdin(std::process::Stdio::piped());
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
@@ -770,7 +922,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let stderr = child.stderr.take().ok_or("缺少 stderr。")?;
 
     let session = Arc::new(WorkspaceSession {
-        codex_args,
+        codex_args: provider_runtime_args,
         child: Mutex::new(child),
         stdin: Mutex::new(stdin),
         pending: Mutex::new(HashMap::new()),
@@ -1100,7 +1252,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 mod tests {
     use super::{
         build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
+        ensure_claude_sidecar_script, extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
         should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
@@ -1147,6 +1299,14 @@ mod tests {
                 .and_then(|value| value.as_bool()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn ensure_claude_sidecar_script_materializes_bundled_source() {
+        let sidecar_path = ensure_claude_sidecar_script().expect("sidecar path");
+        let source = std::fs::read_to_string(&sidecar_path).expect("read sidecar source");
+        assert!(source.contains("CLAUDE_MONITOR_SDK_ENTRY"));
+        assert!(source.contains("process.stdin"));
     }
 
     #[test]

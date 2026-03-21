@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::backend::app_server::WorkspaceSession;
+use crate::shared::provider_core::build_provider_session_key;
 use crate::types::{WorkspaceEntry, WorkspaceInfo};
 
 pub(crate) const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
@@ -93,7 +94,9 @@ pub(crate) async fn list_workspaces_core(
             id: entry.id.clone(),
             name: entry.name.clone(),
             path: entry.path.clone(),
-            connected: sessions.contains_key(&entry.id),
+            connected: sessions
+                .contains_key(&build_provider_session_key(&entry.provider, &entry.id)),
+            provider: entry.provider.clone(),
             kind: entry.kind.clone(),
             parent_id: entry.parent_id.clone(),
             worktree: entry.worktree.clone(),

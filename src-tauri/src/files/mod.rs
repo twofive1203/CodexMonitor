@@ -118,8 +118,7 @@ pub(crate) fn write_text_file(path: String, content: String) -> Result<(), Strin
     }
     if let Some(parent) = target.parent() {
         if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
-                .map_err(|err| format!("无法创建导出目录：{err}"))?;
+            std::fs::create_dir_all(parent).map_err(|err| format!("无法创建导出目录：{err}"))?;
         }
     }
     std::fs::write(&target, content).map_err(|err| format!("无法写入导出文件：{err}"))

@@ -50,6 +50,22 @@
   color: var(--text-muted);
 }
 
+.debug-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debug-provider-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
 .debug-actions {
   display: flex;
   gap: 8px;

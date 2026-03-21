@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::types::WorkspaceSettings;
+use crate::types::{AgentProvider, WorkspaceSettings};
 
 #[allow(dead_code)]
 pub(crate) fn to_params<T: Serialize>(request: &T) -> Result<Value, String> {
@@ -36,6 +36,8 @@ pub(crate) struct IsWorkspacePathDirRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddWorkspaceRequest {
     pub(crate) path: String,
+    #[serde(default)]
+    pub(crate) provider: Option<AgentProvider>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +45,8 @@ pub(crate) struct AddWorkspaceFromGitUrlRequest {
     pub(crate) url: String,
     pub(crate) destination_path: String,
     pub(crate) target_folder_name: Option<String>,
+    #[serde(default)]
+    pub(crate) provider: Option<AgentProvider>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,6 +56,8 @@ pub(crate) struct AddWorktreeRequest {
     pub(crate) branch: String,
     pub(crate) name: Option<String>,
     pub(crate) copy_agents_md: bool,
+    #[serde(default)]
+    pub(crate) provider: Option<AgentProvider>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -83,6 +89,8 @@ pub(crate) struct RenameWorktreeUpstreamRequest {
 pub(crate) struct UpdateWorkspaceSettingsRequest {
     pub(crate) id: String,
     pub(crate) settings: WorkspaceSettings,
+    #[serde(default)]
+    pub(crate) provider: Option<AgentProvider>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -91,6 +99,13 @@ pub(crate) struct AddCloneRequest {
     pub(crate) source_workspace_id: String,
     pub(crate) copy_name: String,
     pub(crate) copies_folder: String,
+    #[serde(default)]
+    pub(crate) provider: Option<AgentProvider>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct GetProviderCapabilitiesRequest {
+    pub(crate) provider: AgentProvider,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

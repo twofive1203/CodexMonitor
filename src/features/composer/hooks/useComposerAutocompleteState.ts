@@ -16,6 +16,7 @@ type UseComposerAutocompleteStateArgs = {
   text: string;
   selectionStart: number | null;
   disabled: boolean;
+  reviewEnabled?: boolean;
   appsEnabled: boolean;
   skills: Skill[];
   apps: AppOption[];
@@ -74,6 +75,7 @@ export function useComposerAutocompleteState({
   text,
   selectionStart,
   disabled,
+  reviewEnabled = true,
   appsEnabled,
   skills,
   apps,
@@ -206,8 +208,11 @@ export function useComposerAutocompleteState({
         group: "Slash",
       },
     ];
+    const nextCommands = reviewEnabled
+      ? commands
+      : commands.filter((command) => command.id !== "review");
     if (appsEnabled) {
-      commands.push({
+      nextCommands.push({
         id: "apps",
         label: "apps",
         description: "查看可用应用",
@@ -215,8 +220,8 @@ export function useComposerAutocompleteState({
         group: "Slash",
       });
     }
-    return commands.sort((a, b) => a.label.localeCompare(b.label));
-  }, [appsEnabled]);
+    return nextCommands.sort((a, b) => a.label.localeCompare(b.label));
+  }, [appsEnabled, reviewEnabled]);
 
   const slashItems = useMemo<AutocompleteItem[]>(
     () => [...slashCommandItems, ...promptItems],

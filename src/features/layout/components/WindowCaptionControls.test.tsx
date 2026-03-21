@@ -45,11 +45,11 @@ describe("WindowCaptionControls", () => {
   it("renders controls on Windows in Tauri and wires actions", () => {
     render(<WindowCaptionControls />);
 
-    expect(screen.getByRole("group", { name: "Window controls" })).not.toBeNull();
+    expect(screen.getByRole("group", { name: "窗口控制" })).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Minimize window" }));
-    fireEvent.click(screen.getByRole("button", { name: "Maximize window" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close window" }));
+    fireEvent.click(screen.getByRole("button", { name: "最小化窗口" }));
+    fireEvent.click(screen.getByRole("button", { name: "最大化窗口" }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭窗口" }));
 
     expect(minimize).toHaveBeenCalledTimes(1);
     expect(toggleMaximize).toHaveBeenCalledTimes(1);
@@ -61,7 +61,7 @@ describe("WindowCaptionControls", () => {
 
     render(<WindowCaptionControls />);
 
-    expect(screen.queryByRole("group", { name: "Window controls" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "窗口控制" })).toBeNull();
   });
 
   it("does not render when not running in Tauri", () => {
@@ -69,6 +69,6 @@ describe("WindowCaptionControls", () => {
 
     render(<WindowCaptionControls />);
 
-    expect(screen.queryByRole("group", { name: "Window controls" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "窗口控制" })).toBeNull();
   });
 });

@@ -1,16 +1,20 @@
 use super::super::*;
 use super::HttpServerContext;
 use axum::{
-    Json,
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
+    Json,
 };
 use serde_json::json;
 
 pub(super) const WEB_SESSION_COOKIE_NAME: &str = "codex_monitor_web_session";
 
 fn unauthorized_response(message: &str) -> Response {
-    (StatusCode::UNAUTHORIZED, Json(json!({ "error": { "message": message } }))).into_response()
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": { "message": message } })),
+    )
+        .into_response()
 }
 
 /// 从请求头中提取指定 cookie。
@@ -45,9 +49,7 @@ pub(super) fn build_session_cookie(session_id: &str) -> String {
 ///
 /// 无入参，返回可直接写入 `Set-Cookie` 的 header 值。
 pub(super) fn build_expired_session_cookie() -> String {
-    format!(
-        "{WEB_SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
-    )
+    format!("{WEB_SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0")
 }
 
 /// 校验当前请求是否已经携带有效 Web 会话。
@@ -82,13 +84,11 @@ pub(super) async fn verify_login_token(
         .web_login_token(context.config.token.as_deref())
         .await;
     let Some(expected) = expected else {
-        return Err(
-            (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({ "error": { "message": "remote backend token not configured" } })),
-            )
-                .into_response(),
-        );
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "error": { "message": "remote backend token not configured" } })),
+        )
+            .into_response());
     };
     if expected == provided {
         return Ok(());

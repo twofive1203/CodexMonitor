@@ -5,6 +5,10 @@ import type {
   ThreadSummary,
   WorkspaceInfo,
 } from "@/types";
+import {
+  getWorkspaceProvider,
+  providerSupportsAccountUi,
+} from "@utils/agentProvider";
 
 type UseHomeAccountArgs = {
   showHome: boolean;
@@ -84,6 +88,9 @@ function workspaceHasAccountData(
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>,
   accountByWorkspace: Record<string, AccountSnapshot | null | undefined>,
 ): boolean {
+  if (!providerSupportsAccountUi(getWorkspaceProvider(workspace))) {
+    return false;
+  }
   const account = accountByWorkspace[workspace.id];
   const rateLimits = rateLimitsByWorkspace[workspace.id];
   return hasUsableAccountSnapshot(account) || hasUsableRateLimitSnapshot(rateLimits);
@@ -114,6 +121,9 @@ function canRetainAggregateHomeAccountWorkspaceId(
 
   const workspace = workspaces.find((entry) => entry.id === workspaceId);
   if (!workspace) {
+    return false;
+  }
+  if (!providerSupportsAccountUi(getWorkspaceProvider(workspace))) {
     return false;
   }
 
@@ -176,7 +186,12 @@ export function resolveHomeAccountWorkspaceId({
   });
 
   if (usageWorkspaceId && workspaces.some((workspace) => workspace.id === usageWorkspaceId)) {
-    return usageWorkspaceId;
+    const selectedWorkspace = workspaces.find(
+      (workspace) => workspace.id === usageWorkspaceId,
+    );
+    if (selectedWorkspace && providerSupportsAccountUi(getWorkspaceProvider(selectedWorkspace))) {
+      return usageWorkspaceId;
+    }
   }
 
   const connectedWorkspaceWithAccountData = workspaceOrder.find(
@@ -186,9 +201,13 @@ export function resolveHomeAccountWorkspaceId({
     return connectedWorkspaceWithAccountData.id;
   }
 
-  const connectedWorkspace = workspaceOrder.find((workspace) => workspace.connected);
-  if (connectedWorkspace) {
-    return connectedWorkspace.id;
+  const connectedWorkspaceWithSupportedAccountUi = workspaceOrder.find(
+    (workspace) =>
+      workspace.connected &&
+      providerSupportsAccountUi(getWorkspaceProvider(workspace)),
+  );
+  if (connectedWorkspaceWithSupportedAccountUi) {
+    return connectedWorkspaceWithSupportedAccountUi.id;
   }
 
   const workspaceWithAccountData = workspaceOrder.find(workspaceHasCurrentAccountData);
@@ -196,7 +215,10 @@ export function resolveHomeAccountWorkspaceId({
     return workspaceWithAccountData.id;
   }
 
-  return workspaceOrder[0]?.id ?? null;
+  const supportedWorkspace = workspaceOrder.find((workspace) =>
+    providerSupportsAccountUi(getWorkspaceProvider(workspace)),
+  );
+  return supportedWorkspace?.id ?? null;
 }
 
 export function useHomeAccount({
@@ -328,7 +350,12 @@ export function useHomeAccount({
     : null;
 
   useEffect(() => {
-    if (!showHome || !stableHomeAccountWorkspaceId || !homeAccountWorkspace?.connected) {
+    if (
+      !showHome ||
+      !stableHomeAccountWorkspaceId ||
+      !homeAccountWorkspace?.connected ||
+      !providerSupportsAccountUi(getWorkspaceProvider(homeAccountWorkspace))
+    ) {
       return;
     }
     void refreshAccountInfoRef.current(stableHomeAccountWorkspaceId);

@@ -59,6 +59,7 @@ type ComposerProps = {
   canStop: boolean;
   disabled?: boolean;
   appsEnabled: boolean;
+  reviewEnabled?: boolean;
   isProcessing: boolean;
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
@@ -169,6 +170,7 @@ export const Composer = memo(function Composer({
   canStop,
   disabled = false,
   appsEnabled,
+  reviewEnabled = true,
   isProcessing,
   steerAvailable,
   followUpMessageBehavior,
@@ -324,6 +326,7 @@ export const Composer = memo(function Composer({
     text,
     selectionStart,
     disabled,
+    reviewEnabled,
     appsEnabled,
     skills,
     apps,

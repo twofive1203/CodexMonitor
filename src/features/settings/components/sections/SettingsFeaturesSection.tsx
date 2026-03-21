@@ -210,6 +210,25 @@ export function SettingsFeaturesSection({
         title="实验性功能"
         subtitle="预览中和开发中的功能。"
       />
+      <SettingsToggleRow
+        title="Claude Provider"
+        subtitle="开启后才会显示 Claude 设置分区、项目 provider 切换和相关新建入口。"
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.experimentalClaudeEnabled}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              experimentalClaudeEnabled: !appSettings.experimentalClaudeEnabled,
+              defaultAgentProvider:
+                appSettings.defaultAgentProvider === "claude" &&
+                appSettings.experimentalClaudeEnabled
+                  ? "codex"
+                  : appSettings.defaultAgentProvider,
+            })
+          }
+        />
+      </SettingsToggleRow>
       {experimentalFeatures.map((feature) => (
         <SettingsToggleRow
           key={feature.name}

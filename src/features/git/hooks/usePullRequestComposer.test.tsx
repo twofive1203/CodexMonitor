@@ -245,7 +245,7 @@ describe("usePullRequestComposer", () => {
     const { result } = renderHook(() => usePullRequestComposer(options));
 
     expect(result.current.composerContextActions).toHaveLength(1);
-    expect(result.current.composerContextActions[0]?.label).toBe("Review Commit");
+    expect(result.current.composerContextActions[0]?.label).toBe("审查提交");
   });
 
   it("runs commit review action via /review commit command", async () => {

@@ -20,7 +20,7 @@ function makeToolItem(
 describe("messageRenderUtils", () => {
   it("renders web search as searching while in progress", () => {
     const summary = buildToolSummary(makeToolItem({ status: "inProgress" }), "");
-    expect(summary.label).toBe("searching");
+    expect(summary.label).toBe("搜索中");
     expect(summary.value).toBe("codex monitor");
   });
 
@@ -34,7 +34,7 @@ describe("messageRenderUtils", () => {
       }),
       "",
     );
-    expect(summary.label).toBe("searching");
+    expect(summary.label).toBe("搜索中");
     expect(summary.value).toBe("codex monitor");
   });
 
@@ -60,7 +60,7 @@ describe("messageRenderUtils", () => {
       }),
       "",
     );
-    expect(summary.label).toBe("waited for");
+    expect(summary.label).toBe("已等待");
     expect(summary.value).toBe("Robie [explorer]");
     expect(summary.output).toContain("Robie [explorer]: completed");
   });

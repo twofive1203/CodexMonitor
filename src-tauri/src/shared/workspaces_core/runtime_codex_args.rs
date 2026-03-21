@@ -10,7 +10,8 @@ use crate::backend::app_server::WorkspaceSession;
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::shared::provider_core::build_provider_session_key;
+use crate::types::{AgentProvider, AppSettings, WorkspaceEntry};
 
 use super::connect::workspace_session_spawn_lock;
 use super::helpers::resolve_entry_and_parent;
@@ -35,7 +36,11 @@ where
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
+    if !matches!(entry.provider, AgentProvider::Codex) {
+        return Err("仅 Codex 工作区支持运行时参数覆盖。".to_string());
+    }
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let session_key = build_provider_session_key(&entry.provider, &entry.id);
 
     let (default_bin, resolved_args) = {
         let settings = app_settings.lock().await;
@@ -57,8 +62,8 @@ where
     let (workspace_connected, current_session) = {
         let sessions = sessions.lock().await;
         (
-            sessions.contains_key(&entry.id),
-            sessions.values().next().cloned(),
+            sessions.contains_key(&session_key),
+            sessions.get(&session_key).cloned(),
         )
     };
     if !workspace_connected {
@@ -87,7 +92,12 @@ where
         spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
     let workspace_ids = {
         let mut sessions = sessions.lock().await;
-        let keys: Vec<String> = sessions.keys().cloned().collect();
+        let keys = sessions
+            .iter()
+            .filter_map(|(key, session)| {
+                Arc::ptr_eq(session, &current_session).then(|| key.clone())
+            })
+            .collect::<Vec<_>>();
         for key in &keys {
             sessions.insert(key.clone(), Arc::clone(&new_session));
         }
@@ -98,11 +108,15 @@ where
         workspace_ids
             .iter()
             .map(|workspace_id| {
+                let raw_workspace_id = workspace_id
+                    .split_once("::")
+                    .map(|(_, id)| id.to_string())
+                    .unwrap_or_else(|| workspace_id.clone());
                 let path = workspaces
-                    .get(workspace_id)
+                    .get(&raw_workspace_id)
                     .map(|entry| entry.path.clone())
                     .unwrap_or_default();
-                (workspace_id.clone(), path)
+                (raw_workspace_id, path)
             })
             .collect::<Vec<_>>()
     };
@@ -129,8 +143,8 @@ where
 mod tests {
     use super::*;
 
-    use std::process::Stdio;
     use std::collections::HashSet;
+    use std::process::Stdio;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
     use tokio::process::Command;
@@ -142,6 +156,7 @@ mod tests {
             id: id.to_string(),
             name: id.to_string(),
             path: "/tmp".to_string(),
+            provider: AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -228,7 +243,10 @@ mod tests {
             let entry = make_workspace_entry("ws-1");
             let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
             let current_session = Arc::new(make_session(entry.clone(), Some("--same".to_string())));
-            let sessions = Mutex::new(HashMap::from([(entry.id.clone(), current_session)]));
+            let sessions = Mutex::new(HashMap::from([(
+                build_provider_session_key(&entry.provider, &entry.id),
+                current_session,
+            )]));
             let app_settings = Mutex::new(AppSettings::default());
 
             let spawn_calls = Arc::new(AtomicUsize::new(0));
@@ -268,7 +286,10 @@ mod tests {
             let entry = make_workspace_entry("ws-1");
             let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
             let current_session = Arc::new(make_session(entry.clone(), Some("--old".to_string())));
-            let sessions = Mutex::new(HashMap::from([(entry.id.clone(), current_session)]));
+            let sessions = Mutex::new(HashMap::from([(
+                build_provider_session_key(&entry.provider, &entry.id),
+                current_session,
+            )]));
             let app_settings = Mutex::new(AppSettings::default());
 
             let spawn_calls = Arc::new(AtomicUsize::new(0));
@@ -303,7 +324,7 @@ mod tests {
             let next = sessions
                 .lock()
                 .await
-                .get(&entry.id)
+                .get(&build_provider_session_key(&entry.provider, &entry.id))
                 .expect("session updated")
                 .codex_args
                 .clone();

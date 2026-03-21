@@ -53,6 +53,7 @@ type HomeProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  accountSectionHint?: string | null;
   onSelectThread: (workspaceId: string, threadId: string) => void;
 };
 
@@ -225,6 +226,7 @@ export function Home({
   accountRateLimits,
   usageShowRemaining,
   accountInfo,
+  accountSectionHint = null,
   onSelectThread,
 }: HomeProps) {
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
@@ -826,6 +828,14 @@ export function Home({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {accountCards.length === 0 && accountSectionHint && (
+          <div className="home-account">
+            <div className="home-section-header">
+              <div className="home-section-title">账号与额度</div>
+            </div>
+            <div className="home-usage-empty-subtitle">{accountSectionHint}</div>
           </div>
         )}
       </div>

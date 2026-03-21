@@ -42,6 +42,16 @@ export type WorkspaceGroup = {
 };
 
 export type WorkspaceKind = "main" | "worktree";
+export type AgentProvider = "codex" | "claude";
+export type ProviderCapabilities = {
+  supportsLogin: boolean;
+  supportsRateLimits: boolean;
+  supportsSkills: boolean;
+  supportsApps: boolean;
+  supportsSteer: boolean;
+  supportsReview: boolean;
+  supportsCollaborationModes: boolean;
+};
 
 export type WorktreeInfo = {
   branch: string;
@@ -52,6 +62,7 @@ export type WorkspaceInfo = {
   name: string;
   path: string;
   connected: boolean;
+  provider?: AgentProvider;
   kind?: WorkspaceKind;
   parentId?: string | null;
   worktree?: WorktreeInfo | null;
@@ -236,6 +247,11 @@ export type OpenAppTarget = {
 export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
+  defaultAgentProvider: AgentProvider;
+  claudeBin: string | null;
+  claudeArgs: string | null;
+  claudePermissionMode: string | null;
+  claudeUseSdkSidecar: boolean;
   backendMode: BackendMode;
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
@@ -293,6 +309,7 @@ export type AppSettings = {
   composerFollowUpHintEnabled: boolean;
   pauseQueuedMessagesWhenResponseRequired: boolean;
   unifiedExecEnabled: boolean;
+  experimentalClaudeEnabled: boolean;
   experimentalAppsEnabled: boolean;
   personality: PersonalityPreference;
   dictationEnabled: boolean;

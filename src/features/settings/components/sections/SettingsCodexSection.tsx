@@ -475,53 +475,6 @@ export function SettingsCodexSection({
         </select>
       </SettingsToggleRow>
 
-      <SettingsToggleRow
-        title={
-          <label htmlFor="default-access">
-            访问模式
-          </label>
-        }
-        subtitle="在没有会话级覆盖时使用。"
-      >
-        <select
-          id="default-access"
-          className="settings-select"
-          value={appSettings.defaultAccessMode}
-          onChange={(event) =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              defaultAccessMode: event.target.value as AppSettings["defaultAccessMode"],
-            })
-          }
-        >
-          <option value="read-only">只读</option>
-          <option value="current">按需申请</option>
-          <option value="full-access">完全访问</option>
-        </select>
-      </SettingsToggleRow>
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="review-delivery">
-          评审模式
-        </label>
-        <select
-          id="review-delivery"
-          className="settings-select"
-          value={appSettings.reviewDeliveryMode}
-          onChange={(event) =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              reviewDeliveryMode: event.target.value as AppSettings["reviewDeliveryMode"],
-            })
-          }
-        >
-          <option value="inline">内联（同一会话）</option>
-          <option value="detached">独立（新评审会话）</option>
-        </select>
-        <div className="settings-help">
-          选择 <code>/review</code> 在当前会话中运行，还是在独立评审会话中运行。
-        </div>
-      </div>
-
       <FileEditorCard
         title="全局 AGENTS.md"
         meta={globalAgentsMeta}

@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
+import { useProviderCapabilities } from "@/features/providers/hooks/useProviderCapabilities";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "@app/hooks/useRemoteThreadRefreshOnFocus";
 import type { useMainAppComposerWorkspaceState } from "@app/hooks/useMainAppComposerWorkspaceState";
@@ -11,6 +12,12 @@ import type { useMainAppSidebarMenuOrchestration } from "@app/hooks/useMainAppSi
 import type { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import type { LayoutNodesOptions } from "@/features/layout/hooks/layoutNodes/types";
 import type { RuntimeCapabilities } from "@services/runtime/capabilities";
+import {
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+  providerSupportsAccountUi,
+  resolveProviderCapabilities,
+} from "@utils/agentProvider";
 
 type SidebarProps = LayoutNodesOptions["primary"]["sidebarProps"];
 type ComposerProps = NonNullable<LayoutNodesOptions["primary"]["composerProps"]>;
@@ -62,6 +69,7 @@ type UseMainAppLayoutSurfacesArgs = {
   activeAccount: SidebarProps["accountInfo"];
   homeRateLimits: LayoutNodesOptions["primary"]["homeProps"]["accountRateLimits"];
   homeAccount: LayoutNodesOptions["primary"]["homeProps"]["accountInfo"];
+  homeAccountWorkspace: WorkspaceInfo | null;
   accountSwitching: SidebarProps["accountSwitching"];
   onSwitchAccount: SidebarProps["onSwitchAccount"];
   onCancelSwitchAccount: SidebarProps["onCancelSwitchAccount"];
@@ -261,6 +269,7 @@ export function useMainAppLayoutSurfaces({
   activeAccount,
   homeRateLimits,
   homeAccount,
+  homeAccountWorkspace,
   accountSwitching,
   onSwitchAccount,
   onCancelSwitchAccount,
@@ -390,8 +399,69 @@ export function useMainAppLayoutSurfaces({
   showDebugButton,
   handleDebugClick,
 }: UseMainAppLayoutSurfacesArgs): LayoutNodesOptions {
-  const sidebarRateLimits = activeWorkspace ? activeRateLimits : homeRateLimits;
-  const sidebarAccount = activeWorkspace ? activeAccount : homeAccount;
+  const activeProvider = getWorkspaceProvider(activeWorkspace);
+  const homeProvider = getWorkspaceProvider(homeAccountWorkspace);
+  const { capabilities: activeProviderCapabilities } = useProviderCapabilities(
+    activeWorkspace ? activeProvider : null,
+  );
+  const { capabilities: homeProviderCapabilities } = useProviderCapabilities(
+    homeAccountWorkspace ? homeProvider : null,
+  );
+  const resolvedActiveProviderCapabilities = activeWorkspace
+    ? resolveProviderCapabilities(activeProvider, activeProviderCapabilities)
+    : null;
+  const resolvedHomeProviderCapabilities = homeAccountWorkspace
+    ? resolveProviderCapabilities(homeProvider, homeProviderCapabilities)
+    : null;
+  const activeSupportsLogin =
+    resolvedActiveProviderCapabilities?.supportsLogin ?? false;
+  const activeSupportsRateLimits =
+    resolvedActiveProviderCapabilities?.supportsRateLimits ?? false;
+  const activeSupportsSkills =
+    resolvedActiveProviderCapabilities?.supportsSkills ?? true;
+  const activeSupportsApps =
+    resolvedActiveProviderCapabilities?.supportsApps ?? true;
+  const activeSupportsSteer =
+    resolvedActiveProviderCapabilities?.supportsSteer ?? true;
+  const activeSupportsReview =
+    resolvedActiveProviderCapabilities?.supportsReview ?? true;
+  const activeSupportsCollaborationModes =
+    resolvedActiveProviderCapabilities?.supportsCollaborationModes ?? true;
+  const activeProviderLabel = activeWorkspace
+    ? getAgentProviderLabel(getWorkspaceProvider(activeWorkspace))
+    : null;
+  const homeSupportsLogin =
+    resolvedHomeProviderCapabilities?.supportsLogin ?? false;
+  const homeSupportsRateLimits =
+    resolvedHomeProviderCapabilities?.supportsRateLimits ?? false;
+  const sidebarRateLimits = activeWorkspace
+    ? activeSupportsRateLimits
+      ? activeRateLimits
+      : null
+    : homeSupportsRateLimits
+      ? homeRateLimits
+      : null;
+  const sidebarAccount = activeWorkspace
+    ? activeSupportsLogin
+      ? activeAccount
+      : null
+    : homeSupportsLogin
+      ? homeAccount
+      : null;
+  const showSidebarAccountSwitcher = Boolean(activeWorkspaceId && activeSupportsLogin);
+  const showSidebarUsageFooter = activeWorkspace
+    ? activeSupportsRateLimits
+    : homeSupportsRateLimits;
+  const hasAnyAccountCapableWorkspace = workspaces.some((workspace) =>
+    providerSupportsAccountUi(getWorkspaceProvider(workspace)),
+  );
+  const homeAccountSectionHint = homeAccountWorkspace
+    ? !homeSupportsLogin && !homeSupportsRateLimits
+      ? `${getAgentProviderLabel(homeProvider)} 一期暂不支持账号与额度展示。`
+      : null
+    : workspaces.length > 0 && !hasAnyAccountCapableWorkspace
+      ? "当前工作区 provider 暂不支持账号与额度展示。"
+      : null;
   const desktopShellEnabled = runtimeCapabilities.kind === "tauri";
   const webGitReadOnly = runtimeCapabilities.kind === "web";
 
@@ -422,6 +492,8 @@ export function useMainAppLayoutSurfaces({
         accountRateLimits: sidebarRateLimits,
         usageShowRemaining: appSettings.usageShowRemaining,
         accountInfo: sidebarAccount,
+        showAccountSwitcher: showSidebarAccountSwitcher,
+        showUsageFooter: showSidebarUsageFooter,
         onSwitchAccount,
         onCancelSwitchAccount,
         accountSwitching,
@@ -498,7 +570,8 @@ export function useMainAppLayoutSurfaces({
             queuedMessages: composerWorkspaceState.activeQueue,
             queuePausedReason: composerWorkspaceState.queuePausedReason,
             sendLabel: pullRequestComposer.composerSendLabel ?? "Send",
-            steerAvailable: composerWorkspaceState.steerAvailable,
+            steerAvailable:
+              composerWorkspaceState.steerAvailable && activeSupportsSteer,
             followUpMessageBehavior: appSettings.followUpMessageBehavior,
             composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
             isProcessing: composerWorkspaceState.isProcessing,
@@ -522,7 +595,9 @@ export function useMainAppLayoutSurfaces({
             },
             onEditQueued: composerWorkspaceState.handleEditQueued,
             onDeleteQueued: composerWorkspaceState.handleDeleteQueued,
-            collaborationModes,
+            collaborationModes: activeSupportsCollaborationModes
+              ? collaborationModes
+              : [],
             selectedCollaborationModeId,
             onSelectCollaborationMode,
             models,
@@ -538,9 +613,10 @@ export function useMainAppLayoutSurfaces({
             onSelectCodexArgsOverride,
             accessMode,
             onSelectAccessMode,
-            skills,
-            appsEnabled: appSettings.experimentalAppsEnabled,
-            apps,
+            skills: activeSupportsSkills ? skills : [],
+            appsEnabled:
+              activeSupportsApps && appSettings.experimentalAppsEnabled,
+            apps: activeSupportsApps ? apps : [],
             prompts,
             files: composerWorkspaceState.files,
             textareaRef: composerInputRef,
@@ -562,8 +638,9 @@ export function useMainAppLayoutSurfaces({
             onDismissDictationError: clearDictationError,
             dictationHint: dictationUi.dictationHint,
             onDismissDictationHint: clearDictationHint,
-            contextActions: composerContextActions,
-            reviewPrompt,
+            contextActions: activeSupportsReview ? composerContextActions : [],
+            reviewEnabled: activeSupportsReview,
+            reviewPrompt: activeSupportsReview ? reviewPrompt : undefined,
             onReviewPromptClose: closeReviewPrompt,
             onReviewPromptShowPreset: showPresetStep,
             onReviewPromptChoosePreset: choosePreset,
@@ -615,9 +692,10 @@ export function useMainAppLayoutSurfaces({
         usageWorkspaceId,
         usageWorkspaceOptions,
         onUsageWorkspaceChange,
-        accountRateLimits: homeRateLimits,
+        accountRateLimits: homeSupportsRateLimits ? homeRateLimits : null,
         usageShowRemaining: appSettings.usageShowRemaining,
-        accountInfo: homeAccount,
+        accountInfo: homeSupportsLogin ? homeAccount : null,
+        accountSectionHint: homeAccountSectionHint,
         onSelectThread: (workspaceId, threadId) => {
           threadNavigation.exitDiffView();
           threadNavigation.clearDraftState();
@@ -818,8 +896,10 @@ export function useMainAppLayoutSurfaces({
         onUnstageFile: webGitReadOnly ? undefined : gitState.handleUnstageGitFile,
         onRevertFile: webGitReadOnly ? undefined : gitState.handleRevertGitFile,
         onRevertAllChanges: webGitReadOnly ? undefined : gitState.handleRevertAllGitChanges,
-        onReviewUncommittedChanges: (workspaceId) =>
-          startUncommittedReview(workspaceId ?? activeWorkspace?.id ?? null),
+        onReviewUncommittedChanges: activeSupportsReview
+          ? (workspaceId) =>
+              startUncommittedReview(workspaceId ?? activeWorkspace?.id ?? null)
+          : undefined,
         commitMessage: gitState.commitMessage,
         commitMessageLoading: gitState.commitMessageLoading,
         commitMessageError: gitState.commitMessageError,
@@ -857,8 +937,12 @@ export function useMainAppLayoutSurfaces({
           gitState.diffSource === "pr" ? gitState.gitPullRequestComments : [],
         pullRequestCommentsLoading: gitState.gitPullRequestCommentsLoading,
         pullRequestCommentsError: gitState.gitPullRequestCommentsError,
-        pullRequestReviewActions: gitState.pullRequestReviewActions,
-        onRunPullRequestReview: gitState.runPullRequestReview,
+        pullRequestReviewActions: activeSupportsReview
+          ? gitState.pullRequestReviewActions
+          : [],
+        onRunPullRequestReview: activeSupportsReview
+          ? gitState.runPullRequestReview
+          : undefined,
         pullRequestReviewLaunching: gitState.isLaunchingPullRequestReview,
         pullRequestReviewThreadId: gitState.lastPullRequestReviewThreadId,
         onCheckoutPullRequest: webGitReadOnly
@@ -896,6 +980,7 @@ export function useMainAppLayoutSurfaces({
       debugPanelProps: {
         entries: debugEntries,
         isOpen: debugOpen,
+        providerLabel: activeProviderLabel,
         onClear: onClearDebug,
         onCopy: onCopyDebug,
         onResizeStart: onResizeDebug,

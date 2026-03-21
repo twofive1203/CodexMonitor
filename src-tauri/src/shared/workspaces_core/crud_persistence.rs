@@ -7,18 +7,53 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
+use crate::shared::provider_core::{
+    build_provider_session_key, ensure_provider_enabled, provider_supports_live_runtime,
+    sanitize_provider_for_app_settings,
+};
+use crate::shared::provider_runtime_core::resolve_provider_runtime_config;
 use crate::shared::{git_core, worktree_core};
 use crate::storage::write_workspaces;
-use crate::types::{AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings};
+use crate::types::{
+    AgentProvider, AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings,
+};
 
 use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
 use super::helpers::{normalize_setup_script, normalize_workspace_path_input};
 
+async fn resolve_default_workspace_provider(
+    app_settings: &Mutex<AppSettings>,
+    provider: Option<AgentProvider>,
+) -> Result<AgentProvider, String> {
+    let settings = app_settings.lock().await;
+    if let Some(provider) = provider {
+        ensure_provider_enabled(&provider, &settings)?;
+        return Ok(provider);
+    }
+    Ok(sanitize_provider_for_app_settings(
+        settings.default_agent_provider.clone(),
+        &settings,
+    ))
+}
+
+fn to_workspace_info(entry: WorkspaceEntry, connected: bool) -> WorkspaceInfo {
+    WorkspaceInfo {
+        id: entry.id,
+        name: entry.name,
+        path: entry.path,
+        connected,
+        provider: entry.provider,
+        kind: entry.kind,
+        parent_id: entry.parent_id,
+        worktree: entry.worktree,
+        settings: entry.settings,
+    }
+}
+
 pub(crate) async fn add_workspace_core<F, Fut>(
     path: String,
+    provider: Option<AgentProvider>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     app_settings: &Mutex<AppSettings>,
@@ -40,31 +75,47 @@ where
         .and_then(|s| s.to_str())
         .unwrap_or("工作区")
         .to_string();
+    let provider = resolve_default_workspace_provider(app_settings, provider).await?;
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: name.clone(),
         path: path.clone(),
+        provider,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
         settings: WorkspaceSettings::default(),
     };
 
+    if !provider_supports_live_runtime(&entry.provider) {
+        if let Err(error) = {
+            let mut workspaces = workspaces.lock().await;
+            workspaces.insert(entry.id.clone(), entry.clone());
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            write_workspaces(storage_path, &list)
+        } {
+            return Err(error);
+        }
+        return Ok(to_workspace_info(entry, false));
+    }
+
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
-    let existing_session = take_live_shared_session(sessions).await;
+    let existing_session = take_live_shared_session(sessions, &entry.provider).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let runtime_config = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_provider_runtime_config(&entry, None, &settings)
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
         (
-            spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?,
+            spawn_session(
+                entry.clone(),
+                runtime_config.default_bin,
+                runtime_config.runtime_args,
+                runtime_config.runtime_home,
+            )
+            .await?,
             true,
         )
     };
@@ -89,24 +140,19 @@ where
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
-    sessions.lock().await.insert(entry.id.clone(), session);
+    sessions.lock().await.insert(
+        build_provider_session_key(&entry.provider, &entry.id),
+        session,
+    );
 
-    Ok(WorkspaceInfo {
-        id: entry.id,
-        name: entry.name,
-        path: entry.path,
-        connected: true,
-        kind: entry.kind,
-        parent_id: entry.parent_id,
-        worktree: entry.worktree,
-        settings: entry.settings,
-    })
+    Ok(to_workspace_info(entry, true))
 }
 
 pub(crate) async fn add_clone_core<F, Fut>(
     source_workspace_id: String,
     copy_name: String,
     copies_folder: String,
+    provider: Option<AgentProvider>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     app_settings: &Mutex<AppSettings>,
@@ -127,8 +173,7 @@ where
         return Err("必须填写副本目录。".to_string());
     }
     let copies_folder_path = PathBuf::from(&copies_folder);
-    std::fs::create_dir_all(&copies_folder_path)
-        .map_err(|e| format!("创建副本目录失败：{e}"))?;
+    std::fs::create_dir_all(&copies_folder_path).map_err(|e| format!("创建副本目录失败：{e}"))?;
     if !copies_folder_path.is_dir() {
         return Err("副本目录必须是文件夹。".to_string());
     }
@@ -190,6 +235,12 @@ where
         id: Uuid::new_v4().to_string(),
         name: copy_name,
         path: destination_path_string,
+        provider: {
+            let next_provider = provider.unwrap_or_else(|| source_entry.provider.clone());
+            let settings = app_settings.lock().await;
+            ensure_provider_enabled(&next_provider, &settings)?;
+            next_provider
+        },
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
@@ -200,20 +251,36 @@ where
         },
     };
 
+    if !provider_supports_live_runtime(&entry.provider) {
+        if let Err(error) = {
+            let mut workspaces = workspaces.lock().await;
+            workspaces.insert(entry.id.clone(), entry.clone());
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            write_workspaces(storage_path, &list)
+        } {
+            let _ = tokio::fs::remove_dir_all(&destination_path).await;
+            return Err(error);
+        }
+        return Ok(to_workspace_info(entry, false));
+    }
+
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
-    let existing_session = take_live_shared_session(sessions).await;
+    let existing_session = take_live_shared_session(sessions, &entry.provider).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let runtime_config = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_provider_runtime_config(&entry, None, &settings)
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        match spawn_session(
+            entry.clone(),
+            runtime_config.default_bin,
+            runtime_config.runtime_args,
+            runtime_config.runtime_home,
+        )
+        .await
+        {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&destination_path).await;
@@ -243,18 +310,12 @@ where
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
-    sessions.lock().await.insert(entry.id.clone(), session);
+    sessions.lock().await.insert(
+        build_provider_session_key(&entry.provider, &entry.id),
+        session,
+    );
 
-    Ok(WorkspaceInfo {
-        id: entry.id,
-        name: entry.name,
-        path: entry.path,
-        connected: true,
-        kind: entry.kind,
-        parent_id: entry.parent_id,
-        worktree: entry.worktree,
-        settings: entry.settings,
-    })
+    Ok(to_workspace_info(entry, true))
 }
 
 fn default_repo_name_from_url(url: &str) -> Option<String> {
@@ -278,19 +339,13 @@ fn validate_target_folder_name(value: &str) -> Result<String, String> {
     }
 
     if trimmed.contains('/') || trimmed.contains('\\') {
-        return Err(
-            "目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。"
-                .to_string(),
-        );
+        return Err("目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。".to_string());
     }
 
     let path = Path::new(trimmed);
     match (path.components().next(), path.components().nth(1)) {
         (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
-        _ => Err(
-            "目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。"
-                .to_string(),
-        ),
+        _ => Err("目标文件夹名称必须是单个相对文件夹名，不能包含分隔符或路径穿越。".to_string()),
     }
 }
 
@@ -298,6 +353,7 @@ pub(crate) async fn add_workspace_from_git_url_core<F, Fut>(
     url: String,
     destination_path: String,
     target_folder_name: Option<String>,
+    provider: Option<AgentProvider>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     app_settings: &Mutex<AppSettings>,
@@ -354,30 +410,45 @@ where
         .and_then(|s| s.to_str())
         .unwrap_or("工作区")
         .to_string();
+    let provider = resolve_default_workspace_provider(app_settings, provider).await?;
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: workspace_name,
         path: clone_path_string,
+        provider,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
         settings: WorkspaceSettings::default(),
     };
 
+    if !provider_supports_live_runtime(&entry.provider) {
+        {
+            let mut workspaces = workspaces.lock().await;
+            workspaces.insert(entry.id.clone(), entry.clone());
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            write_workspaces(storage_path, &list)?;
+        }
+        return Ok(to_workspace_info(entry, false));
+    }
+
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
-    let existing_session = take_live_shared_session(sessions).await;
+    let existing_session = take_live_shared_session(sessions, &entry.provider).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let runtime_config = {
             let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
+            resolve_provider_runtime_config(&entry, None, &settings)
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        match spawn_session(
+            entry.clone(),
+            runtime_config.default_bin,
+            runtime_config.runtime_args,
+            runtime_config.runtime_home,
+        )
+        .await
+        {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&clone_path).await;
@@ -407,18 +478,12 @@ where
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
-    sessions.lock().await.insert(entry.id.clone(), session);
+    sessions.lock().await.insert(
+        build_provider_session_key(&entry.provider, &entry.id),
+        session,
+    );
 
-    Ok(WorkspaceInfo {
-        id: entry.id,
-        name: entry.name,
-        path: entry.path,
-        connected: true,
-        kind: entry.kind,
-        parent_id: entry.parent_id,
-        worktree: entry.worktree,
-        settings: entry.settings,
-    })
+    Ok(to_workspace_info(entry, true))
 }
 
 pub(crate) async fn remove_workspace_core<FRunGit, FutRunGit, FIsMissing, FRemoveDirAll>(
@@ -461,7 +526,7 @@ where
     let mut failures: Vec<(String, String)> = Vec::new();
 
     for child in &child_worktrees {
-        kill_session_by_id(sessions, &child.id).await;
+        kill_session_by_id(sessions, &child.provider, &child.id).await;
 
         let child_path = PathBuf::from(&child.path);
         if child_path.exists() {
@@ -504,7 +569,7 @@ where
 
     let mut ids_to_remove = removed_child_ids;
     if failures.is_empty() || !require_all_children_removed_to_remove_parent {
-        kill_session_by_id(sessions, &id).await;
+        kill_session_by_id(sessions, &entry.provider, &id).await;
         ids_to_remove.push(id.clone());
     }
 
@@ -522,8 +587,7 @@ where
     }
 
     if require_all_children_removed_to_remove_parent {
-        let mut message =
-            "删除一个或多个工作树失败，因此没有删除父工作区。".to_string();
+        let mut message = "删除一个或多个工作树失败，因此没有删除父工作区。".to_string();
         for (child_id, error) in failures {
             message.push_str(&format!("\n- {child_id}: {error}"));
         }
@@ -536,12 +600,13 @@ where
 pub(crate) async fn update_workspace_settings_core<FApplySettings, FSpawn, FutSpawn>(
     id: String,
     mut settings: WorkspaceSettings,
+    provider: Option<AgentProvider>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    _app_settings: &Mutex<AppSettings>,
+    app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     apply_settings_update: FApplySettings,
-    _spawn_session: FSpawn,
+    spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
     FApplySettings: Fn(
@@ -554,14 +619,29 @@ where
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
 
-    let (entry_snapshot, previous_worktree_setup_script, child_entries) = {
+    let (entry_snapshot, previous_worktree_setup_script, child_entries, previous_provider) = {
         let mut workspaces = workspaces.lock().await;
         let previous_entry = workspaces
             .get(&id)
             .cloned()
             .ok_or_else(|| "未找到工作区。".to_string())?;
+        let previous_provider = previous_entry.provider.clone();
         let previous_worktree_setup_script = previous_entry.settings.worktree_setup_script.clone();
-        let entry_snapshot = apply_settings_update(&mut workspaces, &id, settings)?;
+        let next_provider = if let Some(provider) = provider {
+            let settings = app_settings.lock().await;
+            ensure_provider_enabled(&provider, &settings)?;
+            provider
+        } else {
+            previous_provider.clone()
+        };
+        let _ = apply_settings_update(&mut workspaces, &id, settings)?;
+        let entry_snapshot = match workspaces.get_mut(&id) {
+            Some(entry) => {
+                entry.provider = next_provider;
+                entry.clone()
+            }
+            None => return Err("未找到工作区。".to_string()),
+        };
         let child_entries = workspaces
             .values()
             .filter(|entry| entry.parent_id.as_deref() == Some(&id))
@@ -571,12 +651,14 @@ where
             entry_snapshot,
             previous_worktree_setup_script,
             child_entries,
+            previous_provider,
         )
     };
 
     let worktree_setup_script_changed =
         previous_worktree_setup_script != entry_snapshot.settings.worktree_setup_script;
-    let connected = sessions.lock().await.contains_key(&id);
+    let previous_session_key = build_provider_session_key(&previous_provider, &id);
+    let was_connected = sessions.lock().await.contains_key(&previous_session_key);
 
     if worktree_setup_script_changed && !entry_snapshot.kind.is_worktree() {
         let child_ids = child_entries
@@ -598,16 +680,26 @@ where
         workspaces.values().cloned().collect()
     };
     write_workspaces(storage_path, &list)?;
-    Ok(WorkspaceInfo {
-        id: entry_snapshot.id,
-        name: entry_snapshot.name,
-        path: entry_snapshot.path,
-        connected,
-        kind: entry_snapshot.kind,
-        parent_id: entry_snapshot.parent_id,
-        worktree: entry_snapshot.worktree,
-        settings: entry_snapshot.settings,
-    })
+
+    if previous_provider != entry_snapshot.provider && was_connected {
+        kill_session_by_id(sessions, &previous_provider, &id).await;
+        if provider_supports_live_runtime(&entry_snapshot.provider) {
+            super::connect::connect_workspace_core(
+                id.clone(),
+                workspaces,
+                sessions,
+                app_settings,
+                spawn_session,
+            )
+            .await?;
+        }
+    }
+
+    let connected = sessions
+        .lock()
+        .await
+        .contains_key(&build_provider_session_key(&entry_snapshot.provider, &id));
+    Ok(to_workspace_info(entry_snapshot, connected))
 }
 
 #[cfg(test)]

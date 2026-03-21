@@ -22,6 +22,11 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
 } from "@services/tauri";
+import {
+  getWorkspaceProvider,
+  providerSupportsRuntimeCodexArgs,
+  resolveProviderCapabilities,
+} from "@utils/agentProvider";
 import { expandCustomPromptText } from "@utils/customPrompts";
 import {
   asString,
@@ -185,6 +190,10 @@ export function useThreadMessaging({
   registerDetachedReviewChild,
   renameThread,
 }: UseThreadMessagingOptions) {
+  const activeWorkspaceSupportsReview = activeWorkspace
+    ? resolveProviderCapabilities(getWorkspaceProvider(activeWorkspace), null)
+        .supportsReview
+    : true;
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -283,9 +292,13 @@ export function useThreadMessaging({
       });
       const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
+        const workspaceSupportsRuntimeCodexArgs = providerSupportsRuntimeCodexArgs(
+          getWorkspaceProvider(workspace),
+        );
         const shouldPreflightRuntimeCodexArgs =
           shouldPreflightRuntimeCodexArgsForSend?.(workspace.id, threadId) ?? true;
         if (
+          workspaceSupportsRuntimeCodexArgs &&
           !shouldSteer &&
           shouldPreflightRuntimeCodexArgs &&
           ensureWorkspaceRuntimeCodexArgs
@@ -702,7 +715,7 @@ export function useThreadMessaging({
 
   const startReview = useCallback(
     async (text: string) => {
-      if (!activeWorkspace || !text.trim()) {
+      if (!activeWorkspace || !text.trim() || !activeWorkspaceSupportsReview) {
         return;
       }
       const trimmed = text.trim();
@@ -717,6 +730,7 @@ export function useThreadMessaging({
     },
     [
       activeWorkspace,
+      activeWorkspaceSupportsReview,
       openReviewPrompt,
       startReviewTarget,
     ],
@@ -724,10 +738,13 @@ export function useThreadMessaging({
 
   const startUncommittedReview = useCallback(
     async (workspaceId?: string | null) => {
+      if (!activeWorkspaceSupportsReview) {
+        return;
+      }
       const workspaceOverride = workspaceId ?? undefined;
       await startReviewTarget({ type: "uncommittedChanges" }, workspaceOverride);
     },
-    [startReviewTarget],
+    [activeWorkspaceSupportsReview, startReviewTarget],
   );
 
   const startStatus = useCallback(

@@ -44,6 +44,7 @@ fn workspace_with_id_and_kind(
         name: name.to_string(),
         path: "/tmp".to_string(),
         connected: false,
+        provider: crate::types::AgentProvider::Codex,
         kind,
         parent_id,
         worktree,
@@ -204,6 +205,7 @@ fn update_workspace_settings_persists_sort_and_group() {
         id: id.clone(),
         name: "Workspace".to_string(),
         path: "/tmp".to_string(),
+        provider: crate::types::AgentProvider::Codex,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
@@ -269,6 +271,7 @@ fn rename_worktree_preserves_custom_name() {
             id: "parent".to_string(),
             name: "Parent".to_string(),
             path: repo_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -278,6 +281,7 @@ fn rename_worktree_preserves_custom_name() {
             id: "wt-1".to_string(),
             name: "Custom label".to_string(),
             path: worktree_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Worktree,
             parent_id: Some(parent.id.clone()),
             worktree: Some(WorktreeInfo {
@@ -340,6 +344,7 @@ fn rename_worktree_updates_name_when_unmodified() {
             id: "parent".to_string(),
             name: "Parent".to_string(),
             path: repo_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -349,6 +354,7 @@ fn rename_worktree_updates_name_when_unmodified() {
             id: "wt-2".to_string(),
             name: "feature/old".to_string(),
             path: worktree_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Worktree,
             parent_id: Some(parent.id.clone()),
             worktree: Some(WorktreeInfo {
@@ -409,6 +415,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
             id: "parent".to_string(),
             name: "Parent".to_string(),
             path: repo_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -418,6 +425,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
             id: "wt-3".to_string(),
             name: "feature/old".to_string(),
             path: worktree_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Worktree,
             parent_id: Some(parent.id.clone()),
             worktree: Some(WorktreeInfo {
@@ -453,10 +461,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
                 let calls = calls.clone();
                 let args: Vec<String> = args.iter().map(|value| value.to_string()).collect();
                 async move {
-                    calls
-                        .lock()
-                        .expect("lock")
-                        .push(args);
+                    calls.lock().expect("lock").push(args);
                     Ok(())
                 }
             },
@@ -473,7 +478,10 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
         let stored = workspaces.lock().await;
         let entry = stored.get(&worktree.id).expect("stored entry");
         assert_eq!(
-            entry.worktree.as_ref().map(|worktree| worktree.branch.as_str()),
+            entry
+                .worktree
+                .as_ref()
+                .map(|worktree| worktree.branch.as_str()),
             Some("feature/old")
         );
         assert_eq!(entry.path, worktree.path);
@@ -492,6 +500,7 @@ fn remove_workspace_succeeds_when_parent_repo_folder_is_missing() {
             id: "parent".to_string(),
             name: "Parent".to_string(),
             path: parent_repo_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -501,6 +510,7 @@ fn remove_workspace_succeeds_when_parent_repo_folder_is_missing() {
             id: "wt-missing-parent".to_string(),
             name: "feature-a".to_string(),
             path: child_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Worktree,
             parent_id: Some(parent.id.clone()),
             worktree: Some(WorktreeInfo {
@@ -549,6 +559,7 @@ fn remove_worktree_succeeds_when_parent_repo_folder_is_missing() {
             id: "parent".to_string(),
             name: "Parent".to_string(),
             path: parent_repo_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -558,6 +569,7 @@ fn remove_worktree_succeeds_when_parent_repo_folder_is_missing() {
             id: "wt-remove-only".to_string(),
             name: "feature-b".to_string(),
             path: child_path.to_string_lossy().to_string(),
+            provider: crate::types::AgentProvider::Codex,
             kind: WorkspaceKind::Worktree,
             parent_id: Some(parent.id.clone()),
             worktree: Some(WorktreeInfo {

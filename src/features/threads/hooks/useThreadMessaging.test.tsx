@@ -158,6 +158,65 @@ describe("useThreadMessaging telemetry", () => {
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
+  it("does not preflight runtime codex args when sending in a Claude workspace", async () => {
+    const claudeWorkspace: WorkspaceInfo = {
+      ...workspace,
+      id: "ws-claude",
+      provider: "claude",
+    };
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: claudeWorkspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        ensureWorkspaceRuntimeCodexArgs,
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(
+        claudeWorkspace,
+        "thread-1",
+        "hello claude",
+        [],
+      );
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-claude",
+      "thread-1",
+      "hello claude",
+      expect.any(Object),
+    );
+  });
+
   it("forwards explicit app mentions to turn/start", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({
@@ -349,6 +408,55 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("blocks review start when the active workspace uses Claude", async () => {
+    const claudeWorkspace: WorkspaceInfo = {
+      ...workspace,
+      id: "ws-claude",
+      provider: "claude",
+    };
+    const ensureThreadForActiveWorkspace = vi.fn(async () => "thread-1");
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: claudeWorkspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        serviceTier: "fast",
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace,
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startUncommittedReview();
+    });
+
+    expect(ensureThreadForActiveWorkspace).not.toHaveBeenCalled();
+    expect(startReviewService).not.toHaveBeenCalled();
+  });
+
   it("toggles fast mode through the built-in handler", async () => {
     const dispatch = vi.fn();
     const onSelectServiceTier = vi.fn();
@@ -394,7 +502,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: "addAssistantMessage",
       threadId: "thread-1",
-      text: "Fast mode enabled.",
+      text: "快速模式已开启。",
     });
   });
 
@@ -534,7 +642,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: no active turn to steer",
+      "回合跟进失败：no active turn to steer",
     );
   });
 
@@ -605,7 +713,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: steer request timed out",
+      "回合跟进失败：steer request timed out",
     );
   });
 
@@ -675,7 +783,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: steer network failure",
+      "回合跟进失败：steer network failure",
     );
   });
 
@@ -779,7 +887,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(renameThread).toHaveBeenCalledWith(
       "ws-1",
       "thread-review-1",
-      "Review abcdef1: Tighten sidebar commit…",
+      "审查 abcdef1：Tighten sidebar commit sele…",
     );
   });
 });

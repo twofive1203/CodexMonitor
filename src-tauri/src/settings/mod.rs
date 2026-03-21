@@ -72,8 +72,8 @@ async fn ensure_remote_runtime_for_settings(
         return;
     }
 
-    let should_stop_managed_daemon = matches!(previous.backend_mode, BackendMode::Remote)
-        || previous.web_access_enabled;
+    let should_stop_managed_daemon =
+        matches!(previous.backend_mode, BackendMode::Remote) || previous.web_access_enabled;
     if should_stop_managed_daemon {
         let _ = crate::tailscale::tailscale_daemon_stop(state).await;
     }
