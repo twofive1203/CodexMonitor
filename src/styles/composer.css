@@ -841,8 +841,8 @@
 }
 
 .composer-select--model {
-  width: 110px;
-  max-width: 110px;
+  width: var(--composer-model-select-width, auto);
+  max-width: none;
 }
 
 .composer-select--collab {
