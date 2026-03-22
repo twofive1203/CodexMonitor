@@ -59,7 +59,18 @@ export async function pickImageFiles(): Promise<string[]> {
     filters: [
       {
         name: "Images",
-        extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif"],
+        extensions: [
+          "png",
+          "jpg",
+          "jpeg",
+          "gif",
+          "webp",
+          "bmp",
+          "tiff",
+          "tif",
+          "heic",
+          "heif",
+        ],
       },
     ],
   });

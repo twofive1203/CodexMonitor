@@ -40,6 +40,7 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
+  pickImageFiles,
   pickWorkspacePaths,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
@@ -116,6 +117,37 @@ describe("tauri invoke wrappers", () => {
     openMock.mockResolvedValueOnce(["/tmp/one", "/tmp/two"]);
 
     await expect(pickWorkspacePaths()).resolves.toEqual(["/tmp/one", "/tmp/two"]);
+  });
+
+  it("includes heic and heif in the image picker filter", async () => {
+    const openMock = vi.mocked(open);
+    openMock.mockResolvedValueOnce(["/tmp/photo.heic", "/tmp/photo.heif"]);
+
+    await expect(pickImageFiles()).resolves.toEqual([
+      "/tmp/photo.heic",
+      "/tmp/photo.heif",
+    ]);
+
+    expect(openMock).toHaveBeenCalledWith({
+      multiple: true,
+      filters: [
+        {
+          name: "Images",
+          extensions: [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "webp",
+            "bmp",
+            "tiff",
+            "tif",
+            "heic",
+            "heif",
+          ],
+        },
+      ],
+    });
   });
 
   it("returns null when markdown export is cancelled", async () => {
