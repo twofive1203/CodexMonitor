@@ -760,6 +760,87 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("keeps single-workspace history entries when thread/list omits cwd", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-no-cwd",
+            preview: "Recovered history",
+            updated_at: 5200,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5200);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-no-cwd",
+          name: "Recovered history",
+          updatedAt: 5200,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("keeps single-workspace history entries when thread/list nests thread payload", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            thread: {
+              id: "thread-nested",
+              cwd: "/tmp/codex",
+              updated_at: 5300,
+              created_at: 5100,
+            },
+            preview: "Nested recovered history",
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-nested",
+          name: "Nested recovered history",
+          updatedAt: 5300,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
   it("uses fresh fetched data for active anchors outside top thread target", async () => {
     const data = Array.from({ length: 21 }, (_, index) => ({
       id: `thread-${index + 1}`,
@@ -1495,6 +1576,100 @@ describe("useThreadActions", () => {
       type: "setThreadListCursor",
       workspaceId: "ws-1",
       cursor: null,
+    });
+  });
+
+  it("keeps older history entries when pagination payload omits cwd", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-older-no-cwd",
+            preview: "Older recovered history",
+            updated_at: 3800,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
+        {
+          id: "thread-older-no-cwd",
+          name: "Older recovered history",
+          updatedAt: 3800,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("keeps older history entries when pagination payload nests thread data", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            thread: {
+              id: "thread-older-nested",
+              cwd: "/tmp/codex",
+              updated_at: 3600,
+              created_at: 3000,
+            },
+            preview: "Older nested history",
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
+        {
+          id: "thread-older-nested",
+          name: "Older nested history",
+          updatedAt: 3600,
+          createdAt: 0,
+        },
+      ],
     });
   });
 

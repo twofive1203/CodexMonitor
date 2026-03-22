@@ -78,6 +78,44 @@ function buildWorkspacePathLookup(workspaces: WorkspaceInfo[]): WorkspacePathLoo
   return { workspaceIdsByPath, workspacePathsSorted };
 }
 
+/**
+ * 标准化 `thread/list` 返回的线程记录。
+ *
+ * `entry`：`thread/list` 返回的单条原始记录，可能将线程详情包在 `thread` 字段中。
+ */
+function normalizeThreadListEntry(entry: Record<string, unknown>) {
+  const nestedThread = entry.thread;
+  if (!nestedThread || typeof nestedThread !== "object") {
+    return entry;
+  }
+  return {
+    ...(nestedThread as Record<string, unknown>),
+    ...entry,
+  };
+}
+
+/**
+ * 从线程负载中读取显式工作区标识。
+ *
+ * `thread`：`thread/list` 返回的单条线程记录。
+ */
+function getExplicitWorkspaceIdFromThread(thread: Record<string, unknown>) {
+  const directWorkspaceId = asString(thread.workspaceId ?? thread.workspace_id).trim();
+  if (directWorkspaceId) {
+    return directWorkspaceId;
+  }
+  const nestedWorkspace = thread.workspace;
+  if (nestedWorkspace && typeof nestedWorkspace === "object") {
+    const nestedWorkspaceId = asString(
+      (nestedWorkspace as Record<string, unknown>).id,
+    ).trim();
+    if (nestedWorkspaceId) {
+      return nestedWorkspaceId;
+    }
+  }
+  return null;
+}
+
 function resolveWorkspaceIdForThreadPath(
   path: string,
   lookup: WorkspacePathLookup,
@@ -101,6 +139,48 @@ function resolveWorkspaceIdForThreadPath(
     workspaceIds.find((workspaceId) => allowedWorkspaceIds.has(workspaceId)) ??
     null
   );
+}
+
+/**
+ * 解析线程应归属的工作区。
+ *
+ * `thread`：`thread/list` 返回的单条线程记录。
+ * `lookup`：工作区路径索引。
+ * `allowedWorkspaceIds`：当前允许命中的工作区集合。
+ * `fallbackWorkspaceId`：当历史线程缺失 `cwd` 时使用的兜底工作区。
+ */
+function resolveWorkspaceIdForThread(
+  thread: Record<string, unknown>,
+  lookup: WorkspacePathLookup,
+  allowedWorkspaceIds?: Set<string>,
+  fallbackWorkspaceId?: string | null,
+) {
+  const explicitWorkspaceId = getExplicitWorkspaceIdFromThread(thread);
+  if (
+    explicitWorkspaceId &&
+    (!allowedWorkspaceIds || allowedWorkspaceIds.has(explicitWorkspaceId))
+  ) {
+    return explicitWorkspaceId;
+  }
+
+  const mappedWorkspaceId = resolveWorkspaceIdForThreadPath(
+    asString(thread.cwd),
+    lookup,
+    allowedWorkspaceIds,
+  );
+  if (mappedWorkspaceId) {
+    return mappedWorkspaceId;
+  }
+
+  if (
+    fallbackWorkspaceId &&
+    (!allowedWorkspaceIds || allowedWorkspaceIds.has(fallbackWorkspaceId)) &&
+    !asString(thread.cwd).trim()
+  ) {
+    return fallbackWorkspaceId;
+  }
+
+  return null;
 }
 
 function getThreadListNextCursor(result: Record<string, unknown>): string | null {
@@ -586,6 +666,7 @@ export function useThreadActions({
         const matchingThreadsByWorkspace: Record<string, Record<string, unknown>[]> = {};
         let workspacePathLookup = buildWorkspacePathLookup(targets);
         const targetWorkspaceIds = new Set(targets.map((workspace) => workspace.id));
+        const fallbackWorkspaceId = targets.length === 1 ? requester.id : null;
         try {
           const knownWorkspaces = await listWorkspacesService();
           if (knownWorkspaces.length > 0) {
@@ -625,14 +706,15 @@ export function useThreadActions({
           });
           const result = (response.result ?? response) as Record<string, unknown>;
           const data = Array.isArray(result?.data)
-            ? (result.data as Record<string, unknown>[])
+            ? (result.data as Record<string, unknown>[]).map(normalizeThreadListEntry)
             : [];
           const nextCursor = getThreadListNextCursor(result);
           data.forEach((thread) => {
-            const workspaceId = resolveWorkspaceIdForThreadPath(
-              String(thread?.cwd ?? ""),
+            const workspaceId = resolveWorkspaceIdForThread(
+              thread,
               workspacePathLookup,
               targetWorkspaceIds,
+              fallbackWorkspaceId,
             );
             if (!workspaceId) {
               return;
@@ -912,16 +994,17 @@ export function useThreadActions({
           });
           const result = (response.result ?? response) as Record<string, unknown>;
           const data = Array.isArray(result?.data)
-            ? (result.data as Record<string, unknown>[])
+            ? (result.data as Record<string, unknown>[]).map(normalizeThreadListEntry)
             : [];
           const next = getThreadListNextCursor(result);
           matchingThreads.push(
             ...data.filter(
               (thread) => {
-                const workspaceId = resolveWorkspaceIdForThreadPath(
-                  String(thread?.cwd ?? ""),
+                const workspaceId = resolveWorkspaceIdForThread(
+                  thread,
                   workspacePathLookup,
                   allowedWorkspaceIds,
+                  workspace.id,
                 );
                 if (workspaceId !== workspace.id) {
                   return false;
