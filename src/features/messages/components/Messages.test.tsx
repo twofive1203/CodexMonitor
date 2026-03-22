@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
+import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Messages } from "./Messages";
 
 const useFileLinkOpenerMock = vi.fn(
@@ -271,8 +272,10 @@ describe("Messages", () => {
     expect(fileLink).toBeTruthy();
 
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(
-      "iosApp/src/views/DocumentsList/DocumentListView.swift:111",
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "iosApp/src/views/DocumentsList/DocumentListView.swift",
+      111,
     );
   });
 
@@ -300,7 +303,11 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("this file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
   });
 
   it("routes absolute non-whitelisted file href paths through the file opener", () => {
@@ -326,7 +333,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("app file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(openFileLinkMock, "/custom/project/src/App.tsx", 12);
   });
 
   it("decodes percent-encoded href file paths before opening", () => {
@@ -351,7 +358,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("guide"));
-    expect(openFileLinkMock).toHaveBeenCalledWith("./docs/My Guide.md");
+    expectOpenedFileTarget(openFileLinkMock, "./docs/My Guide.md");
   });
 
   it("routes absolute href file paths with #L anchors through the file opener", () => {
@@ -378,8 +385,41 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("this file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(
-      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244",
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
+  });
+
+  it("routes Windows absolute href file paths with #L anchors through the file opener", () => {
+    const linkedPath =
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-windows-anchor-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [settings display](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("settings display"));
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+      422,
     );
   });
 
@@ -406,7 +446,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("license"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(openFileLinkMock, linkedPath);
   });
 
   it("keeps non-file relative links as normal markdown links", () => {
@@ -603,7 +643,11 @@ describe("Messages", () => {
     const fileLink = container.querySelector(".message-file-link");
     expect(fileLink).toBeTruthy();
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
   });
 
   it("renders absolute file references outside workspace using dotdot-relative paths", () => {
@@ -637,7 +681,11 @@ describe("Messages", () => {
     const fileLink = container.querySelector(".message-file-link");
     expect(fileLink).toBeTruthy();
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Other/IceCubesApp/file.rs",
+      123,
+    );
   });
 
   it("does not re-render messages while typing when message props stay stable", () => {
