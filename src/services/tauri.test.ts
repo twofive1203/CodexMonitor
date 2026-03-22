@@ -18,6 +18,7 @@ import {
   getOpenAppIcon,
   listThreads,
   listMcpServerStatus,
+  readThread,
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
   listWorkspaces,
@@ -314,6 +315,18 @@ describe("tauri invoke wrappers", () => {
       cursor: "cursor-1",
       limit: 25,
       sortKey: "updated_at",
+    });
+  });
+
+  it("maps workspaceId/threadId for read_thread", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await readThread("ws-10", "thread-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("read_thread", {
+      workspaceId: "ws-10",
+      threadId: "thread-1",
     });
   });
 

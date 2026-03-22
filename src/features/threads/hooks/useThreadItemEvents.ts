@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
 import { buildConversationItem } from "@utils/threadItems";
+import type { CollabAgentRef } from "@/types";
 import { asString } from "@threads/utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
 
@@ -21,6 +22,10 @@ type UseThreadItemEventsOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  hydrateSubagentThreads?: (
+    workspaceId: string,
+    receivers: CollabAgentRef[],
+  ) => void | Promise<void>;
   onUserMessageCreated?: (
     workspaceId: string,
     threadId: string,
@@ -38,6 +43,7 @@ export function useThreadItemEvents({
   safeMessageActivity,
   recordThreadActivity,
   applyCollabThreadLinks,
+  hydrateSubagentThreads,
   onUserMessageCreated,
   onReviewExited,
 }: UseThreadItemEventsOptions) {
@@ -72,6 +78,20 @@ export function useThreadItemEvents({
           : item;
       const converted = buildConversationItem(itemForDisplay);
       if (converted) {
+        if (converted.kind === "tool" && converted.toolType === "collabToolCall") {
+          const receivers = converted.collabReceivers?.length
+            ? converted.collabReceivers
+            : converted.collabReceiver
+              ? [converted.collabReceiver]
+              : [];
+          const hydrationTargets = receivers.filter(
+            (receiver) =>
+              receiver.threadId && (!receiver.nickname || !receiver.role),
+          );
+          if (hydrationTargets.length > 0) {
+            void hydrateSubagentThreads?.(workspaceId, hydrationTargets);
+          }
+        }
         if (converted.kind === "message" && converted.role === "user") {
           void onUserMessageCreated?.(workspaceId, threadId, converted.text);
         }
@@ -93,6 +113,7 @@ export function useThreadItemEvents({
       markReviewing,
       onReviewExited,
       onUserMessageCreated,
+      hydrateSubagentThreads,
       safeMessageActivity,
     ],
   );

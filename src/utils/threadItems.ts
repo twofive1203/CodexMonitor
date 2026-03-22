@@ -2,6 +2,7 @@ import type {
   CollabAgentRef,
   CollabAgentStatus,
   ConversationItem,
+  ThreadSummary,
 } from "../types";
 import { CHAT_SCROLLBACK_DEFAULT } from "./chatScrollback";
 
@@ -271,6 +272,185 @@ function formatCollabAgentStatuses(value: CollabAgentStatus[]) {
   return value
     .map((entry) => `${formatCollabAgentLabel(entry)}: ${entry.status}`)
     .join("\n");
+}
+
+function enrichCollabAgentRef(
+  agent: CollabAgentRef | undefined,
+  metadataByThreadId: ReadonlyMap<
+    string,
+    { nickname?: string | null; role?: string | null }
+  >,
+): CollabAgentRef | undefined {
+  if (!agent) {
+    return agent;
+  }
+  const metadata = metadataByThreadId.get(agent.threadId);
+  if (!metadata) {
+    return agent;
+  }
+  const nickname = agent.nickname ?? metadata.nickname ?? undefined;
+  const role = agent.role ?? metadata.role ?? undefined;
+  if (nickname === agent.nickname && role === agent.role) {
+    return agent;
+  }
+  return {
+    ...agent,
+    ...(nickname ? { nickname } : {}),
+    ...(role ? { role } : {}),
+  };
+}
+
+function enrichCollabAgentStatuses(
+  statuses: CollabAgentStatus[] | undefined,
+  metadataByThreadId: ReadonlyMap<
+    string,
+    { nickname?: string | null; role?: string | null }
+  >,
+): CollabAgentStatus[] | undefined {
+  if (!statuses || statuses.length === 0) {
+    return statuses;
+  }
+  let didChange = false;
+  const next = statuses.map((entry) => {
+    const metadata = metadataByThreadId.get(entry.threadId);
+    if (!metadata) {
+      return entry;
+    }
+    const nickname = entry.nickname ?? metadata.nickname ?? undefined;
+    const role = entry.role ?? metadata.role ?? undefined;
+    if (nickname === entry.nickname && role === entry.role) {
+      return entry;
+    }
+    didChange = true;
+    return {
+      ...entry,
+      ...(nickname ? { nickname } : {}),
+      ...(role ? { role } : {}),
+    };
+  });
+  return didChange ? next : statuses;
+}
+
+function extractCollabPrompt(
+  output: string | undefined,
+  statuses: CollabAgentStatus[] | undefined,
+) {
+  const text = output ?? "";
+  if (!text) {
+    return "";
+  }
+  const statusText = formatCollabAgentStatuses(statuses ?? []);
+  if (!statusText || !text.endsWith(statusText)) {
+    return text;
+  }
+  return text.slice(0, text.length - statusText.length).replace(/\n\n$/, "");
+}
+
+function buildCollabDetail(
+  sender: CollabAgentRef | undefined,
+  receivers: CollabAgentRef[],
+) {
+  const detailParts = [sender ? `From ${formatCollabAgentLabel(sender)}` : ""]
+    .concat(
+      receivers.length > 0
+        ? `→ ${receivers.map((entry) => formatCollabAgentLabel(entry)).join(", ")}`
+        : "",
+    )
+    .filter(Boolean);
+  return detailParts.join(" ");
+}
+
+function buildCollabOutput(prompt: string, statuses: CollabAgentStatus[]) {
+  const promptText = prompt.trim();
+  const statusesText = formatCollabAgentStatuses(statuses);
+  return [promptText, statusesText].filter(Boolean).join("\n\n");
+}
+
+export function enrichConversationItemsWithThreads(
+  items: ConversationItem[],
+  threads: ThreadSummary[],
+): ConversationItem[] {
+  if (items.length === 0 || threads.length === 0) {
+    return items;
+  }
+
+  const metadataByThreadId = new Map<
+    string,
+    { nickname?: string | null; role?: string | null }
+  >();
+  threads.forEach((thread) => {
+    if (!thread.id || (!thread.subagentNickname && !thread.subagentRole)) {
+      return;
+    }
+    metadataByThreadId.set(thread.id, {
+      nickname: thread.subagentNickname,
+      role: thread.subagentRole,
+    });
+  });
+
+  if (metadataByThreadId.size === 0) {
+    return items;
+  }
+
+  let didChange = false;
+  const nextItems = items.map((item) => {
+    if (item.kind !== "tool" || item.toolType !== "collabToolCall") {
+      return item;
+    }
+
+    const nextSender = enrichCollabAgentRef(item.collabSender, metadataByThreadId);
+    const nextReceivers =
+      item.collabReceivers?.map((entry) =>
+        enrichCollabAgentRef(entry, metadataByThreadId) ?? entry,
+      ) ?? [];
+    const nextStatuses =
+      enrichCollabAgentStatuses(item.collabStatuses, metadataByThreadId) ?? [];
+    const nextPrimaryReceiver =
+      enrichCollabAgentRef(item.collabReceiver, metadataByThreadId) ??
+      nextReceivers[0] ??
+      item.collabReceiver;
+    const detailReceivers =
+      nextReceivers.length > 0
+        ? nextReceivers
+        : nextPrimaryReceiver
+          ? [nextPrimaryReceiver]
+          : [];
+
+    const prompt = extractCollabPrompt(item.output, item.collabStatuses);
+    const nextDetail = buildCollabDetail(nextSender, detailReceivers);
+    const nextOutput = buildCollabOutput(prompt, nextStatuses);
+
+    const receiversChanged = nextReceivers.some(
+      (entry, index) => entry !== item.collabReceivers?.[index],
+    );
+    const statusesChanged = nextStatuses.some(
+      (entry, index) => entry !== item.collabStatuses?.[index],
+    );
+    const itemChanged =
+      nextSender !== item.collabSender ||
+      nextPrimaryReceiver !== item.collabReceiver ||
+      receiversChanged ||
+      statusesChanged ||
+      nextDetail !== (item.detail ?? "") ||
+      nextOutput !== (item.output ?? "");
+
+    if (!itemChanged) {
+      return item;
+    }
+
+    didChange = true;
+    return {
+      ...item,
+      detail: nextDetail,
+      output: nextOutput,
+      collabSender: nextSender,
+      collabReceiver: nextPrimaryReceiver,
+      collabReceivers: nextReceivers.length > 0 ? nextReceivers : undefined,
+      collabStatuses: nextStatuses.length > 0 ? nextStatuses : undefined,
+    };
+  });
+
+  return didChange ? nextItems : items;
 }
 
 export function normalizeItem(item: ConversationItem): ConversationItem {

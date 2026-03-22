@@ -24,14 +24,11 @@ import {
   previewThreadName,
 } from "@utils/threadItems";
 import { extractThreadCodexMetadata } from "@threads/utils/threadCodexMetadata";
-import {
-  asString,
-  normalizeRootPath,
-} from "@threads/utils/threadNormalize";
+import { buildThreadSummaryFromThread } from "@threads/utils/threadSummary";
+import { asString, normalizeRootPath } from "@threads/utils/threadNormalize";
 import {
   getParentThreadIdFromThread,
   getResumedTurnState,
-  isSubagentThreadSource,
   shouldHideSubagentThreadFromSidebar,
 } from "@threads/utils/threadRpc";
 import { saveThreadActivity } from "@threads/utils/threadStorage";
@@ -111,20 +108,6 @@ function getThreadListNextCursor(result: Record<string, unknown>): string | null
     return result.next_cursor;
   }
   return null;
-}
-
-function getThreadSubagentMetadata(thread: Record<string, unknown>) {
-  const nickname =
-    asString(thread.agentNickname ?? thread.agent_nickname ?? "").trim() || null;
-  const role =
-    asString(
-      thread.agentRole ??
-        thread.agent_role ??
-        thread.agentType ??
-        thread.agent_type ??
-        "",
-    ).trim() || null;
-  return { nickname, role };
 }
 
 type UseThreadActionsOptions = {
@@ -521,43 +504,13 @@ export function useThreadActions({
       workspaceId: string,
       thread: Record<string, unknown>,
       fallbackIndex: number,
-    ): ThreadSummary | null => {
-      const id = String(thread?.id ?? "");
-      if (!id) {
-        return null;
-      }
-      const preview = asString(thread?.preview ?? "").trim();
-      const customName = getCustomName(workspaceId, id);
-      const fallbackName = `Agent ${fallbackIndex + 1}`;
-      const name = customName
-        ? customName
-        : preview.length > 0
-          ? preview.length > 38
-            ? `${preview.slice(0, 38)}…`
-            : preview
-          : fallbackName;
-      const metadata = extractThreadCodexMetadata(thread);
-      if (shouldHideSubagentThreadFromSidebar(thread.source)) {
-        return null;
-      }
-      const isSubagent = isSubagentThreadSource(thread.source);
-      const subagentMetadata = getThreadSubagentMetadata(thread);
-      return {
-        id,
-        name,
-        updatedAt: getThreadTimestamp(thread),
-        createdAt: getThreadCreatedTimestamp(thread),
-        ...(metadata.modelId ? { modelId: metadata.modelId } : {}),
-        ...(metadata.effort ? { effort: metadata.effort } : {}),
-        ...(isSubagent ? { isSubagent: true } : {}),
-        ...(isSubagent && subagentMetadata.nickname
-          ? { subagentNickname: subagentMetadata.nickname }
-          : {}),
-        ...(isSubagent && subagentMetadata.role
-          ? { subagentRole: subagentMetadata.role }
-          : {}),
-      };
-    },
+    ): ThreadSummary | null =>
+      buildThreadSummaryFromThread({
+        workspaceId,
+        thread,
+        fallbackIndex,
+        getCustomName,
+      }),
     [getCustomName],
   );
 

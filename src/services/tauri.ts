@@ -1064,6 +1064,10 @@ export async function resumeThread(workspaceId: string, threadId: string) {
   return invoke<any>("resume_thread", { workspaceId, threadId });
 }
 
+export async function readThread(workspaceId: string, threadId: string) {
+  return invoke<any>("read_thread", { workspaceId, threadId });
+}
+
 export async function threadLiveSubscribe(workspaceId: string, threadId: string) {
   return invoke<any>("thread_live_subscribe", { workspaceId, threadId });
 }
