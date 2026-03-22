@@ -172,6 +172,19 @@ async fn resolve_workspace_path_core(
     Ok(entry.path.clone())
 }
 
+/// 构造需要绑定工作区目录的线程请求参数。
+///
+/// `workspace_path`：目标工作区根目录。
+/// `extra`：线程请求额外参数。
+fn build_workspace_thread_params(workspace_path: String, extra: Value) -> Value {
+    let mut params = match extra {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+    params.insert("cwd".to_string(), json!(workspace_path));
+    Value::Object(params)
+}
+
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
@@ -190,11 +203,13 @@ pub(crate) async fn start_thread_core(
 
 pub(crate) async fn resume_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id });
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/resume", params)
         .await
@@ -226,11 +241,13 @@ pub(crate) async fn thread_live_unsubscribe_core(
 
 pub(crate) async fn fork_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id });
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/fork", params)
         .await
@@ -238,22 +255,27 @@ pub(crate) async fn fork_thread_core(
 
 pub(crate) async fn list_threads_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
     sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({
-        "cursor": cursor,
-        "limit": limit,
-        "sortKey": sort_key,
-        // Keep interactive and sub-agent sessions visible across CLI versions so
-        // thread/list refreshes do not drop valid historical conversations.
-        // Intentionally exclude generic "subAgent" so parentless internal jobs
-        // (for example memory consolidation) do not leak back into app state.
-        "sourceKinds": THREAD_LIST_SOURCE_KINDS
-    });
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(
+        workspace_path,
+        json!({
+            "cursor": cursor,
+            "limit": limit,
+            "sortKey": sort_key,
+            // Keep interactive and sub-agent sessions visible across CLI versions so
+            // thread/list refreshes do not drop valid historical conversations.
+            // Intentionally exclude generic "subAgent" so parentless internal jobs
+            // (for example memory consolidation) do not leak back into app state.
+            "sourceKinds": THREAD_LIST_SOURCE_KINDS
+        }),
+    );
     session
         .send_request_for_workspace(&workspace_id, "thread/list", params)
         .await
@@ -274,11 +296,13 @@ pub(crate) async fn list_mcp_server_status_core(
 
 pub(crate) async fn archive_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id });
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/archive", params)
         .await
@@ -298,12 +322,17 @@ pub(crate) async fn compact_thread_core(
 
 pub(crate) async fn set_thread_name_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
     name: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id, "name": name });
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(
+        workspace_path,
+        json!({ "threadId": thread_id, "name": name }),
+    );
     session
         .send_request_for_workspace(&workspace_id, "thread/name/set", params)
         .await
@@ -936,5 +965,21 @@ mod tests {
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentReview"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentCompact"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentThreadSpawn"));
+    }
+
+    #[test]
+    fn build_workspace_thread_params_includes_workspace_cwd() {
+        let params = build_workspace_thread_params(
+            "/tmp/workspace".to_string(),
+            json!({ "threadId": "thread-1" }),
+        );
+
+        assert_eq!(
+            params,
+            json!({
+                "cwd": "/tmp/workspace",
+                "threadId": "thread-1",
+            })
+        );
     }
 }

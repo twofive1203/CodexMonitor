@@ -54,7 +54,7 @@ pub(crate) async fn resume_thread_core(
 ) -> Result<Value, String> {
     match resolve_runtime_provider(workspaces, &workspace_id).await? {
         AgentProvider::Codex | AgentProvider::Claude => {
-            codex_core::resume_thread_core(sessions, workspace_id, thread_id).await
+            codex_core::resume_thread_core(sessions, workspaces, workspace_id, thread_id).await
         }
     }
 }

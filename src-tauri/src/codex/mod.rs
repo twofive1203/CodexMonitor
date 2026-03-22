@@ -221,7 +221,7 @@ pub(crate) async fn fork_thread(
         .await;
     }
 
-    codex_core::fork_thread_core(&state.sessions, workspace_id, thread_id).await
+    codex_core::fork_thread_core(&state.sessions, &state.workspaces, workspace_id, thread_id).await
 }
 
 #[tauri::command]
@@ -248,7 +248,15 @@ pub(crate) async fn list_threads(
         .await;
     }
 
-    codex_core::list_threads_core(&state.sessions, workspace_id, cursor, limit, sort_key).await
+    codex_core::list_threads_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        cursor,
+        limit,
+        sort_key,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -289,7 +297,8 @@ pub(crate) async fn archive_thread(
         .await;
     }
 
-    codex_core::archive_thread_core(&state.sessions, workspace_id, thread_id).await
+    codex_core::archive_thread_core(&state.sessions, &state.workspaces, workspace_id, thread_id)
+        .await
 }
 
 #[tauri::command]
@@ -330,7 +339,14 @@ pub(crate) async fn set_thread_name(
         .await;
     }
 
-    codex_core::set_thread_name_core(&state.sessions, workspace_id, thread_id, name).await
+    codex_core::set_thread_name_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        thread_id,
+        name,
+    )
+    .await
 }
 
 #[tauri::command]

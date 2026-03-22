@@ -911,7 +911,8 @@ impl DaemonState {
     }
 
     async fn fork_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
-        codex_core::fork_thread_core(&self.sessions, workspace_id, thread_id).await
+        codex_core::fork_thread_core(&self.sessions, &self.workspaces, workspace_id, thread_id)
+            .await
     }
 
     async fn list_threads(
@@ -921,7 +922,15 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
+        codex_core::list_threads_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            cursor,
+            limit,
+            sort_key,
+        )
+        .await
     }
 
     async fn list_mcp_server_status(
@@ -938,7 +947,8 @@ impl DaemonState {
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
-        codex_core::archive_thread_core(&self.sessions, workspace_id, thread_id).await
+        codex_core::archive_thread_core(&self.sessions, &self.workspaces, workspace_id, thread_id)
+            .await
     }
 
     async fn compact_thread(
@@ -955,7 +965,14 @@ impl DaemonState {
         thread_id: String,
         name: String,
     ) -> Result<Value, String> {
-        codex_core::set_thread_name_core(&self.sessions, workspace_id, thread_id, name).await
+        codex_core::set_thread_name_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            thread_id,
+            name,
+        )
+        .await
     }
 
     async fn send_user_message(

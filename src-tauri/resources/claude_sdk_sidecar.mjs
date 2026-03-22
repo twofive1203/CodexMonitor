@@ -753,7 +753,8 @@ async function handleThreadResume(state, request) {
     await writeError(request.id, "缺少 threadId。");
     return;
   }
-  const threadState = state.ensureThread(threadId, process.cwd());
+  const cwd = readString(request.params, "cwd") ?? process.cwd();
+  const threadState = state.ensureThread(threadId, cwd);
   const sessionInfo = await state.sdk.getSessionInfo(threadId, { dir: threadState.cwd });
   if (sessionInfo) {
     threadState.cwd = sessionInfo.cwd ?? threadState.cwd;
@@ -801,7 +802,8 @@ async function handleThreadArchive(state, request) {
     await writeError(request.id, "缺少 threadId。");
     return;
   }
-  const threadState = state.ensureThread(threadId, process.cwd());
+  const cwd = readString(request.params, "cwd") ?? process.cwd();
+  const threadState = state.ensureThread(threadId, cwd);
   if (threadState.hasTranscript) {
     await state.sdk.tagSession(threadId, "archived", { dir: threadState.cwd });
   }
@@ -826,7 +828,8 @@ async function handleThreadNameSet(state, request) {
     await writeError(request.id, "缺少 threadId 或 name。");
     return;
   }
-  const threadState = state.ensureThread(threadId, process.cwd());
+  const cwd = readString(request.params, "cwd") ?? process.cwd();
+  const threadState = state.ensureThread(threadId, cwd);
   if (threadState.hasTranscript) {
     await state.sdk.renameSession(threadId, name, { dir: threadState.cwd });
   }
@@ -851,7 +854,8 @@ async function handleThreadFork(state, request) {
     await writeError(request.id, "缺少 threadId。");
     return;
   }
-  const threadState = state.ensureThread(threadId, process.cwd());
+  const cwd = readString(request.params, "cwd") ?? process.cwd();
+  const threadState = state.ensureThread(threadId, cwd);
   let nextThreadId = randomUUID();
   if (threadState.hasTranscript) {
     const forkResult = await state.sdk.forkSession(threadId, { dir: threadState.cwd });
