@@ -8,8 +8,10 @@ import {
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { AgentProvider, WorkspaceGroup, WorkspaceInfo } from "@/types";
 import {
+  canEditWorkspaceProvider,
   getAgentProviderLabel,
   getWorkspaceProvider,
+  getWorkspaceProviderSelectValue,
 } from "@utils/agentProvider";
 
 type GroupedWorkspaces = Array<{
@@ -214,7 +216,12 @@ export function SettingsProjectsSection({
                 ? workspace.settings.groupId ?? ""
                 : "";
               const provider = getWorkspaceProvider(workspace);
-              const selectProvider = claudeEnabled || provider !== "claude" ? provider : "codex";
+              const selectProvider = getWorkspaceProviderSelectValue(workspace, {
+                experimentalClaudeEnabled: claudeEnabled,
+              });
+              const providerEditable = canEditWorkspaceProvider(workspace, {
+                experimentalClaudeEnabled: claudeEnabled,
+              });
               return (
                 <div key={workspace.id} className="settings-project-row">
                   <div className="settings-project-info">
@@ -234,6 +241,12 @@ export function SettingsProjectsSection({
                       className="settings-select settings-select--compact"
                       value={selectProvider}
                       aria-label={`${workspace.name} provider`}
+                      disabled={!providerEditable}
+                      title={
+                        providerEditable
+                          ? undefined
+                          : "该项目已保存为 Claude。开启 Claude 实验功能后才可修改。"
+                      }
                       onChange={(event) => {
                         void onUpdateWorkspaceProvider(
                           workspace.id,
@@ -242,7 +255,9 @@ export function SettingsProjectsSection({
                       }}
                     >
                       <option value="codex">Codex</option>
-                      {claudeEnabled && <option value="claude">Claude</option>}
+                      {(claudeEnabled || provider === "claude") && (
+                        <option value="claude">Claude</option>
+                      )}
                     </select>
                     <select
                       className="settings-select settings-select--compact"

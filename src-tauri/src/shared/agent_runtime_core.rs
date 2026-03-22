@@ -121,6 +121,42 @@ pub(crate) async fn interrupt_turn_core(
     }
 }
 
+/// 统一跟进当前回合入口。
+///
+/// `sessions`：provider 维度 session 池。
+/// `workspaces`：工作区存储。
+/// `workspace_id`：目标工作区 ID。
+/// `thread_id`：目标线程 ID。
+/// `turn_id`：目标轮次 ID。
+/// `text`：跟进消息内容。
+/// `images`：附带图片。
+/// `app_mentions`：附带应用引用。
+pub(crate) async fn steer_turn_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    thread_id: String,
+    turn_id: String,
+    text: String,
+    images: Option<Vec<String>>,
+    app_mentions: Option<Vec<Value>>,
+) -> Result<Value, String> {
+    match resolve_runtime_provider(workspaces, &workspace_id).await? {
+        AgentProvider::Codex | AgentProvider::Claude => {
+            codex_core::turn_steer_core(
+                sessions,
+                workspace_id,
+                thread_id,
+                turn_id,
+                text,
+                images,
+                app_mentions,
+            )
+            .await
+        }
+    }
+}
+
 /// 统一读取模型列表入口。
 ///
 /// `sessions`：provider 维度 session 池。
@@ -192,7 +228,7 @@ mod tests {
     use serde_json::json;
     use tokio::sync::Mutex;
 
-    use super::{get_provider_capabilities_core, start_review_core};
+    use super::{get_provider_capabilities_core, start_review_core, steer_turn_core};
     use crate::backend::app_server::WorkspaceSession;
     use crate::types::{
         AgentProvider, ProviderCapabilities, WorkspaceEntry, WorkspaceKind, WorkspaceSettings,
@@ -246,6 +282,31 @@ mod tests {
                 result,
                 Err("Claude Provider 暂不支持 review/start。".to_string())
             );
+        });
+    }
+
+    #[test]
+    fn steer_turn_core_routes_claude_workspace_through_shared_runtime() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let workspaces = Mutex::new(HashMap::from([(
+                "ws-claude".to_string(),
+                make_workspace_entry("ws-claude", AgentProvider::Claude),
+            )]));
+            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+
+            let result = steer_turn_core(
+                &sessions,
+                &workspaces,
+                "ws-claude".to_string(),
+                "thread-1".to_string(),
+                "".to_string(),
+                "follow up".to_string(),
+                None,
+                None,
+            )
+            .await;
+
+            assert_eq!(result, Err("missing active turn id".to_string()));
         });
     }
 }

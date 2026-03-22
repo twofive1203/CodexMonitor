@@ -981,8 +981,9 @@ impl DaemonState {
         images: Option<Vec<String>>,
         app_mentions: Option<Vec<Value>>,
     ) -> Result<Value, String> {
-        codex_core::turn_steer_core(
+        agent_runtime_core::steer_turn_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             thread_id,
             turn_id,

@@ -139,7 +139,7 @@ export function SettingsClaudeSection({
         {buildClaudeHint(appSettings, resolvedCapabilities.supportsReview)}
       </div>
       <div className="settings-help">
-        一期降级项：登录、额度、skills、apps、协作模式、review、自动更新。
+        一期降级项：登录、额度、skills、apps、steer、协作模式、review、自动更新。
       </div>
       {error && <div className="settings-help">能力状态读取失败，当前使用前端兜底值。</div>}
 

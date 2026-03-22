@@ -423,8 +423,9 @@ pub(crate) async fn turn_steer(
         .await;
     }
 
-    codex_core::turn_steer_core(
+    agent_runtime_core::steer_turn_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         thread_id,
         turn_id,

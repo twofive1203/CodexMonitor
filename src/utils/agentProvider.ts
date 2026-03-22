@@ -105,6 +105,36 @@ export function getWorkspaceProvider(
 }
 
 /**
+ * 返回项目设置页中可编辑的 provider 值。
+ *
+ * `workspace`：当前工作区，可为空。
+ * `settings`：当前应用设置，可为空。
+ */
+export function getWorkspaceProviderSelectValue(
+  workspace: Pick<WorkspaceInfo, "provider"> | null | undefined,
+  settings: Pick<AppSettings, "experimentalClaudeEnabled"> | null | undefined,
+): AgentProvider {
+  const provider = getWorkspaceProvider(workspace);
+  return isClaudeProviderEnabled(settings) || provider !== "claude"
+    ? provider
+    : "claude";
+}
+
+/**
+ * 判断当前工作区 provider 是否允许在设置页直接修改。
+ *
+ * `workspace`：当前工作区，可为空。
+ * `settings`：当前应用设置，可为空。
+ */
+export function canEditWorkspaceProvider(
+  workspace: Pick<WorkspaceInfo, "provider"> | null | undefined,
+  settings: Pick<AppSettings, "experimentalClaudeEnabled"> | null | undefined,
+): boolean {
+  const provider = getWorkspaceProvider(workspace);
+  return provider !== "claude" || isClaudeProviderEnabled(settings);
+}
+
+/**
  * 返回 provider 的界面展示名称。
  *
  * `provider`：目标 provider。
@@ -141,6 +171,6 @@ export function resolveProviderCapabilities(
  * `provider`：目标 provider。
  */
 export function providerSupportsAccountUi(provider: AgentProvider): boolean {
-  const capabilities = PROVIDER_CAPABILITY_FALLBACKS[provider];
+  const capabilities = resolveProviderCapabilities(provider, null);
   return capabilities.supportsLogin || capabilities.supportsRateLimits;
 }

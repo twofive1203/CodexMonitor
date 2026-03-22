@@ -130,7 +130,7 @@ export function SettingsRuntimeSection({
           )}
         </code>
         。{claudeEnabled
-          ? "Claude 一期会自动隐藏不支持的登录、额度、skills、apps、协作与 review 入口。"
+          ? "Claude 一期会自动隐藏不支持的登录、额度、skills、apps、steer、协作与 review 入口。"
           : "Claude 当前挂在实验功能开关下，默认不展示。"}
       </div>
 
@@ -144,6 +144,7 @@ export function SettingsRuntimeSection({
           codexResolvedCapabilities.supportsRateLimits ? "支持额度" : "不支持额度",
           codexResolvedCapabilities.supportsSkills ? "支持 skills" : "不支持 skills",
           codexResolvedCapabilities.supportsApps ? "支持 apps" : "不支持 apps",
+          codexResolvedCapabilities.supportsSteer ? "支持 steer" : "不支持 steer",
           codexResolvedCapabilities.supportsReview ? "支持 review" : "不支持 review",
           codexResolvedCapabilities.supportsCollaborationModes
             ? "支持协作模式"
@@ -157,6 +158,7 @@ export function SettingsRuntimeSection({
             claudeResolvedCapabilities.supportsRateLimits ? "支持额度" : "不支持额度",
             claudeResolvedCapabilities.supportsSkills ? "支持 skills" : "不支持 skills",
             claudeResolvedCapabilities.supportsApps ? "支持 apps" : "不支持 apps",
+            claudeResolvedCapabilities.supportsSteer ? "支持 steer" : "不支持 steer",
             claudeResolvedCapabilities.supportsReview ? "支持 review" : "不支持 review",
             claudeResolvedCapabilities.supportsCollaborationModes
               ? "支持协作模式"

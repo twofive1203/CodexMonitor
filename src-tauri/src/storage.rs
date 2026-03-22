@@ -155,6 +155,43 @@ mod tests {
     }
 
     #[test]
+    fn read_workspaces_defaults_missing_provider_to_codex_and_preserves_claude() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("workspaces.json");
+
+        std::fs::write(
+            &path,
+            r#"[
+  {
+    "id": "legacy",
+    "name": "Legacy Workspace",
+    "path": "/tmp/legacy",
+    "settings": {}
+  },
+  {
+    "id": "claude",
+    "name": "Claude Workspace",
+    "path": "/tmp/claude",
+    "provider": "claude",
+    "settings": {}
+  }
+]"#,
+        )
+        .expect("write workspaces");
+
+        let read = read_workspaces(&path).expect("read workspaces");
+        assert!(matches!(
+            read.get("legacy").expect("legacy workspace").provider,
+            crate::types::AgentProvider::Codex
+        ));
+        assert!(matches!(
+            read.get("claude").expect("claude workspace").provider,
+            crate::types::AgentProvider::Claude
+        ));
+    }
+
+    #[test]
     fn read_settings_sanitizes_non_tcp_remote_provider() {
         let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");

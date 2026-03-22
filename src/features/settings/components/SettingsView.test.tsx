@@ -438,6 +438,7 @@ const workspace = (
   name: overrides.name,
   path: overrides.path ?? `/tmp/${overrides.id}`,
   connected: overrides.connected ?? false,
+  provider: overrides.provider,
   kind: overrides.kind ?? "main",
   parentId: overrides.parentId ?? null,
   worktree: overrides.worktree ?? null,
@@ -991,6 +992,65 @@ describe("SettingsView Codex section", () => {
         }),
       );
     });
+  });
+
+  it("keeps stored Claude workspace provider visible but locked when the feature is disabled", async () => {
+    cleanup();
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "未分组",
+            workspaces: [
+              workspace({
+                id: "ws-claude",
+                name: "Claude Workspace",
+                provider: "claude",
+              }),
+            ],
+          },
+        ]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="environments"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "项目" }));
+
+    const providerSelect = screen.getByLabelText(
+      "Claude Workspace provider",
+    ) as HTMLSelectElement;
+    expect(providerSelect.value).toBe("claude");
+    expect(providerSelect.disabled).toBe(true);
+    expect(providerSelect.title).toContain("开启 Claude 实验功能后才可修改");
+    expect(onUpdateWorkspaceSettings).not.toHaveBeenCalled();
   });
 
   it("updates review mode in runtime section", async () => {
