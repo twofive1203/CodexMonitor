@@ -18,7 +18,10 @@ use self::protocol::{build_request_line, DEFAULT_REMOTE_HOST, DISCONNECTED_MESSA
 use self::tcp_transport::TcpTransport;
 use self::transport::{PendingMap, RemoteTransport, RemoteTransportConfig, RemoteTransportKind};
 
-const REMOTE_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+const REMOTE_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const REMOTE_AUTH_TIMEOUT: Duration = Duration::from_secs(3);
+const REMOTE_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const REMOTE_BOOTSTRAP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const REMOTE_SEND_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub(crate) fn normalize_path_for_remote(path: String) -> String {
@@ -67,6 +70,16 @@ struct RemoteBackendInner {
     connected: Arc<std::sync::atomic::AtomicBool>,
 }
 
+/// 返回指定远程方法的请求超时时长。
+///
+/// `method`：当前调用的远程 RPC 方法名。
+fn request_timeout_for_method(method: &str) -> Duration {
+    match method {
+        "list_workspaces" => REMOTE_BOOTSTRAP_REQUEST_TIMEOUT,
+        _ => REMOTE_REQUEST_TIMEOUT,
+    }
+}
+
 impl RemoteBackend {
     pub(crate) async fn call(&self, method: &str, params: Value) -> Result<Value, String> {
         if !self.inner.connected.load(Ordering::SeqCst) {
@@ -93,14 +106,15 @@ impl RemoteBackend {
             }
         }
 
-        match timeout(REMOTE_REQUEST_TIMEOUT, rx).await {
+        let request_timeout = request_timeout_for_method(method);
+        match timeout(request_timeout, rx).await {
             Ok(Ok(result)) => result,
             Ok(Err(_)) => Err(DISCONNECTED_MESSAGE.to_string()),
             Err(_) => {
                 self.inner.pending.lock().await.remove(&id);
                 Err(format!(
-                    "remote backend request timed out after {} seconds",
-                    REMOTE_REQUEST_TIMEOUT.as_secs()
+                    "remote backend request `{method}` timed out after {} seconds",
+                    request_timeout.as_secs()
                 ))
             }
         }
@@ -201,7 +215,14 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
         RemoteTransportKind::Tcp => Box::new(TcpTransport),
     };
-    let connection = transport.connect(app, transport_config).await?;
+    let connection = timeout(REMOTE_CONNECT_TIMEOUT, transport.connect(app, transport_config))
+        .await
+        .map_err(|_| {
+            format!(
+                "remote backend connection timed out after {} seconds",
+                REMOTE_CONNECT_TIMEOUT.as_secs()
+            )
+        })??;
 
     let client = RemoteBackend {
         inner: Arc::new(RemoteBackendInner {
@@ -214,9 +235,14 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 
     if matches!(transport_kind, RemoteTransportKind::Tcp) {
         if let Some(token) = auth_token {
-            client
-                .call("auth", json!({ "token": token }))
+            timeout(REMOTE_AUTH_TIMEOUT, client.call("auth", json!({ "token": token })))
                 .await
+                .map_err(|_| {
+                    format!(
+                        "remote backend authentication timed out after {} seconds",
+                        REMOTE_AUTH_TIMEOUT.as_secs()
+                    )
+                })?
                 .map(|_| ())?;
         }
     }
@@ -245,7 +271,10 @@ fn resolve_transport_config(
 
 #[cfg(test)]
 mod tests {
-    use super::{can_retry_after_disconnect, resolve_transport_config};
+    use super::{
+        can_retry_after_disconnect, request_timeout_for_method, resolve_transport_config,
+        REMOTE_BOOTSTRAP_REQUEST_TIMEOUT, REMOTE_REQUEST_TIMEOUT,
+    };
     use crate::remote_backend::transport::RemoteTransportConfig;
     use crate::types::AppSettings;
 
@@ -269,5 +298,17 @@ mod tests {
         assert!(!can_retry_after_disconnect("send_user_message"));
         assert!(!can_retry_after_disconnect("start_thread"));
         assert!(!can_retry_after_disconnect("remove_workspace"));
+    }
+
+    #[test]
+    fn uses_shorter_timeout_for_startup_workspace_listing() {
+        assert_eq!(
+            request_timeout_for_method("list_workspaces"),
+            REMOTE_BOOTSTRAP_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            request_timeout_for_method("send_user_message"),
+            REMOTE_REQUEST_TIMEOUT
+        );
     }
 }
