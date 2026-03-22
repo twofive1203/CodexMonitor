@@ -3,6 +3,7 @@ import type { Options as NotificationOptions } from "@tauri-apps/plugin-notifica
 import type {
   AgentProvider,
   AppSettings,
+  ClaudeSdkStatus,
   CodexUpdateResult,
   CodexDoctorResult,
   DictationModelStatus,
@@ -1032,6 +1033,18 @@ export async function isMobileRuntime(): Promise<boolean> {
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+export async function getClaudeSdkStatus(): Promise<ClaudeSdkStatus> {
+  return invoke<ClaudeSdkStatus>("claude_sdk_status");
+}
+
+export async function installClaudeSdk(): Promise<ClaudeSdkStatus> {
+  return invoke<ClaudeSdkStatus>("claude_sdk_install");
+}
+
+export async function removeClaudeSdk(): Promise<ClaudeSdkStatus> {
+  return invoke<ClaudeSdkStatus>("claude_sdk_remove");
 }
 
 export async function tailscaleStatus(): Promise<TailscaleStatus> {

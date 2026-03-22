@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::rpc::build_event_notification;
 use super::auth::require_session;
 use super::HttpServerContext;
 use axum::{
@@ -12,24 +13,6 @@ use axum::{
 use futures_util::StreamExt;
 use serde::Deserialize;
 use serde_json::{json, Value};
-
-fn encode_event(event: DaemonEvent) -> Option<String> {
-    let payload = match event {
-        DaemonEvent::AppServer(payload) => json!({
-            "method": "app-server-event",
-            "params": payload,
-        }),
-        DaemonEvent::TerminalOutput(payload) => json!({
-            "method": "terminal-output",
-            "params": payload,
-        }),
-        DaemonEvent::TerminalExit(payload) => json!({
-            "method": "terminal-exit",
-            "params": payload,
-        }),
-    };
-    serde_json::to_string(&payload).ok()
-}
 
 #[derive(Deserialize)]
 pub(super) struct TerminalSocketQuery {
@@ -220,7 +203,7 @@ async fn handle_events_socket(mut socket: WebSocket, mut rx: broadcast::Receiver
                 let Ok(event) = event else {
                     break;
                 };
-                let Some(payload) = encode_event(event) else {
+                let Some(payload) = build_event_notification(event) else {
                     continue;
                 };
                 if socket.send(Message::Text(payload.into())).await.is_err() {

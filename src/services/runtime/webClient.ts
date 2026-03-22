@@ -398,6 +398,19 @@ async function invokeWebRuntime<T>(
     } as T;
   }
   if (
+    command === "claude_sdk_status" ||
+    command === "claude_sdk_install" ||
+    command === "claude_sdk_remove"
+  ) {
+    return {
+      state: "missing",
+      version: null,
+      path: null,
+      source: null,
+      error: "网页运行时不支持本地 Claude SDK 管理。",
+    } as T;
+  }
+  if (
     command === "dictation_download_model" ||
     command === "dictation_cancel_download" ||
     command === "dictation_remove_model"

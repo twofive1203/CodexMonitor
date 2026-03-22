@@ -226,9 +226,14 @@ mod tests {
     use std::sync::Arc;
 
     use serde_json::json;
+    use serde_json::Value;
     use tokio::sync::Mutex;
 
-    use super::{get_provider_capabilities_core, start_review_core, steer_turn_core};
+    use super::{
+        get_provider_capabilities_core, interrupt_turn_core, respond_to_server_request_core,
+        resume_thread_core, send_user_message_core, start_review_core, start_thread_core,
+        steer_turn_core,
+    };
     use crate::backend::app_server::WorkspaceSession;
     use crate::types::{
         AgentProvider, ProviderCapabilities, WorkspaceEntry, WorkspaceKind, WorkspaceSettings,
@@ -247,6 +252,35 @@ mod tests {
         }
     }
 
+    /// 运行异步共享层测试。
+    ///
+    /// `future`：待执行的异步测试体。
+    fn run_async_test<F>(future: F)
+    where
+        F: std::future::Future<Output = ()>,
+    {
+        tokio::runtime::Runtime::new()
+            .expect("runtime")
+            .block_on(future);
+    }
+
+    /// 构造 Claude provider 的共享层测试上下文。
+    ///
+    /// 返回值：`(sessions, workspaces)`。
+    fn make_claude_runtime_context(
+    ) -> (
+        Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+        Mutex<HashMap<String, WorkspaceEntry>>,
+    ) {
+        (
+            Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new()),
+            Mutex::new(HashMap::from([(
+                "ws-claude".to_string(),
+                make_workspace_entry("ws-claude", AgentProvider::Claude),
+            )])),
+        )
+    }
+
     #[test]
     fn get_provider_capabilities_core_uses_provider_snapshot() {
         assert_eq!(
@@ -261,12 +295,8 @@ mod tests {
 
     #[test]
     fn start_review_core_rejects_claude_workspace_provider() {
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let workspaces = Mutex::new(HashMap::from([(
-                "ws-claude".to_string(),
-                make_workspace_entry("ws-claude", AgentProvider::Claude),
-            )]));
-            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
 
             let result = start_review_core(
                 &sessions,
@@ -287,12 +317,8 @@ mod tests {
 
     #[test]
     fn steer_turn_core_routes_claude_workspace_through_shared_runtime() {
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let workspaces = Mutex::new(HashMap::from([(
-                "ws-claude".to_string(),
-                make_workspace_entry("ws-claude", AgentProvider::Claude),
-            )]));
-            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
 
             let result = steer_turn_core(
                 &sessions,
@@ -307,6 +333,95 @@ mod tests {
             .await;
 
             assert_eq!(result, Err("missing active turn id".to_string()));
+        });
+    }
+
+    #[test]
+    fn start_thread_core_routes_claude_workspace_through_shared_runtime() {
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
+
+            let result = start_thread_core(&sessions, &workspaces, "ws-claude".to_string()).await;
+
+            assert_eq!(result, Err("workspace not connected".to_string()));
+        });
+    }
+
+    #[test]
+    fn resume_thread_core_routes_claude_workspace_through_shared_runtime() {
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
+
+            let result = resume_thread_core(
+                &sessions,
+                &workspaces,
+                "ws-claude".to_string(),
+                "thread-1".to_string(),
+            )
+            .await;
+
+            assert_eq!(result, Err("workspace not connected".to_string()));
+        });
+    }
+
+    #[test]
+    fn send_user_message_core_routes_claude_workspace_through_shared_runtime() {
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
+
+            let result = send_user_message_core(
+                &sessions,
+                &workspaces,
+                "ws-claude".to_string(),
+                "thread-1".to_string(),
+                "hello".to_string(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+
+            assert_eq!(result, Err("workspace not connected".to_string()));
+        });
+    }
+
+    #[test]
+    fn interrupt_turn_core_routes_claude_workspace_through_shared_runtime() {
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
+
+            let result = interrupt_turn_core(
+                &sessions,
+                &workspaces,
+                "ws-claude".to_string(),
+                "thread-1".to_string(),
+                "turn-1".to_string(),
+            )
+            .await;
+
+            assert_eq!(result, Err("workspace not connected".to_string()));
+        });
+    }
+
+    #[test]
+    fn respond_to_server_request_core_routes_claude_workspace_through_shared_runtime() {
+        run_async_test(async {
+            let (sessions, workspaces) = make_claude_runtime_context();
+
+            let result = respond_to_server_request_core(
+                &sessions,
+                &workspaces,
+                "ws-claude".to_string(),
+                Value::String("req-1".to_string()),
+                json!({ "decision": "approve" }),
+            )
+            .await;
+
+            assert_eq!(result, Err("workspace not connected".to_string()));
         });
     }
 }

@@ -14,12 +14,20 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
-use crate::shared::claude_config_core;
+use crate::shared::claude_config_core::{self, ClaudeLaunchConfig};
+use crate::shared::claude_sdk_core::{
+    resolve_claude_sdk_entry_from_binary_path as resolve_claude_sdk_entry_from_binary_path_core,
+    resolve_claude_sdk_entry_from_root as resolve_claude_sdk_entry_from_root_core,
+    resolve_claude_sdk_entry_from_sdk_dir,
+};
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::types::{AgentProvider, WorkspaceEntry};
 
 #[cfg(target_os = "windows")]
 use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
+
+#[cfg(test)]
+const BUNDLED_CLAUDE_SDK_DIR: &str = crate::shared::claude_sdk_core::CLAUDE_SDK_DIR_NAME;
 
 fn extract_thread_id(value: &Value) -> Option<String> {
     fn extract_from_container(container: Option<&Value>) -> Option<String> {
@@ -78,14 +86,12 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         push_thread_id(out, record.get("id"));
         push_thread_id(
             out,
-            record
-                .get("thread")
-                .and_then(|thread| {
-                    thread
-                        .get("id")
-                        .or_else(|| thread.get("threadId"))
-                        .or_else(|| thread.get("thread_id"))
-                }),
+            record.get("thread").and_then(|thread| {
+                thread
+                    .get("id")
+                    .or_else(|| thread.get("threadId"))
+                    .or_else(|| thread.get("thread_id"))
+            }),
         );
     }
 
@@ -93,12 +99,15 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         let Some(container) = container.and_then(|value| value.as_object()) else {
             return;
         };
-        push_thread_id(out, container.get("threadId").or_else(|| container.get("thread_id")));
         push_thread_id(
             out,
             container
-                .get("thread")
-                .and_then(|thread| thread.get("id")),
+                .get("threadId")
+                .or_else(|| container.get("thread_id")),
+        );
+        push_thread_id(
+            out,
+            container.get("thread").and_then(|thread| thread.get("id")),
         );
         push_thread_id(
             out,
@@ -148,7 +157,10 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
                 .or_else(|| container.get("agent_statuses")),
             out,
         );
-        if let Some(status_map) = container.get("statuses").and_then(|value| value.as_object()) {
+        if let Some(status_map) = container
+            .get("statuses")
+            .and_then(|value| value.as_object())
+        {
             out.extend(
                 status_map
                     .keys()
@@ -191,10 +203,8 @@ fn normalize_root_path(value: &str) -> String {
     }
 
     let bytes = normalized.as_bytes();
-    let is_drive_path = bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/';
+    let is_drive_path =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
     if is_drive_path || normalized.starts_with("//") {
         normalized.to_ascii_lowercase()
     } else {
@@ -385,7 +395,11 @@ fn should_suppress_hidden_thread_event(
     method_name: Option<&str>,
     has_result_or_error: bool,
 ) -> bool {
+    let allows_response_required = method_name.is_some_and(|method| {
+        method == "item/tool/requestUserInput" || method.ends_with("requestApproval")
+    });
     !has_result_or_error
+        && !allows_response_required
         && !matches!(
             method_name,
             Some("thread/archived") | Some("codex/backgroundThread")
@@ -440,7 +454,11 @@ fn extract_response_error_message(value: &Value) -> Option<String> {
     {
         return Some(message.to_string());
     }
-    if let Some(message) = error.as_str().map(str::trim).filter(|message| !message.is_empty()) {
+    if let Some(message) = error
+        .as_str()
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+    {
         return Some(message.to_string());
     }
     Some("请求失败。".to_string())
@@ -737,9 +755,7 @@ pub(crate) async fn check_codex_installation(
             }
         })?,
         Err(_) => {
-            return Err(
-                "检查 Codex CLI 超时。请确认能在终端执行 `codex --version`。".to_string(),
-            );
+            return Err("检查 Codex CLI 超时。请确认能在终端执行 `codex --version`。".to_string());
         }
     };
 
@@ -768,8 +784,7 @@ pub(crate) async fn check_codex_installation(
 }
 
 async fn check_node_installation() -> Result<Option<String>, String> {
-    let mut command =
-        build_cli_command_with_bin(None, "node", vec!["--version".to_string()])?;
+    let mut command = build_cli_command_with_bin(None, "node", vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
@@ -810,24 +825,59 @@ async fn check_node_installation() -> Result<Option<String>, String> {
     })
 }
 
-fn resolve_claude_sdk_entry_path() -> Result<PathBuf, String> {
-    let candidate = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("node_modules")
-        .join("@anthropic-ai")
-        .join("claude-agent-sdk")
-        .join("sdk.mjs");
-    candidate.canonicalize().map_err(|error| {
-        format!(
-            "无法定位 Claude Agent SDK 入口：{}。请先执行 `npm install`。原始错误：{error}",
-            candidate.display()
-        )
-    })
+/// 从指定项目根目录解析 Claude SDK 入口路径。
+///
+/// `project_root`：仓库根目录，用于定位 `node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs`。
+fn resolve_claude_sdk_entry_from_root(project_root: &Path) -> Result<PathBuf, String> {
+    resolve_claude_sdk_entry_from_root_core(project_root)
+}
+
+/// 从当前二进制路径附近解析打包后的 Claude SDK 入口。
+///
+/// `binary_path`：当前 app 或 daemon 可执行文件绝对路径。
+fn resolve_claude_sdk_entry_from_binary_path(binary_path: &Path) -> Result<PathBuf, String> {
+    resolve_claude_sdk_entry_from_binary_path_core(binary_path)
+}
+
+/// 解析当前运行环境中的 Claude SDK 入口路径。
+///
+/// `claude_sdk_dir`：应用数据目录中的 Claude SDK 根目录，可为空。
+///
+/// 优先读取应用数据目录中的 Claude SDK，失败后回退到源码仓库 `node_modules`，最后兼容旧安装包资源目录。
+fn resolve_claude_sdk_entry_path(claude_sdk_dir: Option<&Path>) -> Result<PathBuf, String> {
+    if let Some(sdk_dir) = claude_sdk_dir {
+        match resolve_claude_sdk_entry_from_sdk_dir(sdk_dir) {
+            Ok(path) => return Ok(path),
+            Err(app_data_error) if sdk_dir.exists() => {
+                return Err(format!(
+                    "应用数据目录中的 Claude SDK 不可用（{}）。请在设置中重新下载 Claude SDK。原始错误：{app_data_error}",
+                    sdk_dir.display()
+                ));
+            }
+            Err(_) => {}
+        }
+    }
+
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    match resolve_claude_sdk_entry_from_root(&project_root) {
+        Ok(path) => Ok(path),
+        Err(project_error) => {
+            let bundled_error = std::env::current_exe()
+                .map_err(|error| format!("读取当前二进制路径失败：{error}"))
+                .and_then(|binary_path| resolve_claude_sdk_entry_from_binary_path(&binary_path));
+
+            match bundled_error {
+                Ok(path) => Ok(path),
+                Err(bundle_error) => Err(format!(
+                    "{project_error} 如果当前运行的是安装包，请先在设置中下载 Claude SDK。{bundle_error}"
+                )),
+            }
+        }
+    }
 }
 
 fn ensure_claude_sidecar_script() -> Result<PathBuf, String> {
-    const CLAUDE_SDK_SIDECAR_SOURCE: &str =
-        include_str!("../../resources/claude_sdk_sidecar.mjs");
+    const CLAUDE_SDK_SIDECAR_SOURCE: &str = include_str!("../../resources/claude_sdk_sidecar.mjs");
 
     let sidecar_dir = env::temp_dir().join("codex-monitor");
     std::fs::create_dir_all(&sidecar_dir)
@@ -846,11 +896,94 @@ fn build_claude_sidecar_command(sidecar_path: &Path) -> Result<Command, String> 
     )
 }
 
+/// 构造 Claude sidecar 需要注入的环境变量。
+///
+/// `sdk_entry_path`：Claude SDK 入口脚本路径。
+/// `launch_config`：从 Claude 本地配置读取的启动配置。
+/// `default_provider_bin`：设置页里配置的 Claude 可执行文件路径。
+/// `provider_runtime_args`：设置页里配置的 Claude 运行参数。
+/// `claude_permission_mode`：设置页里配置的权限模式，优先级高于本地配置。
+/// `client_version`：当前客户端版本号。
+fn build_claude_sidecar_env(
+    sdk_entry_path: &Path,
+    launch_config: &ClaudeLaunchConfig,
+    default_provider_bin: Option<&str>,
+    provider_runtime_args: Option<&str>,
+    claude_permission_mode: Option<&str>,
+    client_version: &str,
+) -> Result<HashMap<String, String>, String> {
+    let mut envs = HashMap::from([(
+        "CLAUDE_MONITOR_SDK_ENTRY".to_string(),
+        sdk_entry_path.to_string_lossy().to_string(),
+    )]);
+
+    if let Some(config_dir) = launch_config.config_dir.as_ref() {
+        envs.insert(
+            "CLAUDE_CONFIG_DIR".to_string(),
+            config_dir.to_string_lossy().to_string(),
+        );
+    }
+    if let Some(claude_bin) = default_provider_bin.map(str::trim).filter(|value| !value.is_empty()) {
+        envs.insert(
+            "CLAUDE_MONITOR_PROVIDER_BIN".to_string(),
+            claude_bin.to_string(),
+        );
+    }
+    if let Some(runtime_args) = provider_runtime_args
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        envs.insert(
+            "CLAUDE_MONITOR_PROVIDER_ARGS".to_string(),
+            runtime_args.to_string(),
+        );
+    }
+
+    let explicit_permission_mode = claude_permission_mode
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    let effective_permission_mode = if let Some(explicit_permission_mode) = explicit_permission_mode
+    {
+        let normalized =
+            claude_config_core::normalize_permission_mode(Some(explicit_permission_mode.clone()));
+        let Some(normalized_permission_mode) = normalized else {
+            return Err(format!(
+                "Claude 权限模式无效：{explicit_permission_mode}。可选值：default、acceptEdits、plan、dontAsk、bypassPermissions。"
+            ));
+        };
+        Some(normalized_permission_mode)
+    } else {
+        launch_config.permission_mode.clone()
+    };
+    if let Some(permission_mode) = effective_permission_mode {
+        envs.insert(
+            "CLAUDE_MONITOR_PERMISSION_MODE".to_string(),
+            permission_mode,
+        );
+    }
+    if let Some(default_model) = launch_config.default_model.as_deref() {
+        envs.insert(
+            "CLAUDE_MONITOR_DEFAULT_MODEL".to_string(),
+            default_model.to_string(),
+        );
+    }
+    for (key, value) in &launch_config.env_overrides {
+        envs.insert(key.clone(), value.clone());
+    }
+    envs.insert(
+        "CLAUDE_MONITOR_CLIENT_VERSION".to_string(),
+        client_version.to_string(),
+    );
+    Ok(envs)
+}
+
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
     default_provider_bin: Option<String>,
     provider_runtime_args: Option<String>,
     provider_runtime_home: Option<PathBuf>,
+    claude_sdk_dir: Option<PathBuf>,
     claude_permission_mode: Option<String>,
     claude_use_sdk_sidecar: bool,
     client_version: String,
@@ -877,37 +1010,22 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .to_string(),
                 );
             }
+            let launch_config = claude_config_core::read_launch_config()?;
+            let sdk_entry_path = resolve_claude_sdk_entry_path(claude_sdk_dir.as_deref())?;
+            let sidecar_env = build_claude_sidecar_env(
+                &sdk_entry_path,
+                &launch_config,
+                default_provider_bin.as_deref(),
+                provider_runtime_args.as_deref(),
+                claude_permission_mode.as_deref(),
+                &client_version,
+            )?;
             let _ = check_node_installation().await?;
             let sidecar_path = ensure_claude_sidecar_script()?;
-            let sdk_entry_path = resolve_claude_sdk_entry_path()?;
-            let launch_config = claude_config_core::read_launch_config()?;
             let mut command = build_claude_sidecar_command(&sidecar_path)?;
-            command.env("CLAUDE_MONITOR_SDK_ENTRY", sdk_entry_path);
-            if let Some(config_dir) = launch_config.config_dir.as_ref() {
-                command.env("CLAUDE_CONFIG_DIR", config_dir);
-            }
-            if let Some(claude_bin) = default_provider_bin.as_deref() {
-                command.env("CLAUDE_MONITOR_PROVIDER_BIN", claude_bin);
-            }
-            if let Some(runtime_args) = provider_runtime_args.as_deref() {
-                command.env("CLAUDE_MONITOR_PROVIDER_ARGS", runtime_args);
-            }
-            let effective_permission_mode = claude_permission_mode
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_string)
-                .or(launch_config.permission_mode.clone());
-            if let Some(permission_mode) = effective_permission_mode.as_deref() {
-                command.env("CLAUDE_MONITOR_PERMISSION_MODE", permission_mode);
-            }
-            if let Some(default_model) = launch_config.default_model.as_deref() {
-                command.env("CLAUDE_MONITOR_DEFAULT_MODEL", default_model);
-            }
-            for (key, value) in launch_config.env_overrides {
+            for (key, value) in sidecar_env {
                 command.env(key, value);
             }
-            command.env("CLAUDE_MONITOR_CLIENT_VERSION", &client_version);
             command
         }
     };
@@ -1049,12 +1167,20 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .and_then(Value::as_str)
                         .unwrap_or("hide");
                     if action.eq_ignore_ascii_case("hide") {
-                        session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                        session_clone
+                            .hidden_thread_ids
+                            .lock()
+                            .await
+                            .insert(tid.clone());
                     }
                 } else if method_name == Some("thread/started")
                     && thread_started_is_memory_consolidation(&value)
                 {
-                    session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    session_clone
+                        .hidden_thread_ids
+                        .lock()
+                        .await
+                        .insert(tid.clone());
                     let payload = AppServerEvent {
                         workspace_id: routed_workspace_id.clone(),
                         message: json!({
@@ -1251,13 +1377,86 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        ensure_claude_sidecar_script, extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
-        should_suppress_hidden_thread_event, source_subagent_kind,
-        thread_started_is_memory_consolidation,
+        build_claude_sidecar_env, build_initialize_params, ensure_claude_sidecar_script,
+        extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
+        extract_thread_id, normalize_root_path, resolve_claude_sdk_entry_from_binary_path,
+        resolve_claude_sdk_entry_from_root, resolve_workspace_for_cwd,
+        should_broadcast_global_workspace_notification, should_suppress_hidden_thread_event,
+        source_subagent_kind, spawn_workspace_session,
+        thread_started_is_memory_consolidation, WorkspaceSession, BUNDLED_CLAUDE_SDK_DIR,
     };
-    use std::collections::HashMap;
     use serde_json::json;
+    use std::collections::{BTreeMap, HashMap};
+    use std::future::Future;
+    use std::path::PathBuf;
+    use std::process::Stdio;
+    use std::sync::atomic::AtomicU64;
+    use std::sync::Arc;
+    use tokio::process::Command;
+    use tokio::sync::Mutex;
+    use crate::shared::claude_config_core::ClaudeLaunchConfig;
+    use crate::types::WorkspaceEntry;
+
+    /// 运行异步 app-server 测试。
+    ///
+    /// `future`：待执行的异步测试逻辑。
+    fn run_async_test<F>(future: F)
+    where
+        F: Future<Output = ()>,
+    {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(future);
+    }
+
+    /// 创建用于 session 单测的最小会话实例。
+    ///
+    /// `owner_workspace_id`：会话归属的 workspace ID。
+    async fn make_test_session(owner_workspace_id: &str) -> Arc<WorkspaceSession> {
+        let mut command = if cfg!(windows) {
+            let mut command = Command::new("cmd");
+            command.args(["/C", "more"]);
+            command
+        } else {
+            let mut command = Command::new("sh");
+            command.args(["-c", "cat"]);
+            command
+        };
+        command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let mut child = command.spawn().expect("spawn dummy child");
+        let stdin = child.stdin.take().expect("take stdin");
+
+        Arc::new(WorkspaceSession {
+            codex_args: None,
+            child: Mutex::new(child),
+            stdin: Mutex::new(stdin),
+            pending: Mutex::new(HashMap::new()),
+            request_context: Mutex::new(HashMap::new()),
+            thread_workspace: Mutex::new(HashMap::new()),
+            hidden_thread_ids: Mutex::new(std::collections::HashSet::new()),
+            next_id: AtomicU64::new(1),
+            background_thread_callbacks: Mutex::new(HashMap::new()),
+            owner_workspace_id: owner_workspace_id.to_string(),
+            workspace_ids: Mutex::new(std::collections::HashSet::from([owner_workspace_id.to_string()])),
+            workspace_roots: Mutex::new(HashMap::new()),
+        })
+    }
+
+    #[derive(Clone)]
+    struct NoopEventSink;
+
+    impl crate::backend::events::EventSink for NoopEventSink {
+        fn emit_app_server_event(&self, _event: crate::backend::events::AppServerEvent) {}
+
+        fn emit_terminal_output(&self, _event: crate::backend::events::TerminalOutput) {}
+
+        fn emit_terminal_exit(&self, _event: crate::backend::events::TerminalExit) {}
+    }
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
@@ -1284,9 +1483,240 @@ mod tests {
     }
 
     #[test]
+    fn extract_thread_id_reads_request_user_input_thread_id() {
+        let value = json!({
+            "method": "item/tool/requestUserInput",
+            "id": "req-1",
+            "params": {
+                "thread_id": "thread-input-1",
+                "turn_id": "turn-1",
+                "item_id": "item-1"
+            }
+        });
+        assert_eq!(extract_thread_id(&value), Some("thread-input-1".to_string()));
+    }
+
+    #[test]
+    fn extract_thread_id_reads_request_approval_thread_id() {
+        let value = json!({
+            "method": "item/permissions/requestApproval",
+            "id": 7,
+            "params": {
+                "threadId": "thread-approval-1",
+                "mode": "full"
+            }
+        });
+        assert_eq!(
+            extract_thread_id(&value),
+            Some("thread-approval-1".to_string())
+        );
+    }
+
+    #[test]
     fn extract_thread_id_returns_none_when_missing() {
         let value = json!({ "params": {} });
         assert_eq!(extract_thread_id(&value), None);
+    }
+
+    #[test]
+    fn build_claude_sidecar_env_prefers_settings_over_launch_defaults() {
+        let sdk_entry_path = PathBuf::from("/tmp/sdk-entry.mjs");
+        let launch_config = ClaudeLaunchConfig {
+            config_dir: Some(PathBuf::from("/tmp/.claude")),
+            default_model: Some("opus".to_string()),
+            permission_mode: Some("acceptEdits".to_string()),
+            env_overrides: BTreeMap::from([(
+                "ANTHROPIC_AUTH_TOKEN".to_string(),
+                "token-1".to_string(),
+            )]),
+        };
+
+        let envs = build_claude_sidecar_env(
+            &sdk_entry_path,
+            &launch_config,
+            Some("C:/tools/claude.exe"),
+            Some("--verbose --json"),
+            Some("bypassPermissions"),
+            "0.7.64",
+        )
+        .expect("build sidecar env");
+
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_SDK_ENTRY"),
+            Some(&"/tmp/sdk-entry.mjs".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_CONFIG_DIR"),
+            Some(&"/tmp/.claude".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_PROVIDER_BIN"),
+            Some(&"C:/tools/claude.exe".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_PROVIDER_ARGS"),
+            Some(&"--verbose --json".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_PERMISSION_MODE"),
+            Some(&"bypassPermissions".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_DEFAULT_MODEL"),
+            Some(&"opus".to_string())
+        );
+        assert_eq!(
+            envs.get("ANTHROPIC_AUTH_TOKEN"),
+            Some(&"token-1".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_CLIENT_VERSION"),
+            Some(&"0.7.64".to_string())
+        );
+    }
+
+    #[test]
+    fn build_claude_sidecar_env_falls_back_to_launch_config_for_blank_settings() {
+        let sdk_entry_path = PathBuf::from("/tmp/sdk-entry.mjs");
+        let launch_config = ClaudeLaunchConfig {
+            config_dir: Some(PathBuf::from("/tmp/.claude")),
+            default_model: Some("sonnet".to_string()),
+            permission_mode: Some("plan".to_string()),
+            env_overrides: BTreeMap::new(),
+        };
+
+        let envs = build_claude_sidecar_env(
+            &sdk_entry_path,
+            &launch_config,
+            Some("   "),
+            Some(" "),
+            Some(" "),
+            "0.7.64",
+        )
+        .expect("build sidecar env");
+
+        assert!(!envs.contains_key("CLAUDE_MONITOR_PROVIDER_BIN"));
+        assert!(!envs.contains_key("CLAUDE_MONITOR_PROVIDER_ARGS"));
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_PERMISSION_MODE"),
+            Some(&"plan".to_string())
+        );
+        assert_eq!(
+            envs.get("CLAUDE_MONITOR_DEFAULT_MODEL"),
+            Some(&"sonnet".to_string())
+        );
+    }
+
+    #[test]
+    fn build_claude_sidecar_env_rejects_unknown_permission_mode() {
+        let sdk_entry_path = PathBuf::from("/tmp/sdk-entry.mjs");
+        let launch_config = ClaudeLaunchConfig {
+            config_dir: None,
+            default_model: None,
+            permission_mode: Some("acceptEdits".to_string()),
+            env_overrides: BTreeMap::new(),
+        };
+
+        let result = build_claude_sidecar_env(
+            &sdk_entry_path,
+            &launch_config,
+            None,
+            None,
+            Some("invalid-mode"),
+            "0.7.64",
+        );
+
+        assert_eq!(
+            result,
+            Err(
+                "Claude 权限模式无效：invalid-mode。可选值：default、acceptEdits、plan、dontAsk、bypassPermissions。"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn resolve_claude_sdk_entry_from_root_reports_missing_sdk_path() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "claude-sdk-entry-missing-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+
+        let result = resolve_claude_sdk_entry_from_root(&temp_dir);
+
+        let error = result.expect_err("expected missing sdk entry error");
+        assert!(error.contains("无法定位 Claude Agent SDK 入口："));
+        assert!(error.contains("node_modules"));
+        assert!(error.contains("claude-agent-sdk"));
+        assert!(error.contains("请先执行 `npm install`"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn resolve_claude_sdk_entry_from_binary_path_reads_resources_sdk_path() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "claude-sdk-entry-bundled-resources-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let install_dir = temp_dir.join("install");
+        let binary_path = install_dir.join("codex-monitor.exe");
+        let sdk_entry = install_dir
+            .join("resources")
+            .join(BUNDLED_CLAUDE_SDK_DIR)
+            .join("sdk.mjs");
+
+        std::fs::create_dir_all(sdk_entry.parent().expect("sdk parent"))
+            .expect("create bundled sdk dir");
+        std::fs::write(&sdk_entry, "export const sdk = true;\n").expect("write bundled sdk");
+
+        let result = resolve_claude_sdk_entry_from_binary_path(&binary_path)
+            .expect("resolve bundled sdk entry");
+
+        assert_eq!(result, sdk_entry.canonicalize().expect("canonical sdk entry"));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn resolve_claude_sdk_entry_from_binary_path_reads_sibling_sdk_path() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "claude-sdk-entry-bundled-sibling-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let install_dir = temp_dir.join("install");
+        let binary_path = install_dir.join("codex-monitor-daemon.exe");
+        let sdk_entry = install_dir.join(BUNDLED_CLAUDE_SDK_DIR).join("sdk.mjs");
+
+        std::fs::create_dir_all(sdk_entry.parent().expect("sdk parent"))
+            .expect("create sibling sdk dir");
+        std::fs::write(&sdk_entry, "export const sdk = true;\n").expect("write sibling sdk");
+
+        let result = resolve_claude_sdk_entry_from_binary_path(&binary_path)
+            .expect("resolve sibling sdk entry");
+
+        assert_eq!(result, sdk_entry.canonicalize().expect("canonical sdk entry"));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn resolve_claude_sdk_entry_from_binary_path_reports_resource_hint_when_missing() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "claude-sdk-entry-bundled-missing-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let install_dir = temp_dir.join("install");
+        std::fs::create_dir_all(&install_dir).expect("create install dir");
+        let binary_path = install_dir.join("codex-monitor.exe");
+
+        let error = resolve_claude_sdk_entry_from_binary_path(&binary_path)
+            .expect_err("expected bundled sdk entry error");
+
+        assert!(error.contains("无法定位打包后的 Claude Agent SDK 入口"));
+        assert!(error.contains("claude-agent-sdk"));
+        assert!(error.contains("安装包已包含 claude-agent-sdk 资源"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
@@ -1519,9 +1949,31 @@ mod tests {
 
     #[test]
     fn hidden_thread_suppression_allows_rpc_responses() {
-        assert!(!should_suppress_hidden_thread_event(Some("thread/archived"), true));
-        assert!(!should_suppress_hidden_thread_event(Some("thread/updated"), true));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/archived"),
+            true
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/updated"),
+            true
+        ));
         assert!(!should_suppress_hidden_thread_event(None, true));
+    }
+
+    #[test]
+    fn hidden_thread_suppression_allows_response_required_notifications() {
+        assert!(!should_suppress_hidden_thread_event(
+            Some("item/tool/requestUserInput"),
+            false
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("item/permissions/requestApproval"),
+            false
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("workspace/requestApproval"),
+            false
+        ));
     }
 
     #[test]
@@ -1538,5 +1990,214 @@ mod tests {
             Some("codex/backgroundThread"),
             false
         ));
+    }
+
+    #[test]
+    fn spawn_workspace_session_rejects_claude_without_sidecar_enabled() {
+        run_async_test(async {
+            let result = spawn_workspace_session(
+                WorkspaceEntry {
+                    id: "ws-claude".to_string(),
+                    name: "Claude".to_string(),
+                    path: ".".to_string(),
+                    provider: crate::types::AgentProvider::Claude,
+                    kind: crate::types::WorkspaceKind::Main,
+                    parent_id: None,
+                    worktree: None,
+                    settings: crate::types::WorkspaceSettings::default(),
+                },
+                None,
+                None,
+                None,
+                None,
+                None,
+                false,
+                "0.7.64".to_string(),
+                NoopEventSink,
+            )
+            .await;
+
+            assert!(result.is_err(), "expected sidecar disabled error");
+            assert_eq!(
+                result.err().unwrap_or_default(),
+                "当前仅支持 Claude SDK sidecar，请在设置中开启 claudeUseSdkSidecar。".to_string()
+            );
+        });
+    }
+
+    #[test]
+    fn spawn_workspace_session_rejects_invalid_claude_permission_mode() {
+        run_async_test(async {
+            let result = spawn_workspace_session(
+                WorkspaceEntry {
+                    id: "ws-claude".to_string(),
+                    name: "Claude".to_string(),
+                    path: ".".to_string(),
+                    provider: crate::types::AgentProvider::Claude,
+                    kind: crate::types::WorkspaceKind::Main,
+                    parent_id: None,
+                    worktree: None,
+                    settings: crate::types::WorkspaceSettings::default(),
+                },
+                None,
+                None,
+                None,
+                None,
+                Some("invalid-mode".to_string()),
+                true,
+                "0.7.64".to_string(),
+                NoopEventSink,
+            )
+            .await;
+
+            assert!(result.is_err(), "expected invalid permission mode error");
+            assert_eq!(
+                result.err().unwrap_or_default(),
+                "Claude 权限模式无效：invalid-mode。可选值：default、acceptEdits、plan、dontAsk、bypassPermissions。"
+                    .to_string()
+            );
+        });
+    }
+
+    #[test]
+    fn global_workspace_notifications_broadcast_without_thread_or_request_binding() {
+        assert!(should_broadcast_global_workspace_notification(
+            Some("account/updated"),
+            None,
+            None
+        ));
+        assert!(should_broadcast_global_workspace_notification(
+            Some("account/rateLimits/updated"),
+            None,
+            None
+        ));
+        assert!(should_broadcast_global_workspace_notification(
+            Some("account/login/completed"),
+            None,
+            None
+        ));
+    }
+
+    #[test]
+    fn global_workspace_notifications_do_not_broadcast_when_scoped() {
+        let thread_id = "thread-1".to_string();
+        assert!(!should_broadcast_global_workspace_notification(
+            Some("account/updated"),
+            Some(&thread_id),
+            None
+        ));
+        assert!(!should_broadcast_global_workspace_notification(
+            Some("account/updated"),
+            None,
+            Some("ws-1")
+        ));
+        assert!(!should_broadcast_global_workspace_notification(
+            Some("thread/started"),
+            None,
+            None
+        ));
+    }
+
+    #[test]
+    fn send_request_for_workspace_records_thread_request_context() {
+        run_async_test(async {
+            let session = make_test_session("ws-owner").await;
+            let session_for_assert = Arc::clone(&session);
+
+            let request_task = tokio::spawn(async move {
+                session
+                    .send_request_for_workspace(
+                        "ws-claude",
+                        "turn/start",
+                        json!({
+                            "threadId": "thread-approval",
+                            "input": [{ "type": "text", "text": "hello" }]
+                        }),
+                    )
+                    .await
+            });
+
+            let request_id = loop {
+                let context_map = session_for_assert.request_context.lock().await.clone();
+                if let Some((request_id, context)) = context_map.into_iter().next() {
+                    assert_eq!(
+                        context.workspace_id, "ws-claude",
+                        "thread-bound request should retain workspace context"
+                    );
+                    assert_eq!(context.method, "turn/start");
+                    break request_id;
+                }
+                tokio::task::yield_now().await;
+            };
+
+            let mapped_workspace = session_for_assert
+                .thread_workspace
+                .lock()
+                .await
+                .get("thread-approval")
+                .cloned();
+            assert_eq!(mapped_workspace.as_deref(), Some("ws-claude"));
+
+            let pending = session_for_assert.pending.lock().await.remove(&request_id);
+            let sender = pending.expect("pending sender");
+            sender
+                .send(json!({ "id": request_id, "result": { "ok": true } }))
+                .expect("send response");
+
+            let response = request_task.await.expect("join request task");
+            assert_eq!(response, Ok(json!({ "id": request_id, "result": { "ok": true } })));
+        });
+    }
+
+    #[test]
+    fn send_request_for_workspace_tracks_workspace_context_without_thread_id() {
+        run_async_test(async {
+            let session = make_test_session("ws-owner").await;
+            let session_for_assert = Arc::clone(&session);
+
+            let request_task = tokio::spawn(async move {
+                session
+                    .send_request_for_workspace(
+                        "ws-claude",
+                        "item/tool/respond",
+                        json!({
+                            "requestId": "req-1",
+                            "result": {
+                                "answers": {
+                                    "confirm": { "answers": ["yes"] }
+                                }
+                            }
+                        }),
+                    )
+                    .await
+            });
+
+            let request_id = loop {
+                let context_map = session_for_assert.request_context.lock().await.clone();
+                if let Some((request_id, context)) = context_map.into_iter().next() {
+                    assert_eq!(context.workspace_id, "ws-claude");
+                    assert_eq!(context.method, "item/tool/respond");
+                    break request_id;
+                }
+                tokio::task::yield_now().await;
+            };
+
+            assert!(
+                session_for_assert.thread_workspace.lock().await.is_empty(),
+                "requests without thread id should not mutate thread mapping"
+            );
+
+            let pending = session_for_assert.pending.lock().await.remove(&request_id);
+            let sender = pending.expect("pending sender");
+            sender
+                .send(json!({ "id": request_id, "result": { "accepted": true } }))
+                .expect("send response");
+
+            let response = request_task.await.expect("join request task");
+            assert_eq!(
+                response,
+                Ok(json!({ "id": request_id, "result": { "accepted": true } }))
+            );
+        });
     }
 }

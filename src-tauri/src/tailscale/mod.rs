@@ -17,6 +17,7 @@ use tokio::time::{sleep, timeout, Instant};
 
 use crate::daemon_binary::resolve_daemon_binary_path;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
+use crate::shared::tcp_listener_core::{ensure_listen_addr_available, find_listener_pid};
 use crate::state::{AppState, TcpDaemonRuntime};
 use crate::types::{
     AppSettings, TailscaleDaemonCommandPreview, TailscaleStatus, TcpDaemonState, TcpDaemonStatus,
@@ -431,18 +432,6 @@ fn sync_tcp_daemon_listen_addr(status: &mut TcpDaemonStatus, configured_listen_a
     status.listen_addr = Some(configured_listen_addr.to_string());
 }
 
-async fn ensure_listen_addr_available(listen_addr: &str) -> Result<(), String> {
-    match tokio::net::TcpListener::bind(listen_addr).await {
-        Ok(listener) => {
-            drop(listener);
-            Ok(())
-        }
-        Err(err) => Err(format!(
-            "Cannot start mobile access daemon because {listen_addr} is unavailable: {err}"
-        )),
-    }
-}
-
 async fn refresh_tcp_daemon_runtime(runtime: &mut TcpDaemonRuntime) {
     let Some(child) = runtime.child.as_mut() else {
         runtime.status.state = TcpDaemonState::Stopped;
@@ -463,10 +452,14 @@ async fn refresh_tcp_daemon_runtime(runtime: &mut TcpDaemonRuntime) {
                     listen_addr: runtime.status.listen_addr.clone(),
                 };
             } else {
-                let failure_hint = if status.code() == Some(101) {
-                    " This usually indicates a startup panic (often due to an unavailable listen port)."
-                } else {
-                    ""
+                let failure_hint = match status.code() {
+                    Some(2) => {
+                        " This usually indicates invalid startup arguments or an unavailable TCP/Web listen port."
+                    }
+                    Some(101) => {
+                        " This usually indicates a startup panic (often due to an unavailable listen port)."
+                    }
+                    _ => "",
                 };
                 runtime.status = TcpDaemonStatus {
                     state: TcpDaemonState::Error,
@@ -509,36 +502,6 @@ fn is_pid_running(pid: u32) -> bool {
 }
 
 #[cfg(unix)]
-async fn find_listener_pid(port: u16) -> Option<u32> {
-    let target = format!(":{port}");
-    let output = match tokio_command("lsof")
-        .args(["-nP", "-iTCP"])
-        .arg(&target)
-        .args(["-sTCP:LISTEN", "-t"])
-        .output()
-        .await
-    {
-        Ok(output) => output,
-        Err(err) if err.kind() == ErrorKind::NotFound => return None,
-        Err(_) => return None,
-    };
-
-    if !output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if output.status.code() == Some(1) && stdout.trim().is_empty() && stderr.trim().is_empty() {
-            return None;
-        }
-        return None;
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .lines()
-        .find_map(|line| line.trim().parse::<u32>().ok())
-}
-
-#[cfg(unix)]
 async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
     let term_result = unsafe { libc::kill(pid as i32, libc::SIGTERM) };
     if term_result != 0 {
@@ -572,11 +535,6 @@ async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
     }
 
     Err(format!("Daemon process {pid} is still running."))
-}
-
-#[cfg(not(unix))]
-async fn find_listener_pid(_port: u16) -> Option<u32> {
-    None
 }
 
 #[cfg(not(unix))]
@@ -817,10 +775,10 @@ mod tests {
                 .expect("bind ephemeral listener");
             let occupied = listener.local_addr().expect("local addr").to_string();
 
-            let error = ensure_listen_addr_available(&occupied)
+            let error = ensure_listen_addr_available("mobile access daemon", &occupied)
                 .await
                 .expect_err("expected occupied port error");
-            assert!(error.contains("unavailable"));
+            assert!(error.contains("already in use by another process"));
         });
     }
 }

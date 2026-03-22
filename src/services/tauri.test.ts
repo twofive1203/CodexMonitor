@@ -915,6 +915,19 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("passes through string server request ids", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await respondToServerRequest("ws-6", "approval-101", "decline");
+
+    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
+      workspaceId: "ws-6",
+      requestId: "approval-101",
+      result: { decision: "decline" },
+    });
+  });
+
   it("nests answers for user input responses", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -926,6 +939,25 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
       workspaceId: "ws-7",
       requestId: 202,
+      result: {
+        answers: {
+          confirm_path: { answers: ["Yes"] },
+        },
+      },
+    });
+  });
+
+  it("passes through string user input request ids", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await respondToUserInputRequest("ws-7", "input-202", {
+      confirm_path: { answers: ["Yes"] },
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
+      workspaceId: "ws-7",
+      requestId: "input-202",
       result: {
         answers: {
           confirm_path: { answers: ["Yes"] },

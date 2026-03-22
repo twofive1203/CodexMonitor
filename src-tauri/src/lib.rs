@@ -25,7 +25,7 @@ mod prompts;
 mod remote_backend;
 mod rules;
 mod settings;
-mod shared;
+pub mod shared;
 mod state;
 mod storage;
 mod tailscale;
@@ -187,6 +187,9 @@ pub fn run() {
             settings::get_app_settings,
             settings::update_app_settings,
             settings::get_codex_config_path,
+            settings::claude_sdk_status,
+            settings::claude_sdk_install,
+            settings::claude_sdk_remove,
             files::file_read,
             files::file_write,
             files::read_image_as_data_url,

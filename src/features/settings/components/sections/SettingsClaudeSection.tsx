@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { AppSettings } from "@/types";
+import type { ClaudeSdkSource, ClaudeSdkStatus } from "@/types";
 import { useProviderCapabilities } from "@/features/providers/hooks/useProviderCapabilities";
 import {
   SettingsSection,
@@ -6,6 +8,11 @@ import {
   SettingsToggleSwitch,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { SettingsClaudeSectionProps } from "@settings/hooks/useSettingsClaudeSection";
+import {
+  getClaudeSdkStatus,
+  installClaudeSdk,
+  removeClaudeSdk,
+} from "@services/tauri";
 import { resolveProviderCapabilities } from "@utils/agentProvider";
 
 const CLAUDE_PERMISSION_MODE_OPTIONS = [
@@ -33,6 +40,44 @@ function buildClaudeHint(
   return `${sidecarLabel}，${reviewLabel}。`;
 }
 
+/**
+ * 生成 Claude SDK 来源文案。
+ *
+ * `source`：SDK 当前来源。
+ */
+function buildClaudeSdkSourceLabel(source: ClaudeSdkSource | null | undefined): string {
+  switch (source) {
+    case "app_data":
+      return "应用数据目录";
+    case "project_node_modules":
+      return "项目 node_modules";
+    case "bundle":
+      return "旧安装包资源";
+    default:
+      return "未知来源";
+  }
+}
+
+/**
+ * 生成 Claude SDK 状态说明。
+ *
+ * `status`：SDK 状态快照。
+ */
+function buildClaudeSdkStatusLabel(status: ClaudeSdkStatus | null): string {
+  if (!status) {
+    return "正在检测 Claude SDK...";
+  }
+  if (status.state === "ready") {
+    const sourceLabel = buildClaudeSdkSourceLabel(status.source);
+    const versionLabel = status.version ? `，版本 ${status.version}` : "";
+    return `Claude SDK 已就绪，来源：${sourceLabel}${versionLabel}。`;
+  }
+  if (status.state === "error") {
+    return status.error ?? "Claude SDK 状态异常。";
+  }
+  return status.error ?? "未检测到 Claude SDK。";
+}
+
 export function SettingsClaudeSection({
   appSettings,
   claudePathDraft,
@@ -48,11 +93,88 @@ export function SettingsClaudeSection({
 }: SettingsClaudeSectionProps) {
   const { capabilities, error } = useProviderCapabilities("claude");
   const resolvedCapabilities = resolveProviderCapabilities("claude", capabilities);
+  const [sdkStatus, setSdkStatus] = useState<ClaudeSdkStatus | null>(null);
+  const [sdkAction, setSdkAction] = useState<"loading" | "installing" | "removing" | null>(
+    "loading",
+  );
+  const [sdkActionError, setSdkActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let canceled = false;
+    setSdkAction("loading");
+    setSdkActionError(null);
+    void getClaudeSdkStatus()
+      .then((status) => {
+        if (canceled) {
+          return;
+        }
+        setSdkStatus(status);
+        setSdkAction(null);
+      })
+      .catch((loadError) => {
+        if (canceled) {
+          return;
+        }
+        setSdkStatus(null);
+        setSdkAction(null);
+        setSdkActionError(
+          loadError instanceof Error ? loadError.message : String(loadError),
+        );
+      });
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  const handleInstallClaudeSdk = async () => {
+    setSdkAction("installing");
+    setSdkActionError(null);
+    try {
+      const status = await installClaudeSdk();
+      setSdkStatus(status);
+    } catch (installError) {
+      setSdkActionError(
+        installError instanceof Error ? installError.message : String(installError),
+      );
+    } finally {
+      setSdkAction(null);
+    }
+  };
+
+  const handleRemoveClaudeSdk = async () => {
+    setSdkAction("removing");
+    setSdkActionError(null);
+    try {
+      const status = await removeClaudeSdk();
+      setSdkStatus(status);
+    } catch (removeError) {
+      setSdkActionError(
+        removeError instanceof Error ? removeError.message : String(removeError),
+      );
+    } finally {
+      setSdkAction(null);
+    }
+  };
+
+  const handleRefreshClaudeSdk = async () => {
+    setSdkAction("loading");
+    setSdkActionError(null);
+    try {
+      const status = await getClaudeSdkStatus();
+      setSdkStatus(status);
+    } catch (refreshError) {
+      setSdkActionError(
+        refreshError instanceof Error ? refreshError.message : String(refreshError),
+      );
+    } finally {
+      setSdkAction(null);
+    }
+  };
 
   return (
     <SettingsSection
       title="Claude"
-      subtitle="配置 Claude CLI 与一期降级能力。"
+      subtitle="配置 Claude CLI、SDK sidecar 与一期降级能力。"
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="claude-path">
@@ -75,6 +197,9 @@ export function SettingsClaudeSection({
           </button>
         </div>
         <div className="settings-help">留空则使用系统 PATH 中的 Claude CLI。</div>
+        <div className="settings-help">
+          开发态需要先执行 npm install；安装包请在设置页按需下载 Claude SDK 到本地应用数据目录。
+        </div>
       </div>
 
       <div className="settings-field">
@@ -122,7 +247,7 @@ export function SettingsClaudeSection({
 
       <SettingsToggleRow
         title="使用 SDK sidecar"
-        subtitle="建议保持开启，用统一事件模型适配 Claude。"
+        subtitle="建议保持开启，用统一事件模型适配 Claude；安装包默认不再内置 SDK。"
       >
         <SettingsToggleSwitch
           pressed={appSettings.claudeUseSdkSidecar}
@@ -134,9 +259,61 @@ export function SettingsClaudeSection({
           }
         />
       </SettingsToggleRow>
+      <div className="settings-field">
+        <div className="settings-field-label">Claude SDK</div>
+        <div className="settings-help">
+          打包版默认不内置 Claude SDK。首次使用 Claude 前，请先检测并按需下载到本地应用数据目录。
+        </div>
+        <div className="settings-help">{buildClaudeSdkStatusLabel(sdkStatus)}</div>
+        {sdkStatus?.path && (
+          <div className="settings-help">
+            当前路径：<code>{sdkStatus.path}</code>
+          </div>
+        )}
+        {sdkActionError && <div className="settings-help">{sdkActionError}</div>}
+        <div className="settings-field-actions">
+          {(sdkStatus?.state !== "ready" || sdkStatus?.source !== "app_data") && (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                void handleInstallClaudeSdk();
+              }}
+              disabled={sdkAction !== null}
+            >
+              {sdkAction === "installing" ? "下载中..." : "下载 SDK"}
+            </button>
+          )}
+          {sdkStatus?.state === "ready" && sdkStatus?.source === "app_data" && (
+            <button
+              type="button"
+              className="ghost settings-button-compact"
+              onClick={() => {
+                void handleRemoveClaudeSdk();
+              }}
+              disabled={sdkAction !== null}
+            >
+              {sdkAction === "removing" ? "移除中..." : "移除 SDK"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            onClick={() => {
+              void handleRefreshClaudeSdk();
+            }}
+            disabled={sdkAction !== null}
+          >
+            {sdkAction === "loading" ? "检测中..." : "刷新状态"}
+          </button>
+        </div>
+      </div>
 
       <div className="settings-help">
         {buildClaudeHint(appSettings, resolvedCapabilities.supportsReview)}
+      </div>
+      <div className="settings-help">
+        当前策略：Claude 仍保持实验态并默认关闭，建议先按人工验收矩阵完成本地与远程验证。
       </div>
       <div className="settings-help">
         一期降级项：登录、额度、skills、apps、steer、协作模式、review、自动更新。

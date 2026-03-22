@@ -35,7 +35,10 @@ pub(super) fn build_result_response(id: Option<u64>, result: Value) -> Option<St
     )
 }
 
-fn build_event_notification(event: DaemonEvent) -> Option<String> {
+/// 将 daemon 内部事件编码为统一的对外通知 JSON 字符串。
+///
+/// `event`：需要透传给 RPC 或 WebSocket 客户端的 daemon 事件。
+pub(crate) fn build_event_notification(event: DaemonEvent) -> Option<String> {
     let payload = match event {
         DaemonEvent::AppServer(payload) => json!({
             "method": "app-server-event",

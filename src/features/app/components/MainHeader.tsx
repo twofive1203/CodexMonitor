@@ -5,6 +5,10 @@ import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";
+import {
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+} from "../../../utils/agentProvider";
 import { revealInFileManagerLabel } from "../../../utils/platformPaths";
 import { BranchList } from "../../git/components/BranchList";
 import { filterBranches, findExactBranch } from "../../git/utils/branchSearch";
@@ -138,6 +142,8 @@ export function MainHeader({
     () => validateBranchName(trimmedQuery),
     [trimmedQuery],
   );
+  const provider = getWorkspaceProvider(workspace);
+  const providerLabel = getAgentProviderLabel(provider);
   const resolvedWorktreePath = worktreePath ?? workspace.path;
   const relativeWorktreePath = useMemo(() => {
     if (!parentPath) {
@@ -190,6 +196,12 @@ export function MainHeader({
         <div className="workspace-title-line">
           <span className="workspace-title">
             {parentName ? parentName : workspace.name}
+          </span>
+          <span
+            className={`workspace-provider-badge workspace-provider-badge-header is-${provider}`}
+            title={`${providerLabel} provider`}
+          >
+            {providerLabel}
           </span>
           <span className="workspace-separator" aria-hidden>
             ›

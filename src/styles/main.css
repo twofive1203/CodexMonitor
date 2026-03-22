@@ -445,6 +445,11 @@
   flex: 1;
 }
 
+.workspace-provider-badge-header {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
 .workspace-title {
   font-size: 15px;
   font-weight: 600;

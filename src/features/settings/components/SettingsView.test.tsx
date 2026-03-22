@@ -13,13 +13,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
 import {
   connectWorkspace,
+  getClaudeSdkStatus,
   getAppBuildType,
   getAgentsSettings,
   getConfigModel,
   getExperimentalFeatureList,
   isMobileRuntime,
+  installClaudeSdk,
   getModelList,
   listWorkspaces,
+  removeClaudeSdk,
   webAccessStatus,
 } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
@@ -41,31 +44,58 @@ vi.mock("@services/tauri", async () => {
   return {
     ...actual,
     connectWorkspace: vi.fn(),
+    getClaudeSdkStatus: vi.fn(),
     getAppBuildType: vi.fn(),
     getModelList: vi.fn(),
     getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
     getAgentsSettings: vi.fn(),
+    installClaudeSdk: vi.fn(),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
+    removeClaudeSdk: vi.fn(),
     webAccessStatus: vi.fn(),
   };
 });
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
+const getClaudeSdkStatusMock = vi.mocked(getClaudeSdkStatus);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
 const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
+const installClaudeSdkMock = vi.mocked(installClaudeSdk);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
+const removeClaudeSdkMock = vi.mocked(removeClaudeSdk);
 const webAccessStatusMock = vi.mocked(webAccessStatus);
 connectWorkspaceMock.mockResolvedValue(undefined);
+getClaudeSdkStatusMock.mockResolvedValue({
+  state: "missing",
+  version: null,
+  path: null,
+  source: null,
+  error: "未检测到 Claude Agent SDK。开发态请先执行 `npm install`；安装包请在设置中下载 Claude SDK。",
+});
 getAppBuildTypeMock.mockResolvedValue("release");
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
+installClaudeSdkMock.mockResolvedValue({
+  state: "ready",
+  version: "0.2.81",
+  path: "/app/data/claude-agent-sdk/sdk.mjs",
+  source: "app_data",
+  error: null,
+});
 listWorkspacesMock.mockResolvedValue([]);
+removeClaudeSdkMock.mockResolvedValue({
+  state: "missing",
+  version: null,
+  path: "/app/data/claude-agent-sdk",
+  source: null,
+  error: "未检测到 Claude Agent SDK。开发态请先执行 `npm install`；安装包请在设置中下载 Claude SDK。",
+});
 webAccessStatusMock.mockResolvedValue({
   enabled: false,
   state: "stopped",
@@ -932,6 +962,11 @@ describe("SettingsView Codex section", () => {
     expect(screen.queryByRole("button", { name: "Claude" })).toBeNull();
     expect(screen.queryByLabelText("Claude 路径")).toBeNull();
     expect(screen.getByText("Claude Provider")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "当前策略：Claude 继续保持实验态并默认关闭，建议先完成本地与远程人工验收，再面向稳定环境开启。",
+      ),
+    ).toBeTruthy();
   });
 
   it("disables Claude experimental feature and resets the default provider", async () => {
@@ -1136,6 +1171,20 @@ describe("SettingsView Codex section", () => {
       />,
     );
 
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "打包版默认不内置 Claude SDK。首次使用 Claude 前，请先检测并按需下载到本地应用数据目录。",
+        ),
+      ).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: "下载 SDK" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "当前策略：Claude 仍保持实验态并默认关闭，建议先按人工验收矩阵完成本地与远程验证。",
+      ),
+    ).toBeTruthy();
+
     fireEvent.change(screen.getByLabelText("Claude 路径"), {
       target: { value: "  C:/tools/claude.exe  " },
     });
@@ -1155,6 +1204,52 @@ describe("SettingsView Codex section", () => {
           claudePermissionMode: "acceptEdits",
         }),
       );
+    });
+  });
+
+  it("downloads Claude SDK in Claude section", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="claude"
+      />,
+    );
+
+    const downloadButton = await screen.findByRole("button", { name: "下载 SDK" });
+    fireEvent.click(downloadButton);
+
+    await waitFor(() => {
+      expect(installClaudeSdkMock).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByText("Claude SDK 已就绪，来源：应用数据目录，版本 0.2.81。"),
+      ).toBeTruthy();
     });
   });
 

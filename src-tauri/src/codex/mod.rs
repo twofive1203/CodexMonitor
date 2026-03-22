@@ -15,6 +15,7 @@ use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::agent_runtime_core;
 use crate::shared::agents_config_core;
+use crate::shared::claude_sdk_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
 use crate::state::AppState;
 use crate::types::{AgentProvider, WorkspaceEntry};
@@ -42,12 +43,18 @@ pub(crate) async fn spawn_workspace_session(
     let client_version = app_handle.package_info().version.to_string();
     let state = app_handle.state::<AppState>();
     let app_settings = state.app_settings.lock().await.clone();
+    let claude_sdk_dir = app_handle
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|data_dir| claude_sdk_core::claude_sdk_dir(&data_dir));
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
         default_codex_bin,
         codex_args,
         codex_home,
+        claude_sdk_dir,
         app_settings.claude_permission_mode,
         app_settings.claude_use_sdk_sidecar,
         client_version,

@@ -2,6 +2,7 @@ use super::rpc_client::{
     probe_daemon, request_daemon_shutdown, wait_for_daemon_shutdown, DaemonInfo, DaemonProbe,
 };
 use super::*;
+use crate::shared::tcp_listener_core::occupied_listen_addr_message;
 
 const EXPECTED_DAEMON_NAME: &str = "codex-monitor-daemon";
 const EXPECTED_DAEMON_MODE: &str = "tcp";
@@ -51,6 +52,14 @@ async fn resolve_daemon_pid(listen_port: u16, info: Option<&DaemonInfo>) -> Opti
         Some(pid) => Some(pid),
         None => find_listener_pid(listen_port).await,
     }
+}
+
+/// 预检 Web 监听地址是否可用，避免子进程启动后因端口占用直接退出。
+///
+/// `settings`：应用设置，提供 Web 监听地址与端口配置。
+async fn ensure_web_access_listener_available(settings: &AppSettings) -> Result<(), String> {
+    let web_listen_addr = configured_web_access_listen_addr(settings);
+    ensure_listen_addr_available("Web access listener", &web_listen_addr).await
 }
 
 pub(super) async fn tailscale_daemon_command_preview(
@@ -213,14 +222,50 @@ pub(super) async fn tailscale_daemon_start(
             };
         }
         DaemonProbe::NotDaemon => {
-            return Err(format!(
-                "Cannot start mobile access daemon because {listen_addr} is already in use by another process."
-            ));
+            let occupied_pid = find_listener_pid(listen_port).await;
+            let error =
+                occupied_listen_addr_message("mobile access daemon", &listen_addr, occupied_pid);
+            runtime.status = TcpDaemonStatus {
+                state: TcpDaemonState::Error,
+                pid: occupied_pid,
+                started_at_ms: runtime.status.started_at_ms,
+                last_error: Some(error.clone()),
+                listen_addr: Some(listen_addr.clone()),
+            };
+            return Err(error);
         }
         DaemonProbe::NotReachable => {}
     }
 
-    ensure_listen_addr_available(&listen_addr).await?;
+    if let Err(error) = ensure_listen_addr_available("mobile access daemon", &listen_addr).await {
+        let occupied_pid = find_listener_pid(listen_port).await;
+        runtime.status = TcpDaemonStatus {
+            state: TcpDaemonState::Error,
+            pid: occupied_pid,
+            started_at_ms: runtime.status.started_at_ms,
+            last_error: Some(error.clone()),
+            listen_addr: Some(listen_addr.clone()),
+        };
+        return Err(error);
+    }
+
+    if desired_web_access_enabled {
+        if let Err(error) = ensure_web_access_listener_available(&settings).await {
+            let web_listen_addr = configured_web_access_listen_addr(&settings);
+            let occupied_pid = match parse_port_from_remote_host(&web_listen_addr) {
+                Some(port) => find_listener_pid(port).await,
+                None => None,
+            };
+            runtime.status = TcpDaemonStatus {
+                state: TcpDaemonState::Error,
+                pid: occupied_pid,
+                started_at_ms: runtime.status.started_at_ms,
+                last_error: Some(error.clone()),
+                listen_addr: Some(listen_addr.clone()),
+            };
+            return Err(error);
+        }
+    }
 
     let mut command = tokio_command(&daemon_binary);
     command
@@ -331,9 +376,13 @@ pub(super) async fn tailscale_daemon_stop(
                 }
             }
             DaemonProbe::NotDaemon => {
-                stop_error = Some(format!(
-                    "Port {port} is in use by a non-daemon process; refusing to stop it."
-                ));
+                let occupied_pid = find_listener_pid(port).await;
+                stop_error = Some(match occupied_pid {
+                    Some(pid) => format!(
+                        "Port {port} is in use by a non-daemon process (PID {pid}); refusing to stop it."
+                    ),
+                    None => format!("Port {port} is in use by a non-daemon process; refusing to stop it."),
+                });
             }
             DaemonProbe::NotReachable => {}
         }
@@ -364,8 +413,11 @@ pub(super) async fn tailscale_daemon_stop(
             state: TcpDaemonState::Error,
             pid: pid_after_stop,
             started_at_ms: runtime.status.started_at_ms,
-            last_error: Some(stop_error.unwrap_or_else(|| {
-                "Configured port is now occupied by a non-daemon process.".to_string()
+            last_error: Some(stop_error.unwrap_or_else(|| match pid_after_stop {
+                Some(pid) => {
+                    format!("Configured port is now occupied by a non-daemon process (PID {pid}).")
+                }
+                None => "Configured port is now occupied by a non-daemon process.".to_string(),
             })),
             listen_addr: runtime.status.listen_addr.clone(),
         },
@@ -418,9 +470,14 @@ pub(super) async fn tailscale_daemon_status(
                 state: TcpDaemonState::Error,
                 pid,
                 started_at_ms: runtime.status.started_at_ms,
-                last_error: Some(format!(
-                    "Configured daemon port {configured_listen_addr} is occupied by a non-daemon process."
-                )),
+                last_error: Some(match pid {
+                    Some(pid) => format!(
+                        "Configured daemon port {configured_listen_addr} is occupied by a non-daemon process (PID {pid})."
+                    ),
+                    None => format!(
+                        "Configured daemon port {configured_listen_addr} is occupied by a non-daemon process."
+                    ),
+                }),
                 listen_addr: runtime.status.listen_addr.clone(),
             },
             DaemonProbe::NotReachable => TcpDaemonStatus {
@@ -441,9 +498,10 @@ pub(super) async fn tailscale_daemon_status(
 #[cfg(test)]
 mod tests {
     use super::{
-        can_force_stop_daemon, should_restart_daemon, DaemonInfo, CURRENT_APP_VERSION,
-        EXPECTED_DAEMON_MODE, EXPECTED_DAEMON_NAME,
+        can_force_stop_daemon, ensure_web_access_listener_available, should_restart_daemon,
+        DaemonInfo, CURRENT_APP_VERSION, EXPECTED_DAEMON_MODE, EXPECTED_DAEMON_NAME,
     };
+    use crate::types::AppSettings;
 
     fn daemon_info(version: &str) -> DaemonInfo {
         DaemonInfo {
@@ -474,5 +532,32 @@ mod tests {
         assert!(!can_force_stop_daemon(true, Some(&info)));
         assert!(!can_force_stop_daemon(false, Some(&info)));
         assert!(!can_force_stop_daemon(true, None));
+    }
+
+    #[test]
+    fn web_listener_preflight_fails_when_port_is_in_use() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        runtime.block_on(async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("bind ephemeral listener");
+            let occupied_port = listener.local_addr().expect("local addr").port();
+
+            let settings = AppSettings {
+                web_access_listen_addr: "127.0.0.1".to_string(),
+                web_access_port: occupied_port,
+                ..AppSettings::default()
+            };
+
+            let error = ensure_web_access_listener_available(&settings)
+                .await
+                .expect_err("expected occupied web listener error");
+            assert!(error.contains("Web access listener"));
+            assert!(error.contains(&format!("127.0.0.1:{occupied_port}")));
+        });
     }
 }

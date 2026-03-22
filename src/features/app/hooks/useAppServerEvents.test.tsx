@@ -472,6 +472,94 @@ describe("useAppServerEvents", () => {
     });
   });
 
+  it("routes string approval request ids for any requestApproval suffix", async () => {
+    const handlers: Handlers = {
+      onApprovalRequest: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-2",
+        message: {
+          method: "item/mcp/requestApproval",
+          id: "approval-7",
+          params: {
+            thread_id: "thread-2",
+            tool_name: "filesystem",
+          },
+        },
+      });
+    });
+
+    expect(handlers.onApprovalRequest).toHaveBeenCalledWith({
+      workspace_id: "ws-2",
+      request_id: "approval-7",
+      method: "item/mcp/requestApproval",
+      params: {
+        thread_id: "thread-2",
+        tool_name: "filesystem",
+      },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("routes string request ids for request user input events", async () => {
+    const handlers: Handlers = {
+      onRequestUserInput: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-3",
+        message: {
+          method: "item/tool/requestUserInput",
+          id: "input-55",
+          params: {
+            thread_id: "thread-3",
+            turn_id: "turn-3",
+            item_id: "item-3",
+            questions: [
+              {
+                id: "confirm",
+                header: "Confirm",
+                question: "Continue?",
+                options: [{ label: "Yes", description: "继续" }],
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    expect(handlers.onRequestUserInput).toHaveBeenCalledWith({
+      workspace_id: "ws-3",
+      request_id: "input-55",
+      params: {
+        thread_id: "thread-3",
+        turn_id: "turn-3",
+        item_id: "item-3",
+        questions: [
+          {
+            id: "confirm",
+            header: "Confirm",
+            question: "Continue?",
+            isOther: false,
+            options: [{ label: "Yes", description: "继续" }],
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("ignores delta events missing required fields", async () => {
     const handlers: Handlers = {
       onAgentMessageDelta: vi.fn(),

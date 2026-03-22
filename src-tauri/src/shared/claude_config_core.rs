@@ -110,7 +110,10 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn normalize_permission_mode(value: Option<String>) -> Option<String> {
+/// 规范化 Claude 权限模式。
+///
+/// `value`：待规范化的权限模式原始值。
+pub(crate) fn normalize_permission_mode(value: Option<String>) -> Option<String> {
     match normalize_optional_string(value)
         .as_deref()
         .map(str::to_ascii_lowercase)
@@ -127,7 +130,9 @@ fn normalize_permission_mode(value: Option<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_launch_config_from_settings_path, ClaudeLaunchConfig};
+    use super::{
+        load_launch_config_from_settings_path, normalize_permission_mode, ClaudeLaunchConfig,
+    };
     use std::collections::BTreeMap;
     use uuid::Uuid;
 
@@ -194,5 +199,14 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn normalize_permission_mode_rejects_unknown_values() {
+        assert_eq!(normalize_permission_mode(Some("unknown-mode".to_string())), None);
+        assert_eq!(
+            normalize_permission_mode(Some(" acceptEdits ".to_string())),
+            Some("acceptEdits".to_string())
+        );
     }
 }

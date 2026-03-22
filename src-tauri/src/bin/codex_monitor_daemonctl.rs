@@ -7,6 +7,10 @@ mod storage;
 #[path = "../types.rs"]
 mod types;
 
+use codex_monitor_lib::shared::tcp_listener_core::{
+    ensure_listen_addr_available, find_listener_pid, local_listener_port,
+    occupied_listen_addr_message,
+};
 use daemon_binary::resolve_daemon_binary_path;
 use serde_json::{json, Value};
 use std::env;
@@ -751,18 +755,6 @@ fn now_unix_ms() -> i64 {
         .unwrap_or(0)
 }
 
-async fn ensure_listen_addr_available(listen_addr: &str) -> Result<(), String> {
-    match tokio::net::TcpListener::bind(listen_addr).await {
-        Ok(listener) => {
-            drop(listener);
-            Ok(())
-        }
-        Err(err) => Err(format!(
-            "Cannot start mobile access daemon because {listen_addr} is unavailable: {err}"
-        )),
-    }
-}
-
 #[cfg(unix)]
 fn is_pid_running(pid: u32) -> bool {
     let result = unsafe { libc::kill(pid as i32, 0) };
@@ -773,144 +765,6 @@ fn is_pid_running(pid: u32) -> bool {
         Some(code) => code != libc::ESRCH,
         None => false,
     }
-}
-
-#[cfg(unix)]
-async fn find_listener_pid(port: u16) -> Option<u32> {
-    if let Some(pid) = find_listener_pid_with_lsof(port).await {
-        return Some(pid);
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        if let Some(pid) = find_listener_pid_with_ss(port).await {
-            return Some(pid);
-        }
-        if let Some(pid) = find_listener_pid_with_netstat(port).await {
-            return Some(pid);
-        }
-    }
-
-    None
-}
-
-#[cfg(any(test, target_os = "linux"))]
-fn parse_ss_listener_pid(output: &str, port: u16) -> Option<u32> {
-    for line in output.lines() {
-        if !line.contains("LISTEN") {
-            continue;
-        }
-        let columns: Vec<&str> = line.split_whitespace().collect();
-        let local_addr = match columns.get(3) {
-            Some(value) => *value,
-            None => continue,
-        };
-        if parse_port_from_addr_token(local_addr) != Some(port) {
-            continue;
-        }
-        for token in line.split(|ch: char| ch.is_whitespace() || matches!(ch, '(' | ')' | ',')) {
-            if let Some(value) = token.strip_prefix("pid=") {
-                if let Ok(pid) = value.parse::<u32>() {
-                    return Some(pid);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[cfg(any(test, target_os = "linux"))]
-fn parse_netstat_listener_pid(output: &str, port: u16) -> Option<u32> {
-    for line in output.lines() {
-        if !line.contains("LISTEN") {
-            continue;
-        }
-        let columns: Vec<&str> = line.split_whitespace().collect();
-        let local_addr = match columns.get(3) {
-            Some(value) => *value,
-            None => continue,
-        };
-        if parse_port_from_addr_token(local_addr) != Some(port) {
-            continue;
-        }
-        for token in line.split_whitespace().rev() {
-            if token == "-" {
-                continue;
-            }
-            if let Some((pid_str, _)) = token.split_once('/') {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    return Some(pid);
-                }
-            }
-        }
-    }
-    None
-}
-
-#[cfg(any(test, target_os = "linux"))]
-fn parse_port_from_addr_token(value: &str) -> Option<u16> {
-    value
-        .trim()
-        .rsplit_once(':')
-        .and_then(|(_, port)| port.parse::<u16>().ok())
-}
-
-#[cfg(unix)]
-async fn find_listener_pid_with_lsof(port: u16) -> Option<u32> {
-    let target = format!(":{port}");
-    let output = match Command::new("lsof")
-        .args(["-nP", "-iTCP"])
-        .arg(&target)
-        .args(["-sTCP:LISTEN", "-t"])
-        .output()
-        .await
-    {
-        Ok(output) => output,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(_) => return None,
-    };
-
-    if !output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if output.status.code() == Some(1) && stdout.trim().is_empty() && stderr.trim().is_empty() {
-            return None;
-        }
-        return None;
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .lines()
-        .find_map(|line| line.trim().parse::<u32>().ok())
-}
-
-#[cfg(target_os = "linux")]
-async fn find_listener_pid_with_ss(port: u16) -> Option<u32> {
-    let output = match Command::new("ss").args(["-ltnp"]).output().await {
-        Ok(output) => output,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(_) => return None,
-    };
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_ss_listener_pid(&stdout, port)
-}
-
-#[cfg(target_os = "linux")]
-async fn find_listener_pid_with_netstat(port: u16) -> Option<u32> {
-    let output = match Command::new("netstat").args(["-ltnp"]).output().await {
-        Ok(output) => output,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(_) => return None,
-    };
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_netstat_listener_pid(&stdout, port)
 }
 
 #[cfg(unix)]
@@ -950,11 +804,6 @@ async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
 }
 
 #[cfg(not(unix))]
-async fn find_listener_pid(_port: u16) -> Option<u32> {
-    None
-}
-
-#[cfg(not(unix))]
 async fn kill_pid_gracefully(_pid: u32) -> Result<(), String> {
     Err("Stopping external daemon by pid is not supported on this platform.".to_string())
 }
@@ -964,16 +813,6 @@ fn safe_force_stop_pid(pid: u32) -> Option<u32> {
         None
     } else {
         Some(pid)
-    }
-}
-
-fn local_listener_port(listen_addr: &str) -> Option<u16> {
-    let addr = listen_addr.trim().parse::<SocketAddr>().ok()?;
-    let ip = addr.ip();
-    if ip.is_loopback() || ip.is_unspecified() {
-        Some(addr.port())
-    } else {
-        None
     }
 }
 
@@ -1086,14 +925,17 @@ async fn daemon_start(
             }
         }
         DaemonProbe::NotDaemon => {
-            return Err(format!(
-                "Cannot start mobile access daemon because {listen_addr} is already in use by another process."
+            let occupied_pid = resolve_daemon_pid(listen_addr, None).await;
+            return Err(occupied_listen_addr_message(
+                "mobile access daemon",
+                listen_addr,
+                occupied_pid,
             ));
         }
         DaemonProbe::NotReachable => {}
     }
 
-    ensure_listen_addr_available(listen_addr).await?;
+    ensure_listen_addr_available("mobile access daemon", listen_addr).await?;
 
     let mut command = Command::new(daemon_binary);
     command
@@ -1278,9 +1120,8 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_connect_addr, daemon_listen_addr, local_listener_port, parse_netstat_listener_pid,
-        parse_port_from_remote_host, parse_ss_listener_pid, resolve_listen_addr,
-        safe_force_stop_pid, shell_quote,
+        daemon_connect_addr, daemon_listen_addr, local_listener_port, parse_port_from_remote_host,
+        resolve_listen_addr, safe_force_stop_pid, shell_quote,
     };
 
     #[test]
@@ -1374,41 +1215,5 @@ mod tests {
         assert_eq!(safe_force_stop_pid(0), None);
         assert_eq!(safe_force_stop_pid(1), None);
         assert_eq!(safe_force_stop_pid(2), Some(2));
-    }
-
-    #[test]
-    fn parses_pid_from_ss_output() {
-        let output = r#"State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
-LISTEN 0      4096   0.0.0.0:4732      0.0.0.0:*    users:(("codex-monitor-da",pid=12345,fd=7))
-"#;
-        assert_eq!(parse_ss_listener_pid(output, 4732), Some(12345));
-        assert_eq!(parse_ss_listener_pid(output, 9000), None);
-    }
-
-    #[test]
-    fn parses_pid_from_netstat_output() {
-        let output = r#"Active Internet connections (only servers)
-Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-tcp        0      0 0.0.0.0:4732            0.0.0.0:*               LISTEN      6789/codex-monitor-da
-"#;
-        assert_eq!(parse_netstat_listener_pid(output, 4732), Some(6789));
-        assert_eq!(parse_netstat_listener_pid(output, 9000), None);
-    }
-
-    #[test]
-    fn ss_parser_does_not_match_port_prefix() {
-        let output = r#"State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
-LISTEN 0      4096   0.0.0.0:47320     0.0.0.0:*    users:(("other",pid=45678,fd=7))
-"#;
-        assert_eq!(parse_ss_listener_pid(output, 4732), None);
-    }
-
-    #[test]
-    fn netstat_parser_does_not_match_port_prefix() {
-        let output = r#"Active Internet connections (only servers)
-Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-tcp        0      0 0.0.0.0:47320           0.0.0.0:*               LISTEN      8765/other
-"#;
-        assert_eq!(parse_netstat_listener_pid(output, 4732), None);
     }
 }

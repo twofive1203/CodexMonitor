@@ -74,6 +74,58 @@ Run in dev mode:
 npm run tauri:dev
 ```
 
+## Claude Provider (Experimental)
+
+CodexMonitor now supports running a workspace with provider `claude` in addition to `codex`.
+Claude is still gated behind the experimental feature toggle, remains disabled by default, and currently ships with a reduced capability set.
+
+### Enable Claude
+
+1. Run `npm install`.
+   In dev mode, the Claude SDK sidecar resolves its SDK entry from this repo's `node_modules`, so a missing install will prevent startup.
+2. Install the Claude CLI, or prepare a custom Claude binary path.
+3. Open `Settings > Features` and enable `Claude Provider`.
+4. Open `Settings > Claude`, run SDK detection, and download the Claude SDK when prompted.
+5. Configure:
+   - `Claude 路径`: optional custom CLI path, blank uses `PATH`
+   - `Claude 参数`: optional extra runtime args
+   - `Claude 权限模式`: one of `default`, `acceptEdits`, `plan`, `dontAsk`, `bypassPermissions`
+   - `使用 SDK sidecar`: recommended and currently required
+6. Create or edit a workspace and set its provider to `Claude`.
+7. Connect the workspace, then start or resume a thread as usual.
+
+### Claude Packaging Notes
+
+- Dev mode resolves the Claude SDK from `node_modules/@anthropic-ai/claude-agent-sdk`.
+- Bundled desktop builds no longer ship the Claude SDK by default.
+- Desktop installs resolve the Claude SDK from the app data directory after you download it in `Settings > Claude`.
+- If a packaged app reports that the Claude SDK entry cannot be found, open `Settings > Claude`, refresh SDK status, then download the SDK.
+
+### Current Claude Scope
+
+- Workspace provider is persisted independently, so Codex and Claude workspaces can coexist.
+- The UI shows a provider badge in the workspace list and the active thread header.
+- Local app mode and remote daemon mode both route by workspace provider.
+- Claude currently hides unsupported first-phase UI entry points:
+  - login
+  - rate limits
+  - skills
+  - apps
+  - steer
+  - review
+  - collaboration modes
+
+### Common Claude Errors
+
+- `当前仅支持 Claude SDK sidecar，请在设置中开启 claudeUseSdkSidecar。`
+  Enable `使用 SDK sidecar` in `Settings > Claude`.
+- `无法定位 Claude Agent SDK 入口：... 请先执行 npm install。`
+  Dev mode: run `npm install` in the repo root. Bundled app: open `Settings > Claude` and download the SDK.
+- `未找到 npm。请确认本机已安装 Node.js 18+，并能在终端执行 npm --version。`
+  Install Node.js 18+ first, then retry the Claude SDK download in settings.
+- `Claude 权限模式无效：...`
+  Update the permission mode to one of `default`, `acceptEdits`, `plan`, `dontAsk`, `bypassPermissions`.
+
 ## iOS Support (WIP)
 
 iOS support is currently in progress.

@@ -212,7 +212,11 @@ export function SettingsFeaturesSection({
       />
       <SettingsToggleRow
         title="Claude Provider"
-        subtitle="开启后才会显示 Claude 设置分区、项目 provider 切换和相关新建入口。"
+        subtitle={
+          appSettings.experimentalClaudeEnabled
+            ? "实验功能已开启，会显示 Claude 设置分区、项目 provider 切换和相关新建入口。"
+            : "默认关闭。开启后才会显示 Claude 设置分区、项目 provider 切换和相关新建入口。"
+        }
       >
         <SettingsToggleSwitch
           pressed={appSettings.experimentalClaudeEnabled}
@@ -229,6 +233,9 @@ export function SettingsFeaturesSection({
           }
         />
       </SettingsToggleRow>
+      <div className="settings-help">
+        当前策略：Claude 继续保持实验态并默认关闭，建议先完成本地与远程人工验收，再面向稳定环境开启。
+      </div>
       {experimentalFeatures.map((feature) => (
         <SettingsToggleRow
           key={feature.name}

@@ -738,3 +738,15 @@ export type DictationTranscript = {
   id: string;
   text: string;
 };
+
+export type ClaudeSdkState = "missing" | "ready" | "error";
+
+export type ClaudeSdkSource = "app_data" | "project_node_modules" | "bundle";
+
+export type ClaudeSdkStatus = {
+  state: ClaudeSdkState;
+  version?: string | null;
+  path?: string | null;
+  source?: ClaudeSdkSource | null;
+  error?: string | null;
+};

@@ -435,6 +435,36 @@ pub(crate) struct WorktreeSetupStatus {
     pub(crate) script: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ClaudeSdkState {
+    Missing,
+    Ready,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ClaudeSdkSource {
+    AppData,
+    ProjectNodeModules,
+    Bundle,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ClaudeSdkStatus {
+    pub(crate) state: ClaudeSdkState,
+    #[serde(default)]
+    pub(crate) version: Option<String>,
+    #[serde(default)]
+    pub(crate) path: Option<String>,
+    #[serde(default)]
+    pub(crate) source: Option<ClaudeSdkSource>,
+    #[serde(default)]
+    pub(crate) error: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct OpenAppTarget {
     pub(crate) id: String,

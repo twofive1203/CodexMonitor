@@ -154,6 +154,43 @@ describe("useRemoteThreadLiveConnection", () => {
     expect(refreshThread.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("keeps selected thread live when attached event arrives", async () => {
+    const refreshThread = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useRemoteThreadLiveConnection({
+        backendMode: "remote",
+        activeWorkspace: {
+          id: "ws-1",
+          name: "Workspace",
+          path: "/tmp/ws-1",
+          connected: true,
+          settings: { sidebarCollapsed: false },
+        },
+        activeThreadId: "thread-1",
+        refreshThread,
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.connectionState).toBe("live");
+
+    await act(async () => {
+      for (const listener of appServerListeners) {
+        listener({
+          workspace_id: "ws-1",
+          method: "thread/live_attached",
+          params: { threadId: "thread-1" },
+        });
+      }
+      await Promise.resolve();
+    });
+
+    expect(result.current.connectionState).toBe("live");
+  });
+
   it("does not reconnect detached stream when window is not focused", async () => {
     const refreshThread = vi.fn().mockResolvedValue(undefined);
 

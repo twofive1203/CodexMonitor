@@ -110,6 +110,7 @@ fn spawn_with_client(
     default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
+    claude_sdk_dir: Option<PathBuf>,
     claude_permission_mode: Option<String>,
     claude_use_sdk_sidecar: bool,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
@@ -118,6 +119,7 @@ fn spawn_with_client(
         default_bin,
         codex_args,
         codex_home,
+        claude_sdk_dir,
         claude_permission_mode,
         claude_use_sdk_sidecar,
         client_version,
@@ -346,6 +348,7 @@ impl DaemonState {
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::add_workspace_core(
@@ -363,6 +366,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -381,6 +385,7 @@ impl DaemonState {
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::add_workspace_from_git_url_core(
@@ -400,6 +405,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -419,6 +425,7 @@ impl DaemonState {
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::add_worktree_core(
@@ -455,6 +462,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -526,6 +534,7 @@ impl DaemonState {
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::rename_worktree_core(
@@ -561,6 +570,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -620,6 +630,7 @@ impl DaemonState {
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::update_workspace_settings_core(
@@ -641,6 +652,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -667,6 +679,7 @@ impl DaemonState {
 
         let client_version = client_version.clone();
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::connect_workspace_core(
@@ -682,6 +695,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -697,6 +711,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::set_workspace_runtime_codex_args_core(
@@ -713,6 +728,7 @@ impl DaemonState {
                     default_bin,
                     next_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -1120,6 +1136,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
         let (claude_permission_mode, claude_use_sdk_sidecar) =
             self.current_claude_launch_settings().await;
         workspaces_core::add_clone_core(
@@ -1139,6 +1156,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    Some(claude_sdk_dir.clone()),
                     claude_permission_mode.clone(),
                     claude_use_sdk_sidecar,
                 )
@@ -2094,6 +2112,185 @@ mod tests {
             }
 
             let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_turn_steer_routes_through_shared_runtime_validation() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-turn-steer");
+            let state = test_state(&tmp);
+            insert_workspace(&state, "ws-steer", &tmp.join("workspace").to_string_lossy()).await;
+
+            let err = rpc::handle_rpc_request(
+                &state,
+                "turn_steer",
+                json!({
+                    "workspaceId": "ws-steer",
+                    "threadId": "thread-1",
+                    "turnId": "",
+                    "text": "follow up"
+                }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect_err("expected turn_steer validation error");
+
+            assert_eq!(err, "missing active turn id");
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_respond_to_server_request_accepts_string_request_id() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-respond-request");
+            let state = test_state(&tmp);
+            insert_workspace(
+                &state,
+                "ws-request",
+                &tmp.join("workspace").to_string_lossy(),
+            )
+            .await;
+
+            let err = rpc::handle_rpc_request(
+                &state,
+                "respond_to_server_request",
+                json!({
+                    "workspaceId": "ws-request",
+                    "requestId": "req-1",
+                    "result": {
+                        "answers": {
+                            "confirm": {
+                                "answers": ["yes"]
+                            }
+                        }
+                    }
+                }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect_err("expected workspace not connected error");
+
+            assert_eq!(err, "workspace not connected");
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_respond_to_server_request_requires_result_payload() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-respond-request-missing-result");
+            let state = test_state(&tmp);
+
+            let err = rpc::handle_rpc_request(
+                &state,
+                "respond_to_server_request",
+                json!({
+                    "workspaceId": "ws-request",
+                    "requestId": 7
+                }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect_err("expected missing result error");
+
+            assert_eq!(err, "missing `result`");
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_forward_events_serializes_app_server_notifications() {
+        run_async_test(async {
+            let (events_tx, events_rx) = broadcast::channel::<DaemonEvent>(8);
+            let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
+            let forward_task = tokio::spawn(rpc::forward_events(events_rx, out_tx));
+            let payload = AppServerEvent {
+                workspace_id: "ws-app-server".to_string(),
+                message: json!({
+                    "method": "thread/live_attached",
+                    "thread_id": "thread-1"
+                }),
+            };
+
+            assert!(
+                events_tx
+                    .send(DaemonEvent::AppServer(payload.clone()))
+                    .is_ok(),
+                "send app-server event"
+            );
+
+            let encoded = tokio::time::timeout(Duration::from_secs(1), out_rx.recv())
+                .await
+                .expect("receive app-server notification")
+                .expect("notification payload");
+            let value: Value = serde_json::from_str(&encoded).expect("parse notification");
+
+            assert_eq!(
+                value.get("method").and_then(Value::as_str),
+                Some("app-server-event")
+            );
+            assert_eq!(value.get("params"), Some(&json!(payload)));
+
+            drop(events_tx);
+            forward_task.await.expect("join forward task");
+        });
+    }
+
+    #[test]
+    fn rpc_forward_events_serializes_terminal_notifications() {
+        run_async_test(async {
+            let (events_tx, events_rx) = broadcast::channel::<DaemonEvent>(8);
+            let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
+            let forward_task = tokio::spawn(rpc::forward_events(events_rx, out_tx));
+            let output = TerminalOutput {
+                workspace_id: "ws-terminal".to_string(),
+                terminal_id: "term-1".to_string(),
+                data: "hello".to_string(),
+            };
+            let exit = TerminalExit {
+                workspace_id: "ws-terminal".to_string(),
+                terminal_id: "term-1".to_string(),
+            };
+
+            assert!(
+                events_tx
+                    .send(DaemonEvent::TerminalOutput(output.clone()))
+                    .is_ok(),
+                "send terminal output"
+            );
+            assert!(
+                events_tx
+                    .send(DaemonEvent::TerminalExit(exit.clone()))
+                    .is_ok(),
+                "send terminal exit"
+            );
+
+            let first = tokio::time::timeout(Duration::from_secs(1), out_rx.recv())
+                .await
+                .expect("receive terminal output notification")
+                .expect("terminal output payload");
+            let second = tokio::time::timeout(Duration::from_secs(1), out_rx.recv())
+                .await
+                .expect("receive terminal exit notification")
+                .expect("terminal exit payload");
+            let first_value: Value = serde_json::from_str(&first).expect("parse first payload");
+            let second_value: Value = serde_json::from_str(&second).expect("parse second payload");
+
+            assert_eq!(
+                first_value.get("method").and_then(Value::as_str),
+                Some("terminal-output")
+            );
+            assert_eq!(first_value.get("params"), Some(&json!(output)));
+            assert_eq!(
+                second_value.get("method").and_then(Value::as_str),
+                Some("terminal-exit")
+            );
+            assert_eq!(second_value.get("params"), Some(&json!(exit)));
+
+            drop(events_tx);
+            forward_task.await.expect("join forward task");
         });
     }
 }

@@ -113,4 +113,67 @@ describe("events subscriptions", () => {
 
     cleanup();
   });
+
+  it("fans out app-server events to multiple subscribers with one runtime subscription", async () => {
+    let listener: (payload: AppServerEvent) => void = () => {};
+    const unlisten = vi.fn();
+
+    subscribeMock.mockImplementation((_event, handler) => {
+      listener = handler as (payload: AppServerEvent) => void;
+      return Promise.resolve(unlisten);
+    });
+
+    const firstListener = vi.fn();
+    const secondListener = vi.fn();
+    const cleanupFirst = subscribeAppServerEvents(firstListener);
+    const cleanupSecond = subscribeAppServerEvents(secondListener);
+
+    expect(subscribeMock).toHaveBeenCalledTimes(1);
+
+    const payload: AppServerEvent = {
+      workspace_id: "ws-2",
+      message: { method: "item/tool/requestUserInput", id: "req-1" },
+    };
+    listener(payload);
+
+    expect(firstListener).toHaveBeenCalledWith(payload);
+    expect(secondListener).toHaveBeenCalledWith(payload);
+
+    cleanupFirst();
+    cleanupSecond();
+    await Promise.resolve();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues fanout when one app-server listener throws", async () => {
+    let listener: (payload: AppServerEvent) => void = () => {};
+    const unlisten = vi.fn();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    subscribeMock.mockImplementation((_event, handler) => {
+      listener = handler as (payload: AppServerEvent) => void;
+      return Promise.resolve(unlisten);
+    });
+
+    const failingListener = vi.fn(() => {
+      throw new Error("listener failed");
+    });
+    const healthyListener = vi.fn();
+    const cleanupFailing = subscribeAppServerEvents(failingListener);
+    const cleanupHealthy = subscribeAppServerEvents(healthyListener);
+
+    const payload: AppServerEvent = {
+      workspace_id: "ws-3",
+      message: { method: "item/permissions/requestApproval", id: 7 },
+    };
+    listener(payload);
+
+    expect(failingListener).toHaveBeenCalledWith(payload);
+    expect(healthyListener).toHaveBeenCalledWith(payload);
+    expect(errorSpy).toHaveBeenCalled();
+
+    cleanupFailing();
+    cleanupHealthy();
+    errorSpy.mockRestore();
+  });
 });
