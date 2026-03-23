@@ -518,4 +518,43 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
+  it("converts blank-line-separated structured review findings into one markdown table", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "src/features/app/hooks/useMainAppLayoutSurfaces.ts | category=clarity | Layout assembly is still too broad. | Split surface assembly by domain. | high",
+          "",
+          "src/features/app/components/SidebarWorkspaceGroups.tsx | category=clarity | Workspace derivation still lives in the render component. | Move derivation into a focused hook. | high",
+          "",
+          "src/features/threads/hooks/threadMessagingHelpers.ts | category=clarity | Helper responsibilities are too broad. | Split helpers by concern. | medium",
+        ].join("\n")}
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".markdown-table-wrap")).toBeTruthy();
+    expect(container.querySelector(".markdown-table")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "File" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Recommendation" })).toBeTruthy();
+    expect(screen.getAllByText("clarity")).toHaveLength(3);
+    expect(container.querySelectorAll(".markdown-table").length).toBe(1);
+    expect(container.querySelectorAll("tbody tr").length).toBe(3);
+    expect(screen.getAllByText("high")).toHaveLength(2);
+    expect(screen.getByText("Split helpers by concern.")).toBeTruthy();
+  });
+
+  it("wraps standard gfm tables in the styled table container", () => {
+    const { container } = render(
+      <Markdown
+        value={["| Name | Value |", "| --- | --- |", "| Status | Ready |"].join("\n")}
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".markdown-table-wrap")).toBeTruthy();
+    expect(container.querySelector(".markdown-table")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Name" })).toBeTruthy();
+    expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
 });
