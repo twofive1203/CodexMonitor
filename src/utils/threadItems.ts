@@ -576,7 +576,7 @@ function summarizeCommandExecution(item: Extract<ConversationItem, { kind: "tool
   if (isFailedStatus(item.status)) {
     return null;
   }
-  const rawCommand = item.title.replace(/^Command:\s*/i, "").trim();
+  const rawCommand = item.title.replace(/^(?:Command|命令)[:：]\s*/i, "").trim();
   const cleaned = cleanCommandText(rawCommand);
   if (!cleaned) {
     return null;
@@ -891,7 +891,7 @@ export function buildConversationItem(
       title: command ? `命令：${command}` : "命令",
       detail: asString(item.cwd ?? ""),
       status: asString(item.status ?? ""),
-      output: asString(item.aggregatedOutput ?? ""),
+      output: asString(item.aggregatedOutput ?? item.output ?? item.result ?? ""),
       durationMs,
     };
   }
@@ -930,6 +930,7 @@ export function buildConversationItem(
       .map((change) => change.diff ?? "")
       .filter(Boolean)
       .join("\n\n");
+    const fallbackOutput = asString(item.output ?? item.result ?? "");
     return {
       id,
       kind: "tool",
@@ -937,7 +938,7 @@ export function buildConversationItem(
       title: "文件变更",
       detail: paths || "待处理变更",
       status: asString(item.status ?? ""),
-      output: diffOutput,
+      output: diffOutput || fallbackOutput,
       changes: normalizedChanges,
     };
   }
@@ -1042,7 +1043,18 @@ export function buildConversationItem(
       title: "网络搜索",
       detail: asString(item.query ?? ""),
       status: status || "已完成",
-      output: "",
+      output: asString(item.result ?? item.output ?? ""),
+    };
+  }
+  if (type === "toolCall") {
+    return {
+      id,
+      kind: "tool",
+      toolType: type,
+      title: asString(item.title ?? item.tool ?? "工具"),
+      detail: asString(item.detail ?? item.input ?? ""),
+      status: asString(item.status ?? ""),
+      output: asString(item.output ?? item.result ?? ""),
     };
   }
   if (type === "imageView") {

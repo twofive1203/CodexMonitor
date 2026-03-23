@@ -108,7 +108,10 @@ fn move_file(src: &Path, dest: &Path) -> Result<(), String> {
     }
 }
 
-fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, String) {
+/// 解析 Markdown frontmatter 中的常用元数据。
+///
+/// `content`：完整 Markdown 文本。
+pub(crate) fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, String) {
     let mut segments = content.split_inclusive('\n');
     let Some(first_segment) = segments.next() else {
         return (None, None, String::new());

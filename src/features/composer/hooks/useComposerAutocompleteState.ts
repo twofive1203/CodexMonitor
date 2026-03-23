@@ -1,7 +1,12 @@
 import { useCallback, useMemo } from "react";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
 import { useComposerAutocomplete } from "./useComposerAutocomplete";
-import type { AgentProvider, AppOption, CustomPromptOption } from "../../../types";
+import type {
+  AgentProvider,
+  AppOption,
+  ClaudeCommandOption,
+  CustomPromptOption,
+} from "../../../types";
 import { connectorMentionSlug } from "../../apps/utils/appMentions";
 import {
   buildPromptInsertText,
@@ -22,6 +27,7 @@ type UseComposerAutocompleteStateArgs = {
   appsEnabled: boolean;
   skills: Skill[];
   apps: AppOption[];
+  claudeCommands?: ClaudeCommandOption[];
   prompts: CustomPromptOption[];
   files: string[];
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -73,6 +79,36 @@ function getFileTriggerQuery(text: string, cursor: number | null) {
   return afterAt;
 }
 
+/**
+ * 把 Claude 项目命令转换成 `/` 自动补全项，并按命令名去重。
+ *
+ * `commands`：工作区扫描出的 Claude 自定义命令列表。
+ */
+function buildClaudeSlashCommandItems(commands: ClaudeCommandOption[]) {
+  const seen = new Set<string>();
+  const items: AutocompleteItem[] = [];
+  commands.forEach((command) => {
+    const normalizedName = command.name.trim().replace(/^\/+/, "");
+    if (!normalizedName) {
+      return;
+    }
+    const dedupeKey = normalizedName.toLowerCase();
+    if (seen.has(dedupeKey)) {
+      return;
+    }
+    seen.add(dedupeKey);
+    items.push({
+      id: `claude-command:${command.path}`,
+      label: normalizedName,
+      description: command.description,
+      hint: command.argumentHint,
+      insertText: normalizedName,
+      group: "Slash",
+    });
+  });
+  return items;
+}
+
 export function useComposerAutocompleteState({
   text,
   selectionStart,
@@ -82,6 +118,7 @@ export function useComposerAutocompleteState({
   appsEnabled,
   skills,
   apps,
+  claudeCommands = [],
   prompts,
   files,
   textareaRef,
@@ -163,9 +200,25 @@ export function useComposerAutocompleteState({
     }));
   }, [appsEnabled, provider, reviewEnabled]);
 
+  const claudeSlashCommandItems = useMemo<AutocompleteItem[]>(() => {
+    if (provider !== "claude") {
+      return [];
+    }
+    const customItems = buildClaudeSlashCommandItems(claudeCommands);
+    if (customItems.length === 0) {
+      return [];
+    }
+    const builtInLabels = new Set(
+      slashCommandItems.map((item) => item.label.trim().toLowerCase()),
+    );
+    return customItems.filter(
+      (item) => !builtInLabels.has(item.label.trim().toLowerCase()),
+    );
+  }, [claudeCommands, provider, slashCommandItems]);
+
   const slashItems = useMemo<AutocompleteItem[]>(
-    () => [...slashCommandItems, ...promptItems],
-    [promptItems, slashCommandItems],
+    () => [...slashCommandItems, ...claudeSlashCommandItems, ...promptItems],
+    [claudeSlashCommandItems, promptItems, slashCommandItems],
   );
 
   const triggers = useMemo(

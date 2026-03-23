@@ -191,6 +191,66 @@ describe("useComposerAutocompleteState slash commands", () => {
     const labels = result.current.autocompleteMatches.map((item) => item.label);
     expect(labels).toEqual(["fast", "fork", "new", "resume", "status"]);
   });
+
+  it("includes Claude custom slash commands and dedupes built-in names", () => {
+    const text = "/";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        provider: "claude",
+        appsEnabled: true,
+        skills: [],
+        apps: [],
+        claudeCommands: [
+          {
+            name: "review-pr",
+            path: ".claude/commands/review-pr.md",
+            description: "审查当前 PR",
+            argumentHint: "<pr-number>",
+          },
+          {
+            name: "status",
+            path: ".claude/commands/status.md",
+            description: "不应覆盖内置 status",
+          },
+        ],
+        prompts: [],
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    const labels = result.current.autocompleteMatches.map((item) => item.label);
+    const customCommand = result.current.autocompleteMatches.find(
+      (item) => item.label === "review-pr",
+    );
+    expect(labels).toEqual([
+      "fast",
+      "fork",
+      "new",
+      "resume",
+      "status",
+      "review-pr",
+    ]);
+    expect(labels.filter((label) => label === "status")).toHaveLength(1);
+    expect(customCommand).toMatchObject({
+      description: "审查当前 PR",
+      hint: "<pr-number>",
+      insertText: "review-pr",
+      group: "Slash",
+    });
+  });
 });
 
 describe("useComposerAutocompleteState $ completions", () => {

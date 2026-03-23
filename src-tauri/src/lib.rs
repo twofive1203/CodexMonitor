@@ -235,6 +235,7 @@ pub fn run() {
             codex::compact_thread,
             codex::set_thread_name,
             codex::collaboration_mode_list,
+            codex::claude_commands_list,
             workspaces::connect_workspace,
             git::get_git_status,
             git::init_git_repo,

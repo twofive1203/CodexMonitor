@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ConversationItem } from "../../../types";
-import { buildToolSummary, statusToneFromText } from "./messageRenderUtils";
+import {
+  buildToolSummary,
+  formatToolStatusLabel,
+  statusToneFromText,
+} from "./messageRenderUtils";
 
 function makeToolItem(
   overrides: Partial<Extract<ConversationItem, { kind: "tool" }>>,
@@ -63,5 +67,31 @@ describe("messageRenderUtils", () => {
     expect(summary.label).toBe("已等待");
     expect(summary.value).toBe("Robie [explorer]");
     expect(summary.output).toContain("Robie [explorer]: completed");
+  });
+
+  it("renders generic tool calls with tool label", () => {
+    const summary = buildToolSummary(
+      makeToolItem({
+        toolType: "toolCall",
+        title: "工具：Read",
+        detail: '{\n  "file_path": "src/main.ts"\n}',
+        output: "读取完成",
+      }),
+      "",
+    );
+    expect(summary.label).toBe("工具");
+    expect(summary.value).toBe("Read");
+    expect(summary.output).toBe("读取完成");
+  });
+
+  it("formats command status label for non-hook tools", () => {
+    const label = formatToolStatusLabel(
+      makeToolItem({
+        toolType: "commandExecution",
+        status: "running",
+        durationMs: 65_000,
+      }),
+    );
+    expect(label).toBe("进行中 • 1:05");
   });
 });

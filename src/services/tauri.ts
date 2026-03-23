@@ -947,6 +947,10 @@ export async function getSkillsList(workspaceId: string) {
   return invoke<any>("skills_list", { workspaceId });
 }
 
+export async function getClaudeCommandsList(workspaceId: string) {
+  return invoke<any>("claude_commands_list", { workspaceId });
+}
+
 export async function getAppsList(
   workspaceId: string,
   cursor?: string | null,

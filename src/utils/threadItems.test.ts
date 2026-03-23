@@ -472,6 +472,36 @@ describe("threadItems", () => {
     }
   });
 
+  it("preserves web search output when Claude sidecar sends result text", () => {
+    const item = buildConversationItem({
+      type: "webSearch",
+      id: "web-2",
+      query: "codex monitor",
+      result: "- CodexMonitor: https://example.com/codex-monitor",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.output).toContain("CodexMonitor");
+    }
+  });
+
+  it("builds generic tool call items", () => {
+    const item = buildConversationItem({
+      type: "toolCall",
+      id: "tool-generic-1",
+      title: "工具：Read",
+      detail: '{\n  "file_path": "src/main.ts"\n}',
+      status: "completed",
+      output: "读取完成",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("toolCall");
+      expect(item.title).toBe("工具：Read");
+      expect(item.output).toBe("读取完成");
+    }
+  });
+
   it("merges thread items preferring non-empty remote tool output", () => {
     const remote: ConversationItem = {
       id: "tool-2",

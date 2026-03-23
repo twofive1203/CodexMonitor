@@ -560,6 +560,28 @@ pub(crate) async fn model_list(
     agent_runtime_core::list_models_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
+/// 读取 Claude 工作区自定义命令列表。
+///
+/// `workspace_id`：目标工作区 ID。
+#[tauri::command]
+pub(crate) async fn claude_commands_list(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "claude_commands_list",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
+    agent_runtime_core::list_claude_commands_core(&state.workspaces, workspace_id).await
+}
+
 #[tauri::command]
 pub(crate) async fn experimental_feature_list(
     workspace_id: String,

@@ -162,6 +162,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
         "account_rate_limits"
             | "account_read"
             | "apps_list"
+            | "claude_commands_list"
             | "collaboration_mode_list"
             | "connect_workspace"
             | "experimental_feature_list"

@@ -9,6 +9,7 @@ import {
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type {
   AppOption,
+  ClaudeCommandOption,
   CustomPromptOption,
   DictationSessionState,
   DictationTranscript,
@@ -69,6 +70,7 @@ type WorkspaceHomeProps = {
   threadStatusById: ThreadStatusById;
   onSelectInstance: (workspaceId: string, threadId: string) => void;
   skills: SkillOption[];
+  claudeCommands?: ClaudeCommandOption[];
   appsEnabled: boolean;
   apps: AppOption[];
   prompts: CustomPromptOption[];
@@ -140,6 +142,7 @@ export function WorkspaceHome({
   threadStatusById,
   onSelectInstance,
   skills,
+  claudeCommands = [],
   appsEnabled,
   apps,
   prompts,
@@ -208,6 +211,7 @@ export function WorkspaceHome({
     appsEnabled,
     skills,
     apps,
+    claudeCommands,
     prompts,
     files,
     textareaRef,

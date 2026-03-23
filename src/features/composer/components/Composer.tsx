@@ -12,6 +12,7 @@ import type {
   AgentProvider,
   AppMention,
   AppOption,
+  ClaudeCommandOption,
   ComposerSendIntent,
   ComposerEditorSettings,
   CustomPromptOption,
@@ -84,6 +85,7 @@ type ComposerProps = {
   accessMode: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
+  claudeCommands?: ClaudeCommandOption[];
   apps: AppOption[];
   prompts: CustomPromptOption[];
   files: string[];
@@ -196,6 +198,7 @@ export const Composer = memo(function Composer({
   accessMode,
   onSelectAccessMode,
   skills,
+  claudeCommands = [],
   apps,
   prompts,
   files,
@@ -336,6 +339,7 @@ export const Composer = memo(function Composer({
     appsEnabled,
     skills,
     apps,
+    claudeCommands,
     prompts,
     files,
     textareaRef,

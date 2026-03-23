@@ -1065,6 +1065,10 @@ impl DaemonState {
         agent_runtime_core::list_models_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
+    async fn claude_commands_list(&self, workspace_id: String) -> Result<Value, String> {
+        agent_runtime_core::list_claude_commands_core(&self.workspaces, workspace_id).await
+    }
+
     async fn get_provider_capabilities(&self, provider: AgentProvider) -> Result<Value, String> {
         serde_json::to_value(agent_runtime_core::get_provider_capabilities_core(provider))
             .map_err(|err| err.to_string())

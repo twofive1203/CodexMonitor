@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use crate::backend::app_server::WorkspaceSession;
 use crate::types::{AgentProvider, ProviderCapabilities, WorkspaceEntry};
 
-use super::{codex_core, provider_core};
+use super::{claude_commands_core, codex_core, provider_core};
 
 /// 读取指定 provider 的 capability。
 ///
@@ -171,6 +171,25 @@ pub(crate) async fn list_models_core(
         AgentProvider::Codex | AgentProvider::Claude => {
             codex_core::model_list_core(sessions, workspace_id).await
         }
+    }
+}
+
+/// 统一读取 Claude 自定义命令入口。
+///
+/// `workspaces`：工作区存储。
+/// `workspace_id`：目标工作区 ID。
+pub(crate) async fn list_claude_commands_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    match resolve_runtime_provider(workspaces, &workspace_id).await? {
+        AgentProvider::Claude => {
+            serde_json::to_value(
+                claude_commands_core::list_claude_commands_core(workspaces, workspace_id).await?,
+            )
+            .map_err(|err| err.to_string())
+        }
+        AgentProvider::Codex => Ok(Value::Array(Vec::new())),
     }
 }
 

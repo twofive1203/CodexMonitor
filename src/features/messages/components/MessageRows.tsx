@@ -688,7 +688,7 @@ export const ToolRow = memo(function ToolRow({
   const isCommand = item.toolType === "commandExecution";
   const isPlan = item.toolType === "plan";
   const commandText = isCommand
-    ? item.title.replace(/^Command:\s*/i, "").trim()
+    ? item.title.replace(/^(?:Command|命令)[:：]\s*/i, "").trim()
     : "";
   const summary = buildToolSummary(item, commandText);
   const changeNames = (item.changes ?? [])

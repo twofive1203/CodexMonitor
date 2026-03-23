@@ -170,6 +170,7 @@ type UseMainAppLayoutSurfacesArgs = {
   accessMode: ComposerProps["accessMode"];
   onSelectAccessMode: ComposerProps["onSelectAccessMode"];
   skills: ComposerProps["skills"];
+  claudeCommands: ComposerProps["claudeCommands"];
   apps: ComposerProps["apps"];
   prompts: ComposerProps["prompts"];
   composerInputRef: RefObject<HTMLTextAreaElement | null>;
@@ -333,6 +334,7 @@ export function useMainAppLayoutSurfaces({
   accessMode,
   onSelectAccessMode,
   skills,
+  claudeCommands,
   apps,
   prompts,
   composerInputRef,
@@ -615,6 +617,7 @@ export function useMainAppLayoutSurfaces({
             accessMode,
             onSelectAccessMode,
             skills: activeSupportsSkills ? skills : [],
+            claudeCommands,
             appsEnabled:
               activeSupportsApps && appSettings.experimentalAppsEnabled,
             apps: activeSupportsApps ? apps : [],

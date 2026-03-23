@@ -9,6 +9,7 @@ import { isMissingRepo } from "@/features/git/utils/repoErrors";
 import { useModels } from "@/features/models/hooks/useModels";
 import { useCollaborationModes } from "@/features/collaboration/hooks/useCollaborationModes";
 import { useCollaborationModeSelection } from "@/features/collaboration/hooks/useCollaborationModeSelection";
+import { useClaudeCommands } from "@/features/claude/hooks/useClaudeCommands";
 import { useSkills } from "@/features/skills/hooks/useSkills";
 import { useApps } from "@/features/apps/hooks/useApps";
 import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
@@ -404,6 +405,10 @@ export default function MainApp() {
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
+  const { commands: claudeCommands } = useClaudeCommands({
+    activeWorkspace,
+    onDebug: addDebugEntry,
+  });
   const {
     prompts,
     createPrompt,
@@ -1697,6 +1702,7 @@ export default function MainApp() {
           threadStatusById,
           onSelectInstance: handleSelectWorkspaceInstance,
           skills,
+          claudeCommands,
           appsEnabled: appSettings.experimentalAppsEnabled,
           apps,
           prompts,
@@ -1883,6 +1889,7 @@ export default function MainApp() {
     accessMode,
     onSelectAccessMode: handleSelectAccessMode,
     skills,
+    claudeCommands,
     apps,
     prompts,
     composerInputRef,

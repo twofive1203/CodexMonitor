@@ -136,10 +136,10 @@ function summarizeCollabReceiver(
 }
 
 export function toolNameFromTitle(title: string) {
-  if (!title.toLowerCase().startsWith("tool:")) {
+  if (!/^(tool:|工具[:：])/i.test(title)) {
     return "";
   }
-  const [, toolPart = ""] = title.split(":");
+  const toolPart = title.replace(/^(tool:|工具[:：])\s*/i, "");
   const segments = toolPart.split("/").map((segment) => segment.trim());
   return segments.length ? segments[segments.length - 1] : "";
 }
@@ -414,6 +414,16 @@ export function buildToolSummary(
     }
   }
 
+  if (item.toolType === "toolCall") {
+    const toolName = item.title.replace(/^(Tool:|工具[:：])\s*/i, "").trim();
+    return {
+      label: "工具",
+      value: toolName || item.title || "工具",
+      detail: item.detail || "",
+      output: item.output || "",
+    };
+  }
+
   return {
     label: "工具",
     value: item.title || "",
@@ -463,9 +473,6 @@ export function toolStatusTone(
 export function formatToolStatusLabel(
   item: Extract<ConversationItem, { kind: "tool" }>,
 ) {
-  if (item.toolType !== "hook") {
-      return "";
-  }
   const parts: string[] = [];
   const status = (item.status ?? "").trim().toLowerCase();
   if (status) {
@@ -473,6 +480,8 @@ export function formatToolStatusLabel(
     const translatedStatus =
       normalizedStatus === "failed"
         ? "失败"
+        : normalizedStatus === "interrupted"
+          ? "已中断"
         : normalizedStatus === "completed"
           ? "已完成"
           : normalizedStatus === "processing" ||

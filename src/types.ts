@@ -677,6 +677,13 @@ export type SkillOption = {
   description?: string;
 };
 
+export type ClaudeCommandOption = {
+  name: string;
+  path: string;
+  description?: string;
+  argumentHint?: string;
+};
+
 export type AppOption = {
   id: string;
   name: string;
