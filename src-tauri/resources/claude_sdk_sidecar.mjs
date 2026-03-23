@@ -3,6 +3,8 @@ import { createInterface } from "node:readline";
 import { once } from "node:events";
 import { pathToFileURL } from "node:url";
 
+const CLAUDE_PROJECT_SETTING_SOURCES = ["project"];
+
 /**
  * 读取并校验 sidecar 启动所需的环境变量。
  *
@@ -635,6 +637,7 @@ function buildQueryOptions(envConfig, threadState, params) {
     model: readString(params, "model") ?? envConfig.defaultModel ?? undefined,
     effort: normalizeEffort(params?.effort) ?? undefined,
     includePartialMessages: true,
+    settingSources: CLAUDE_PROJECT_SETTING_SOURCES,
     permissionMode,
     allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
     pathToClaudeCodeExecutable: envConfig.claudeBin ?? undefined,

@@ -12,6 +12,13 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+const claudeWorkspace: WorkspaceInfo = {
+  ...workspace,
+  id: "workspace-claude-1",
+  path: "/tmp/claude",
+  provider: "claude",
+};
+
 const makeOptions = (
   overrides: Partial<Parameters<typeof useQueuedSend>[0]> = {},
 ) => ({
@@ -441,6 +448,28 @@ describe("useQueuedSend", () => {
     expect(startApps).not.toHaveBeenCalled();
     expect(options.sendUserMessage).toHaveBeenCalledWith(
       "/apps now",
+      ["img-1"],
+      undefined,
+      { sendIntent: "default" },
+    );
+  });
+
+  it("treats unsupported Claude slash commands as plain text", async () => {
+    const options = makeOptions({
+      activeWorkspace: claudeWorkspace,
+      appsEnabled: true,
+    });
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("/compact now", ["img-1"]);
+    });
+
+    expect(options.startCompact).not.toHaveBeenCalled();
+    expect(options.sendUserMessage).toHaveBeenCalledWith(
+      "/compact now",
       ["img-1"],
       undefined,
       { sendIntent: "default" },

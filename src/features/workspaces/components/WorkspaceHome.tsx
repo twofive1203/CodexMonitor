@@ -34,6 +34,7 @@ import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
+import { getAgentProviderLabel, getWorkspaceProvider } from "../../../utils/agentProvider";
 
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
@@ -168,6 +169,9 @@ export function WorkspaceHome({
   onAgentMdRefresh,
   onAgentMdSave,
 }: WorkspaceHomeProps) {
+  const workspaceProvider = getWorkspaceProvider(workspace);
+  const workspaceProviderLabel = getAgentProviderLabel(workspaceProvider);
+  const agentFilename = workspaceProvider === "claude" ? "CLAUDE.md" : "AGENTS.md";
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
@@ -200,6 +204,7 @@ export function WorkspaceHome({
     text: prompt,
     selectionStart,
     disabled: isSubmitting,
+    provider: workspaceProvider,
     appsEnabled,
     skills,
     apps,
@@ -384,6 +389,7 @@ export function WorkspaceHome({
           <ComposerInput
             text={prompt}
             disabled={isSubmitting}
+            providerLabel={workspaceProviderLabel}
             sendLabel="发送"
             canStop={false}
             canSend={prompt.trim().length > 0 || activeImages.length > 0}
@@ -452,11 +458,11 @@ export function WorkspaceHome({
           </div>
         )}
         <FileEditorCard
-          title="AGENTS.md"
+          title={agentFilename}
           meta={agentMdMeta}
           error={agentMdError}
           value={agentMdContent}
-          placeholder="为智能体添加项目级说明..."
+          placeholder={`为 ${workspaceProviderLabel} 添加项目级说明...`}
           disabled={agentMdLoading}
           refreshDisabled={agentMdRefreshDisabled}
           saveDisabled={agentMdSaveDisabled}

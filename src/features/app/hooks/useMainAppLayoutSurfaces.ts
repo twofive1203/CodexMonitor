@@ -559,8 +559,9 @@ export function useMainAppLayoutSurfaces({
         showPollingFetchStatus: showMobilePollingFetchStatus,
         pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
       },
-      composerProps: composerWorkspaceState.showComposer
+          composerProps: composerWorkspaceState.showComposer
         ? {
+            provider: activeWorkspace?.provider ?? "codex",
             onSend: handleComposerSendWithDraftStart,
             onStop: interruptTurn,
             canStop: composerWorkspaceState.canInterrupt,

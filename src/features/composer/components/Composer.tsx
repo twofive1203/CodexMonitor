@@ -9,6 +9,7 @@ import {
   type ClipboardEvent,
 } from "react";
 import type {
+  AgentProvider,
   AppMention,
   AppOption,
   ComposerSendIntent,
@@ -20,6 +21,7 @@ import type {
   ServiceTier,
   ThreadTokenUsage,
 } from "../../../types";
+import { getAgentProviderLabel } from "../../../utils/agentProvider";
 import type {
   ReviewPromptState,
   ReviewPromptStep,
@@ -49,6 +51,7 @@ import { isMacPlatform, isMobilePlatform } from "../../../utils/platformPaths";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
 
 type ComposerProps = {
+  provider?: AgentProvider;
   onSend: (
     text: string,
     images: string[],
@@ -165,6 +168,7 @@ const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
 const CARET_ANCHOR_GAP = 8;
 
 export const Composer = memo(function Composer({
+  provider = "codex",
   onSend,
   onStop,
   canStop,
@@ -262,6 +266,7 @@ export const Composer = memo(function Composer({
   const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
   const isMac = isMacPlatform();
+  const providerLabel = getAgentProviderLabel(provider);
   const followUpShortcutLabel = isMac ? "Shift+Cmd+Enter" : "Shift+Ctrl+Enter";
   const effectiveFollowUpBehavior: FollowUpMessageBehavior =
     followUpMessageBehavior === "steer" && steerAvailable ? "steer" : "queue";
@@ -326,6 +331,7 @@ export const Composer = memo(function Composer({
     text,
     selectionStart,
     disabled,
+    provider,
     reviewEnabled,
     appsEnabled,
     skills,
@@ -694,6 +700,7 @@ export const Composer = memo(function Composer({
       <ComposerInput
         text={text}
         disabled={disabled}
+        providerLabel={providerLabel}
         sendLabel={effectiveSendLabel}
         canStop={canStop}
         canSend={canSend}

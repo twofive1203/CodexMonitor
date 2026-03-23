@@ -161,6 +161,36 @@ describe("useComposerAutocompleteState slash commands", () => {
       "status",
     ]);
   });
+
+  it("keeps only Claude P0 slash commands in Claude workspace", () => {
+    const text = "/";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        provider: "claude",
+        appsEnabled: true,
+        skills: [],
+        apps: [],
+        prompts: [],
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    const labels = result.current.autocompleteMatches.map((item) => item.label);
+    expect(labels).toEqual(["fast", "fork", "new", "resume", "status"]);
+  });
 });
 
 describe("useComposerAutocompleteState $ completions", () => {

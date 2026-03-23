@@ -37,6 +37,7 @@ import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
 type ComposerInputProps = {
   text: string;
   disabled: boolean;
+  providerLabel?: string;
   sendLabel: string;
   canStop: boolean;
   canSend: boolean;
@@ -159,6 +160,7 @@ function formatSuggestionGroupLabel(group: AutocompleteItem["group"]) {
 export function ComposerInput({
   text,
   disabled,
+  providerLabel = "Codex",
   sendLabel,
   canStop,
   canSend,
@@ -540,7 +542,7 @@ export function ComposerInput({
             placeholder={
               disabled
                 ? "审查进行中，完成后会重新启用对话。"
-                : "让 Codex 帮你处理事情..."
+                : `让 ${providerLabel} 帮你处理事情...`
             }
             value={text}
             onChange={handleTextareaChange}

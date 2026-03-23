@@ -7,6 +7,11 @@ import type {
   SendMessageResult,
   WorkspaceInfo,
 } from "@/types";
+import { getWorkspaceProvider } from "@utils/agentProvider";
+import {
+  parseBuiltInSlashCommand,
+  type BuiltInSlashCommandId,
+} from "@utils/slashCommands";
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;
@@ -63,48 +68,6 @@ type UseQueuedSendResult = {
   removeQueuedMessage: (threadId: string, messageId: string) => void;
 };
 
-type SlashCommandKind =
-  | "apps"
-  | "compact"
-  | "fast"
-  | "fork"
-  | "mcp"
-  | "new"
-  | "resume"
-  | "review"
-  | "status";
-
-function parseSlashCommand(text: string, appsEnabled: boolean): SlashCommandKind | null {
-  if (appsEnabled && /^\/apps\b/i.test(text)) {
-    return "apps";
-  }
-  if (/^\/fork\b/i.test(text)) {
-    return "fork";
-  }
-  if (/^\/fast\b/i.test(text)) {
-    return "fast";
-  }
-  if (/^\/mcp\b/i.test(text)) {
-    return "mcp";
-  }
-  if (/^\/review\b/i.test(text)) {
-    return "review";
-  }
-  if (/^\/compact\b/i.test(text)) {
-    return "compact";
-  }
-  if (/^\/new\b/i.test(text)) {
-    return "new";
-  }
-  if (/^\/resume\b/i.test(text)) {
-    return "resume";
-  }
-  if (/^\/status\b/i.test(text)) {
-    return "status";
-  }
-  return null;
-}
-
 export function useQueuedSend({
   activeThreadId,
   activeTurnId,
@@ -143,6 +106,7 @@ export function useQueuedSend({
     () => (activeThreadId ? queuedByThread[activeThreadId] ?? [] : []),
     [activeThreadId, queuedByThread],
   );
+  const activeProvider = getWorkspaceProvider(activeWorkspace);
 
   const enqueueMessage = useCallback((threadId: string, item: QueuedMessage) => {
     setQueuedByThread((prev) => ({
@@ -182,7 +146,7 @@ export function useQueuedSend({
   );
 
   const runSlashCommand = useCallback(
-    async (command: SlashCommandKind, trimmed: string) => {
+    async (command: BuiltInSlashCommandId, trimmed: string) => {
       if (command === "fork") {
         await startFork(trimmed);
         return;
@@ -246,7 +210,10 @@ export function useQueuedSend({
       submitIntent: ComposerSendIntent = "default",
     ) => {
       const trimmed = text.trim();
-      const command = parseSlashCommand(trimmed, appsEnabled);
+      const command = parseBuiltInSlashCommand(trimmed, {
+        provider: activeProvider,
+        appsEnabled,
+      });
       const nextImages = command ? [] : images;
       const nextMentions = command ? [] : appMentions;
       const canSteerCurrentTurn =
@@ -301,6 +268,7 @@ export function useQueuedSend({
     },
     [
       activeThreadId,
+      activeProvider,
       appsEnabled,
       activeWorkspace,
       clearActiveImages,
@@ -324,7 +292,10 @@ export function useQueuedSend({
       appMentions: AppMention[] = [],
     ) => {
       const trimmed = text.trim();
-      const command = parseSlashCommand(trimmed, appsEnabled);
+      const command = parseBuiltInSlashCommand(trimmed, {
+        provider: activeProvider,
+        appsEnabled,
+      });
       const nextImages = command ? [] : images;
       const nextMentions = command ? [] : appMentions;
       if (!trimmed && nextImages.length === 0) {
@@ -342,6 +313,7 @@ export function useQueuedSend({
     },
     [
       activeThreadId,
+      activeProvider,
       appsEnabled,
       clearActiveImages,
       createQueuedItem,
@@ -401,7 +373,10 @@ export function useQueuedSend({
     (async () => {
       try {
         const trimmed = nextItem.text.trim();
-        const command = parseSlashCommand(trimmed, appsEnabled);
+        const command = parseBuiltInSlashCommand(trimmed, {
+          provider: activeProvider,
+          appsEnabled,
+        });
         if (command) {
           await runSlashCommand(command, trimmed);
         } else {
@@ -420,6 +395,7 @@ export function useQueuedSend({
     })();
   }, [
     activeThreadId,
+    activeProvider,
     appsEnabled,
     inFlightByThread,
     isProcessing,

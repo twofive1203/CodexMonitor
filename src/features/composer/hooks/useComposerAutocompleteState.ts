@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
 import { useComposerAutocomplete } from "./useComposerAutocomplete";
-import type { AppOption, CustomPromptOption } from "../../../types";
+import type { AgentProvider, AppOption, CustomPromptOption } from "../../../types";
 import { connectorMentionSlug } from "../../apps/utils/appMentions";
 import {
   buildPromptInsertText,
@@ -10,12 +10,14 @@ import {
   getPromptArgumentHint,
 } from "../../../utils/customPrompts";
 import { isComposingEvent } from "../../../utils/keys";
+import { getSupportedBuiltInSlashCommands } from "../../../utils/slashCommands";
 
 type Skill = { name: string; description?: string };
 type UseComposerAutocompleteStateArgs = {
   text: string;
   selectionStart: number | null;
   disabled: boolean;
+  provider?: AgentProvider;
   reviewEnabled?: boolean;
   appsEnabled: boolean;
   skills: Skill[];
@@ -75,6 +77,7 @@ export function useComposerAutocompleteState({
   text,
   selectionStart,
   disabled,
+  provider = "codex",
   reviewEnabled = true,
   appsEnabled,
   skills,
@@ -150,78 +153,15 @@ export function useComposerAutocompleteState({
   );
 
   const slashCommandItems = useMemo<AutocompleteItem[]>(() => {
-    const commands: AutocompleteItem[] = [
-      {
-        id: "compact",
-        label: "compact",
-        description: "压缩当前会话上下文",
-        insertText: "compact",
-        group: "Slash",
-      },
-      {
-        id: "fast",
-        label: "fast",
-        description: "切换后续回合的快速模式",
-        insertText: "fast",
-        group: "Slash",
-      },
-      {
-        id: "fork",
-        label: "fork",
-        description: "分叉为一个新会话",
-        insertText: "fork",
-        group: "Slash",
-      },
-      {
-        id: "mcp",
-        label: "mcp",
-        description: "查看已配置的 MCP 工具",
-        insertText: "mcp",
-        group: "Slash",
-      },
-      {
-        id: "new",
-        label: "new",
-        description: "开始新会话",
-        insertText: "new",
-        group: "Slash",
-      },
-      {
-        id: "review",
-        label: "review",
-        description: "开始代码审查",
-        insertText: "review",
-        group: "Slash",
-      },
-      {
-        id: "resume",
-        label: "resume",
-        description: "刷新当前会话",
-        insertText: "resume",
-        group: "Slash",
-      },
-      {
-        id: "status",
-        label: "status",
-        description: "查看会话状态",
-        insertText: "status",
-        group: "Slash",
-      },
-    ];
-    const nextCommands = reviewEnabled
-      ? commands
-      : commands.filter((command) => command.id !== "review");
-    if (appsEnabled) {
-      nextCommands.push({
-        id: "apps",
-        label: "apps",
-        description: "查看可用应用",
-        insertText: "apps",
-        group: "Slash",
-      });
-    }
-    return nextCommands.sort((a, b) => a.label.localeCompare(b.label));
-  }, [appsEnabled, reviewEnabled]);
+    return getSupportedBuiltInSlashCommands({
+      provider,
+      appsEnabled,
+      reviewEnabled,
+    }).map((command) => ({
+      ...command,
+      group: "Slash" as const,
+    }));
+  }, [appsEnabled, provider, reviewEnabled]);
 
   const slashItems = useMemo<AutocompleteItem[]>(
     () => [...slashCommandItems, ...promptItems],
