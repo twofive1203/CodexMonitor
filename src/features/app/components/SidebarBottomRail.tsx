@@ -164,15 +164,17 @@ export function SidebarBottomRail({
           </div>
         )}
         <div className="sidebar-utility-actions">
-          <button
-            className="ghost sidebar-labeled-button sidebar-utility-button"
-            type="button"
-            onClick={onOpenSettings}
-            aria-label="Open settings"
-          >
-            <Settings size={14} aria-hidden />
-            <span>Settings</span>
-          </button>
+            <button
+              className="ghost sidebar-labeled-button sidebar-utility-button"
+              type="button"
+              onClick={onOpenSettings}
+              aria-label="Open settings"
+            >
+              <span className="sidebar-labeled-button-icon" aria-hidden>
+                <Settings size={14} aria-hidden />
+              </span>
+              <span>Settings</span>
+            </button>
           {showDebugButton && (
             <button
               className="ghost sidebar-utility-button"

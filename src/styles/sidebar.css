@@ -1783,6 +1783,15 @@
   transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
 
+.sidebar-labeled-button-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .sidebar-labeled-button:hover,
 .sidebar-labeled-button:focus-visible,
 .sidebar-labeled-button.is-open {
@@ -1932,7 +1941,7 @@
 
 .sidebar-utility-button {
   height: 34px;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1;
 }
 
