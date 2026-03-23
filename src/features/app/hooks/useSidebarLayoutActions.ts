@@ -1,4 +1,8 @@
 import { useCallback } from "react";
+import {
+  getWorkspaceProvider,
+  providerSupportsHistoryThreads,
+} from "@utils/agentProvider";
 
 import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
 
@@ -163,7 +167,10 @@ export function useSidebarLayoutActions({
   const onLoadOlderThreads = useCallback(
     (workspaceId: string) => {
       const workspace = workspacesById.get(workspaceId);
-      if (!workspace) {
+      if (
+        !workspace ||
+        !providerSupportsHistoryThreads(getWorkspaceProvider(workspace))
+      ) {
         return;
       }
       void loadOlderThreadsForWorkspace(workspace);
@@ -174,7 +181,10 @@ export function useSidebarLayoutActions({
   const onReloadWorkspaceThreads = useCallback(
     (workspaceId: string) => {
       const workspace = workspacesById.get(workspaceId);
-      if (!workspace) {
+      if (
+        !workspace ||
+        !providerSupportsHistoryThreads(getWorkspaceProvider(workspace))
+      ) {
         return;
       }
       void listThreadsForWorkspace(workspace);

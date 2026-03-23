@@ -13,6 +13,15 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+const claudeWorkspace: WorkspaceInfo = {
+  id: "ws-claude",
+  name: "Claude Workspace",
+  path: "/tmp/claude-workspace",
+  connected: true,
+  provider: "claude",
+  settings: { sidebarCollapsed: false },
+};
+
 describe("useSidebarLayoutActions", () => {
   it("keeps handlers referentially stable across unrelated rerenders", () => {
     const options = {
@@ -145,5 +154,46 @@ describe("useSidebarLayoutActions", () => {
 
     expect(connectWorkspace).toHaveBeenCalledWith(workspace);
     expect(setActiveTab).toHaveBeenCalledWith("codex");
+  });
+
+  it("runs claude history reload actions", () => {
+    const listThreadsForWorkspace = vi.fn(async () => {});
+    const loadOlderThreadsForWorkspace = vi.fn(async () => {});
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId: vi.fn(),
+        connectWorkspace: vi.fn(async () => {}),
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[claudeWorkspace.id, claudeWorkspace]]),
+        updateWorkspaceSettings: vi.fn(async () => claudeWorkspace),
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread: vi.fn(async () => {}),
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace,
+        listThreadsForWorkspace,
+      }),
+    );
+
+    act(() => {
+      result.current.onReloadWorkspaceThreads("ws-claude");
+      result.current.onLoadOlderThreads("ws-claude");
+    });
+
+    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
+    expect(loadOlderThreadsForWorkspace).toHaveBeenCalledTimes(1);
+    expect(loadOlderThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
   });
 });

@@ -3,6 +3,7 @@ import {
   canEditWorkspaceProvider,
   getWorkspaceProvider,
   getWorkspaceProviderSelectValue,
+  providerSupportsHistoryThreads,
   providerSupportsRuntimeCodexArgs,
   resolveProviderCapabilities,
 } from "./agentProvider";
@@ -14,6 +15,16 @@ describe("providerSupportsRuntimeCodexArgs", () => {
 
   it("returns false for claude", () => {
     expect(providerSupportsRuntimeCodexArgs("claude")).toBe(false);
+  });
+});
+
+describe("providerSupportsHistoryThreads", () => {
+  it("returns true for codex", () => {
+    expect(providerSupportsHistoryThreads("codex")).toBe(true);
+  });
+
+  it("returns true for claude", () => {
+    expect(providerSupportsHistoryThreads("claude")).toBe(true);
   });
 });
 

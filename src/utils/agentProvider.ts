@@ -153,6 +153,15 @@ export function providerSupportsRuntimeCodexArgs(provider: AgentProvider): boole
 }
 
 /**
+ * 判断 provider 是否支持历史会话列表加载。
+ *
+ * `provider`：目标 provider。
+ */
+export function providerSupportsHistoryThreads(provider: AgentProvider): boolean {
+  return provider === "codex" || provider === "claude";
+}
+
+/**
  * 合并后端能力和前端兜底能力。
  *
  * `provider`：目标 provider。

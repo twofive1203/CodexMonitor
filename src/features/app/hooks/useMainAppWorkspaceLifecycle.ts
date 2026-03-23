@@ -17,7 +17,9 @@ type UseMainAppWorkspaceLifecycleArgs = {
   workspaces: WorkspaceInfo[];
   hasLoaded: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
-  listThreadsForWorkspaces: (workspaces: WorkspaceInfo[]) => Promise<void>;
+  listThreadsForWorkspaces: (
+    workspaces: WorkspaceInfo[],
+  ) => Promise<{ failedWorkspaceIds: string[] } | void>;
   refreshWorkspaces: () => Promise<void | WorkspaceInfo[]>;
   backendMode: "local" | "remote";
   activeWorkspace: WorkspaceInfo | null;

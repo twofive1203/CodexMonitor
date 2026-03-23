@@ -5,12 +5,17 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import { useThreadListActions } from "./useThreadListActions";
 
-function workspace(id: string, connected: boolean): WorkspaceInfo {
+function workspace(
+  id: string,
+  connected: boolean,
+  provider: WorkspaceInfo["provider"] = "codex",
+): WorkspaceInfo {
   return {
     id,
     name: id,
     path: `/tmp/${id}`,
     connected,
+    provider,
     settings: { sidebarCollapsed: false },
   };
 }
@@ -72,5 +77,36 @@ describe("useThreadListActions", () => {
     expect(resetWorkspaceThreads).toHaveBeenCalledWith("one");
     expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
     expect(listThreadsForWorkspaces).toHaveBeenCalledWith([current[0]]);
+  });
+
+  it("reloads history lists for claude workspaces too", async () => {
+    const fresh = [
+      workspace("one", true, "codex"),
+      workspace("two", true, "claude"),
+    ];
+    const refreshWorkspaces = vi.fn(async () => fresh);
+    const listThreadsForWorkspaces = vi.fn(async () => {});
+    const resetWorkspaceThreads = vi.fn();
+
+    const { result } = renderHook(() =>
+      useThreadListActions({
+        threadListSortKey: "updated_at",
+        setThreadListSortKey: vi.fn(),
+        workspaces: fresh,
+        refreshWorkspaces,
+        listThreadsForWorkspaces,
+        resetWorkspaceThreads,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRefreshAllWorkspaceThreads();
+    });
+
+    expect(resetWorkspaceThreads).toHaveBeenCalledTimes(2);
+    expect(resetWorkspaceThreads).toHaveBeenNthCalledWith(1, "one");
+    expect(resetWorkspaceThreads).toHaveBeenNthCalledWith(2, "two");
+    expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspaces).toHaveBeenCalledWith([fresh[0], fresh[1]]);
   });
 });

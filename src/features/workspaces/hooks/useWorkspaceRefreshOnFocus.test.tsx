@@ -53,6 +53,51 @@ describe("useWorkspaceRefreshOnFocus", () => {
     );
   });
 
+  it("includes claude workspaces when refreshing history on focus", async () => {
+    const refreshWorkspaces = vi.fn().mockResolvedValue([
+      {
+        id: "ws-1",
+        name: "Codex Workspace",
+        path: "/tmp/ws-1",
+        connected: true,
+        provider: "codex",
+        settings: { sidebarCollapsed: false },
+      },
+      {
+        id: "ws-2",
+        name: "Claude Workspace",
+        path: "/tmp/ws-2",
+        connected: true,
+        provider: "claude",
+        settings: { sidebarCollapsed: false },
+      },
+    ]);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
+
+    renderHook(() =>
+      useWorkspaceRefreshOnFocus({
+        workspaces: [],
+        refreshWorkspaces,
+        listThreadsForWorkspaces,
+      }),
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+
+    expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspaces).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ id: "ws-1", provider: "codex" }),
+        expect.objectContaining({ id: "ws-2", provider: "claude" }),
+      ],
+      { preserveState: true },
+    );
+  });
+
   it("polls automatically in remote mode", async () => {
     const refreshWorkspaces = vi.fn().mockResolvedValue([
       {

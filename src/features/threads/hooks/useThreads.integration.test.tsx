@@ -334,6 +334,51 @@ describe("useThreads UX integration", () => {
     expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
   });
 
+  it("reloads claude history threads", async () => {
+    const claudeWorkspace: WorkspaceInfo = {
+      id: "ws-claude-1",
+      name: "Claude One",
+      path: "/tmp/claude-one",
+      connected: true,
+      provider: "claude",
+      settings: { sidebarCollapsed: false },
+    };
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "claude-thread-1",
+            preview: "Claude one history",
+            updated_at: 2100,
+            cwd: "/tmp/claude-one",
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: claudeWorkspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(claudeWorkspace);
+    });
+
+    expect(vi.mocked(listThreads)).toHaveBeenCalledWith(
+      "ws-claude-1",
+      null,
+      100,
+      "updated_at",
+    );
+    expect(result.current.threadsByWorkspace["ws-claude-1"]?.[0]?.id).toBe(
+      "claude-thread-1",
+    );
+  });
+
   it("does not preflight runtime codex args on send when another workspace thread is processing", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
     vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({

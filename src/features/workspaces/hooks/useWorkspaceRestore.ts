@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
+import {
+  getWorkspaceProvider,
+  providerSupportsHistoryThreads,
+} from "@utils/agentProvider";
 
 const INITIAL_THREAD_LIST_MAX_PAGES = 6;
 const RESTORE_RETRY_DELAY_MS = 3_000;
@@ -11,7 +15,7 @@ type WorkspaceRestoreOptions = {
   listThreadsForWorkspaces: (
     workspaces: WorkspaceInfo[],
     options?: { preserveState?: boolean; maxPages?: number },
-  ) => Promise<void>;
+  ) => Promise<{ failedWorkspaceIds: string[] } | void>;
 };
 
 export function useWorkspaceRestore({
@@ -68,24 +72,49 @@ export function useWorkspaceRestore({
     void (async () => {
       const connectedTargets: WorkspaceInfo[] = [];
       let shouldRetry = false;
-      for (const workspace of pending) {
-        try {
+      const connectionResults = await Promise.allSettled(
+        pending.map(async (workspace) => {
           if (!workspace.connected) {
             await connectWorkspace(workspace);
           }
-          connectedTargets.push({ ...workspace, connected: true });
-        } catch {
-          shouldRetry = true;
+          return { ...workspace, connected: true };
+        }),
+      );
+
+      connectionResults.forEach((result) => {
+        if (result.status === "fulfilled") {
+          connectedTargets.push(result.value);
+          return;
         }
-      }
+        shouldRetry = true;
+      });
+
+      const historyTargets = connectedTargets.filter((workspace) =>
+        providerSupportsHistoryThreads(getWorkspaceProvider(workspace)),
+      );
       if (connectedTargets.length > 0) {
-        try {
-          for (const workspace of connectedTargets) {
-            await listThreadsForWorkspaces([workspace], {
-              maxPages: INITIAL_THREAD_LIST_MAX_PAGES,
-            });
+        connectedTargets.forEach((workspace) => {
+          if (!providerSupportsHistoryThreads(getWorkspaceProvider(workspace))) {
             restoredWorkspaces.current.add(workspace.id);
           }
+        });
+      }
+
+      if (historyTargets.length > 0) {
+        try {
+          const refreshResult = await listThreadsForWorkspaces(historyTargets, {
+            maxPages: INITIAL_THREAD_LIST_MAX_PAGES,
+          });
+          const failedWorkspaceIds = new Set(
+            refreshResult?.failedWorkspaceIds ?? [],
+          );
+          historyTargets.forEach((workspace) => {
+            if (failedWorkspaceIds.has(workspace.id)) {
+              shouldRetry = true;
+              return;
+            }
+            restoredWorkspaces.current.add(workspace.id);
+          });
         } catch {
           shouldRetry = true;
         }
@@ -99,9 +128,6 @@ export function useWorkspaceRestore({
     })();
     return () => {
       cancelled = true;
-      pending.forEach((workspace) => {
-        restoringWorkspaces.current.delete(workspace.id);
-      });
     };
   }, [connectWorkspace, hasLoaded, listThreadsForWorkspaces, retryTick, workspaces]);
 }

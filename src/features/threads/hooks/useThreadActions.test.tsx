@@ -58,6 +58,14 @@ describe("useThreadActions", () => {
     connected: true,
     settings: { sidebarCollapsed: false },
   };
+  const claudeWorkspace: WorkspaceInfo = {
+    id: "ws-claude",
+    name: "Claude Workspace",
+    path: "/tmp/claude",
+    connected: true,
+    provider: "claude",
+    settings: { sidebarCollapsed: false },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -885,25 +893,36 @@ describe("useThreadActions", () => {
     expect(setThreadsAction.threads[20]?.updatedAt).toBe(4980);
   });
 
-  it("lists threads once and distributes results across workspaces", async () => {
-    vi.mocked(listThreads).mockResolvedValue({
-      result: {
-        data: [
-          {
-            id: "thread-1",
-            cwd: "/tmp/codex",
-            preview: "WS1 thread",
-            updated_at: 5000,
+  it("lists codex threads for each workspace independently", async () => {
+    vi.mocked(listThreads).mockImplementation(async (workspaceId) => {
+      if (workspaceId === "ws-1") {
+        return {
+          result: {
+            data: [
+              {
+                id: "thread-1",
+                cwd: "/tmp/codex",
+                preview: "WS1 thread",
+                updated_at: 5000,
+              },
+            ],
+            nextCursor: null,
           },
-          {
-            id: "thread-2",
-            cwd: "/tmp/other",
-            preview: "WS2 thread",
-            updated_at: 4500,
-          },
-        ],
-        nextCursor: null,
-      },
+        };
+      }
+      return {
+        result: {
+          data: [
+            {
+              id: "thread-2",
+              cwd: "/tmp/other",
+              preview: "WS2 thread",
+              updated_at: 4500,
+            },
+          ],
+          nextCursor: null,
+        },
+      };
     });
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
       const value = (thread as Record<string, unknown>).updated_at as number;
@@ -916,8 +935,9 @@ describe("useThreadActions", () => {
       await result.current.listThreadsForWorkspaces([workspace, workspaceTwo]);
     });
 
-    expect(listThreads).toHaveBeenCalledTimes(1);
-    expect(listThreads).toHaveBeenCalledWith("ws-1", null, 100, "updated_at");
+    expect(listThreads).toHaveBeenCalledTimes(2);
+    expect(listThreads).toHaveBeenNthCalledWith(1, "ws-1", null, 100, "updated_at");
+    expect(listThreads).toHaveBeenNthCalledWith(2, "ws-2", null, 100, "updated_at");
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",
@@ -948,25 +968,177 @@ describe("useThreadActions", () => {
     });
   });
 
-  it("assigns shared-root threads to a single target workspace when listing multiple workspaces", async () => {
+  it("refreshes claude workspaces with isolated per-workspace requests", async () => {
+    vi.mocked(listThreads).mockImplementation(async (workspaceId) => {
+      if (workspaceId === "ws-1") {
+        return {
+          result: {
+            data: [
+              {
+                id: "thread-codex-1",
+                cwd: workspace.path,
+                preview: "Codex history",
+                updated_at: 5100,
+              },
+            ],
+            nextCursor: null,
+          },
+        };
+      }
+      if (workspaceId === "ws-claude") {
+        return {
+          result: {
+            data: [
+              {
+                id: "thread-claude-1",
+                cwd: claudeWorkspace.path,
+                preview: "Claude history",
+                updated_at: 5050,
+              },
+            ],
+            nextCursor: null,
+          },
+        };
+      }
+      return {
+        result: {
+          data: [],
+          nextCursor: null,
+        },
+      };
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    let refreshResult: { failedWorkspaceIds: string[] } | null = null;
+    await act(async () => {
+      refreshResult = await result.current.listThreadsForWorkspaces([
+        workspace,
+        claudeWorkspace,
+      ]);
+    });
+
+    expect(listThreads).toHaveBeenCalledTimes(2);
+    expect(listThreads).toHaveBeenCalledWith("ws-1", null, 100, "updated_at");
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-claude",
+      null,
+      100,
+      "updated_at",
+    );
+    expect(refreshResult).toEqual({ failedWorkspaceIds: [] });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-codex-1",
+          name: "Codex history",
+          updatedAt: 5100,
+          createdAt: 0,
+        },
+      ],
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-claude",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-claude-1",
+          name: "Claude history",
+          updatedAt: 5050,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("supports single claude workspace history reloads", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-claude-single",
+            cwd: claudeWorkspace.path,
+            preview: "Claude single history",
+            updated_at: 5100,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    let refreshResult: { failedWorkspaceIds: string[] } | null = null;
+    await act(async () => {
+      refreshResult = await result.current.listThreadsForWorkspace(claudeWorkspace);
+    });
+
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-claude",
+      null,
+      100,
+      "updated_at",
+    );
+    expect(refreshResult).toEqual({ failedWorkspaceIds: [] });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-claude",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-claude-single",
+          name: "Claude single history",
+          updatedAt: 5100,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("keeps workspace history isolated when different workspaces return different results", async () => {
     const workspaceAlias: WorkspaceInfo = {
       ...workspaceTwo,
       id: "ws-alias",
       path: workspace.path,
     };
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceAlias, workspace]);
-    vi.mocked(listThreads).mockResolvedValue({
-      result: {
-        data: [
-          {
-            id: "thread-shared-root",
-            cwd: workspace.path,
-            preview: "Shared root thread",
-            updated_at: 5000,
+    vi.mocked(listThreads).mockImplementation(async (workspaceId) => {
+      if (workspaceId === "ws-1") {
+        return {
+          result: {
+            data: [
+              {
+                id: "thread-shared-root",
+                cwd: workspace.path,
+                preview: "Shared root thread",
+                updated_at: 5000,
+              },
+            ],
+            nextCursor: null,
           },
-        ],
-        nextCursor: null,
-      },
+        };
+      }
+      return {
+        result: {
+          data: [],
+          nextCursor: null,
+        },
+      };
     });
     vi.mocked(getThreadTimestamp).mockReturnValue(5000);
 
@@ -976,6 +1148,7 @@ describe("useThreadActions", () => {
       await result.current.listThreadsForWorkspaces([workspace, workspaceAlias]);
     });
 
+    expect(listThreads).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",
@@ -1504,6 +1677,34 @@ describe("useThreadActions", () => {
       workspaceId: "ws-1",
       isLoading: true,
     });
+  });
+
+  it("keeps existing history when a preserve-state refresh returns empty data", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-existing", name: "Existing", updatedAt: 6000 }],
+      },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreads",
+        workspaceId: "ws-1",
+      }),
+    );
   });
 
   it("requests created_at sorting when provided", async () => {
