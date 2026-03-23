@@ -266,6 +266,57 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("preserves trailing prompt args when sending a custom prompt command", async () => {
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [
+          {
+            name: "git-commit",
+            path: "/tmp/git-commit.md",
+            content: "请根据当前改动生成提交信息。",
+          },
+        ],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessage("/prompts:git-commit --emoji");
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "请根据当前改动生成提交信息。 --emoji",
+      expect.any(Object),
+    );
+  });
+
   it("forwards the selected service tier to turn/start", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({

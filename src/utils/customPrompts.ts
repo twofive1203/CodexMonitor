@@ -315,6 +315,25 @@ function expandNumericPlaceholders(content: string, args: string[]) {
   return output;
 }
 
+/**
+ * 在提示词正文未声明位置参数占位符时，保留用户原始参数。
+ *
+ * `content`：提示词原始正文。
+ * `rest`：用户在快捷命令后输入的原始参数文本。
+ */
+function appendRawPromptArgs(content: string, rest: string) {
+  const trimmedRest = rest.trim();
+  if (!trimmedRest) {
+    return content;
+  }
+  const trimmedContent = content.trimEnd();
+  if (!trimmedContent) {
+    return trimmedRest;
+  }
+  const separator = trimmedContent.includes("\n") ? "\n\n" : " ";
+  return `${trimmedContent}${separator}${trimmedRest}`;
+}
+
 export function expandCustomPromptText(
   text: string,
   prompts: CustomPromptOption[],
@@ -355,5 +374,9 @@ export function expandCustomPromptText(
   }
 
   const args = parsePositionalArgs(parsed.rest);
-  return { expanded: expandNumericPlaceholders(prompt.content, args) } as const;
+  const expanded = expandNumericPlaceholders(prompt.content, args);
+  if (!promptHasNumericPlaceholders(prompt.content)) {
+    return { expanded: appendRawPromptArgs(expanded, parsed.rest) } as const;
+  }
+  return { expanded } as const;
 }
