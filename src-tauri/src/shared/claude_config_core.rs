@@ -203,7 +203,10 @@ mod tests {
 
     #[test]
     fn normalize_permission_mode_rejects_unknown_values() {
-        assert_eq!(normalize_permission_mode(Some("unknown-mode".to_string())), None);
+        assert_eq!(
+            normalize_permission_mode(Some("unknown-mode".to_string())),
+            None
+        );
         assert_eq!(
             normalize_permission_mode(Some(" acceptEdits ".to_string())),
             Some("acceptEdits".to_string())

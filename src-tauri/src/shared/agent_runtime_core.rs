@@ -183,12 +183,10 @@ pub(crate) async fn list_claude_commands_core(
     workspace_id: String,
 ) -> Result<Value, String> {
     match resolve_runtime_provider(workspaces, &workspace_id).await? {
-        AgentProvider::Claude => {
-            serde_json::to_value(
-                claude_commands_core::list_claude_commands_core(workspaces, workspace_id).await?,
-            )
-            .map_err(|err| err.to_string())
-        }
+        AgentProvider::Claude => serde_json::to_value(
+            claude_commands_core::list_claude_commands_core(workspaces, workspace_id).await?,
+        )
+        .map_err(|err| err.to_string()),
         AgentProvider::Codex => Ok(Value::Array(Vec::new())),
     }
 }
@@ -286,8 +284,7 @@ mod tests {
     /// 构造 Claude provider 的共享层测试上下文。
     ///
     /// 返回值：`(sessions, workspaces)`。
-    fn make_claude_runtime_context(
-    ) -> (
+    fn make_claude_runtime_context() -> (
         Mutex<HashMap<String, Arc<WorkspaceSession>>>,
         Mutex<HashMap<String, WorkspaceEntry>>,
     ) {

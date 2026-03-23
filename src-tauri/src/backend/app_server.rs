@@ -923,7 +923,10 @@ fn build_claude_sidecar_env(
             config_dir.to_string_lossy().to_string(),
         );
     }
-    if let Some(claude_bin) = default_provider_bin.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(claude_bin) = default_provider_bin
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         envs.insert(
             "CLAUDE_MONITOR_PROVIDER_BIN".to_string(),
             claude_bin.to_string(),
@@ -1382,9 +1385,11 @@ mod tests {
         extract_thread_id, normalize_root_path, resolve_claude_sdk_entry_from_binary_path,
         resolve_claude_sdk_entry_from_root, resolve_workspace_for_cwd,
         should_broadcast_global_workspace_notification, should_suppress_hidden_thread_event,
-        source_subagent_kind, spawn_workspace_session,
-        thread_started_is_memory_consolidation, WorkspaceSession, BUNDLED_CLAUDE_SDK_DIR,
+        source_subagent_kind, spawn_workspace_session, thread_started_is_memory_consolidation,
+        WorkspaceSession, BUNDLED_CLAUDE_SDK_DIR,
     };
+    use crate::shared::claude_config_core::ClaudeLaunchConfig;
+    use crate::types::WorkspaceEntry;
     use serde_json::json;
     use std::collections::{BTreeMap, HashMap};
     use std::future::Future;
@@ -1394,8 +1399,6 @@ mod tests {
     use std::sync::Arc;
     use tokio::process::Command;
     use tokio::sync::Mutex;
-    use crate::shared::claude_config_core::ClaudeLaunchConfig;
-    use crate::types::WorkspaceEntry;
 
     /// 运行异步 app-server 测试。
     ///
@@ -1442,7 +1445,9 @@ mod tests {
             next_id: AtomicU64::new(1),
             background_thread_callbacks: Mutex::new(HashMap::new()),
             owner_workspace_id: owner_workspace_id.to_string(),
-            workspace_ids: Mutex::new(std::collections::HashSet::from([owner_workspace_id.to_string()])),
+            workspace_ids: Mutex::new(std::collections::HashSet::from([
+                owner_workspace_id.to_string()
+            ])),
             workspace_roots: Mutex::new(HashMap::new()),
         })
     }
@@ -1493,7 +1498,10 @@ mod tests {
                 "item_id": "item-1"
             }
         });
-        assert_eq!(extract_thread_id(&value), Some("thread-input-1".to_string()));
+        assert_eq!(
+            extract_thread_id(&value),
+            Some("thread-input-1".to_string())
+        );
     }
 
     #[test]
@@ -1637,10 +1645,8 @@ mod tests {
 
     #[test]
     fn resolve_claude_sdk_entry_from_root_reports_missing_sdk_path() {
-        let temp_dir = std::env::temp_dir().join(format!(
-            "claude-sdk-entry-missing-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let temp_dir =
+            std::env::temp_dir().join(format!("claude-sdk-entry-missing-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");
 
         let result = resolve_claude_sdk_entry_from_root(&temp_dir);
@@ -1674,7 +1680,10 @@ mod tests {
         let result = resolve_claude_sdk_entry_from_binary_path(&binary_path)
             .expect("resolve bundled sdk entry");
 
-        assert_eq!(result, sdk_entry.canonicalize().expect("canonical sdk entry"));
+        assert_eq!(
+            result,
+            sdk_entry.canonicalize().expect("canonical sdk entry")
+        );
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
@@ -1695,7 +1704,10 @@ mod tests {
         let result = resolve_claude_sdk_entry_from_binary_path(&binary_path)
             .expect("resolve sibling sdk entry");
 
-        assert_eq!(result, sdk_entry.canonicalize().expect("canonical sdk entry"));
+        assert_eq!(
+            result,
+            sdk_entry.canonicalize().expect("canonical sdk entry")
+        );
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
@@ -2145,7 +2157,10 @@ mod tests {
                 .expect("send response");
 
             let response = request_task.await.expect("join request task");
-            assert_eq!(response, Ok(json!({ "id": request_id, "result": { "ok": true } })));
+            assert_eq!(
+                response,
+                Ok(json!({ "id": request_id, "result": { "ok": true } }))
+            );
         });
     }
 

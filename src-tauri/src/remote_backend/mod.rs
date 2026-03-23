@@ -216,14 +216,17 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
         RemoteTransportKind::Tcp => Box::new(TcpTransport),
     };
-    let connection = timeout(REMOTE_CONNECT_TIMEOUT, transport.connect(app, transport_config))
-        .await
-        .map_err(|_| {
-            format!(
-                "remote backend connection timed out after {} seconds",
-                REMOTE_CONNECT_TIMEOUT.as_secs()
-            )
-        })??;
+    let connection = timeout(
+        REMOTE_CONNECT_TIMEOUT,
+        transport.connect(app, transport_config),
+    )
+    .await
+    .map_err(|_| {
+        format!(
+            "remote backend connection timed out after {} seconds",
+            REMOTE_CONNECT_TIMEOUT.as_secs()
+        )
+    })??;
 
     let client = RemoteBackend {
         inner: Arc::new(RemoteBackendInner {
@@ -236,15 +239,18 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 
     if matches!(transport_kind, RemoteTransportKind::Tcp) {
         if let Some(token) = auth_token {
-            timeout(REMOTE_AUTH_TIMEOUT, client.call("auth", json!({ "token": token })))
-                .await
-                .map_err(|_| {
-                    format!(
-                        "remote backend authentication timed out after {} seconds",
-                        REMOTE_AUTH_TIMEOUT.as_secs()
-                    )
-                })?
-                .map(|_| ())?;
+            timeout(
+                REMOTE_AUTH_TIMEOUT,
+                client.call("auth", json!({ "token": token })),
+            )
+            .await
+            .map_err(|_| {
+                format!(
+                    "remote backend authentication timed out after {} seconds",
+                    REMOTE_AUTH_TIMEOUT.as_secs()
+                )
+            })?
+            .map(|_| ())?;
         }
     }
 

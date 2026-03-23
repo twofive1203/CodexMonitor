@@ -251,6 +251,43 @@ describe("useComposerAutocompleteState slash commands", () => {
       group: "Slash",
     });
   });
+
+  it("hides Codex prompt shortcuts in Claude workspace autocomplete", () => {
+    const text = "/";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        provider: "claude",
+        appsEnabled: true,
+        skills: [],
+        apps: [],
+        prompts: [
+          {
+            name: "daily-standup",
+            path: "C:/Users/test/.codex/prompts/daily-standup.md",
+            description: "日报模板",
+            content: "日报内容",
+          },
+        ],
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    const labels = result.current.autocompleteMatches.map((item) => item.label);
+    expect(labels).not.toContain("prompts:daily-standup");
+  });
 });
 
 describe("useComposerAutocompleteState $ completions", () => {

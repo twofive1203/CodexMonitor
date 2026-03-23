@@ -171,8 +171,11 @@ export function useComposerAutocompleteState({
   );
 
   const promptItems = useMemo<AutocompleteItem[]>(
-    () =>
-      prompts
+    () => {
+      if (provider === "claude") {
+        return [];
+      }
+      return prompts
         .filter((prompt) => prompt.name)
         .map((prompt) => {
           const insert = buildPromptInsertText(prompt);
@@ -185,8 +188,9 @@ export function useComposerAutocompleteState({
             cursorOffset: insert.cursorOffset,
             group: "Prompts" as const,
           };
-        }),
-    [prompts],
+        });
+    },
+    [prompts, provider],
   );
 
   const slashCommandItems = useMemo<AutocompleteItem[]>(() => {

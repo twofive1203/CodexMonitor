@@ -1,7 +1,7 @@
 use super::super::*;
-use crate::rpc::build_event_notification;
 use super::auth::require_session;
 use super::HttpServerContext;
+use crate::rpc::build_event_notification;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},

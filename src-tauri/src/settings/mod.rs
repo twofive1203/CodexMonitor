@@ -127,10 +127,7 @@ fn project_root() -> PathBuf {
 ///
 /// `staging_root`：npm 安装临时目录。
 /// `target_dir`：最终落盘目录。
-async fn install_claude_sdk_into_dir(
-    staging_root: &Path,
-    target_dir: &Path,
-) -> Result<(), String> {
+async fn install_claude_sdk_into_dir(staging_root: &Path, target_dir: &Path) -> Result<(), String> {
     let package_spec = claude_sdk_core::claude_sdk_package_spec()?;
     tokio::fs::create_dir_all(staging_root)
         .await
@@ -149,7 +146,8 @@ async fn install_claude_sdk_into_dir(
     let output = match timeout(Duration::from_secs(60 * 10), command.output()).await {
         Ok(result) => result.map_err(|error| {
             if error.kind() == ErrorKind::NotFound {
-                "未找到 npm。请确认本机已安装 Node.js 18+，并能在终端执行 `npm --version`。".to_string()
+                "未找到 npm。请确认本机已安装 Node.js 18+，并能在终端执行 `npm --version`。"
+                    .to_string()
             } else {
                 format!("启动 npm 失败：{error}")
             }

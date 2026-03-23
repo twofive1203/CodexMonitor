@@ -1,8 +1,8 @@
 pub(crate) mod account;
 pub(crate) mod agent_runtime_core;
 pub(crate) mod agents_config_core;
-pub(crate) mod claude_config_core;
 pub(crate) mod claude_commands_core;
+pub(crate) mod claude_config_core;
 pub(crate) mod claude_sdk_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;

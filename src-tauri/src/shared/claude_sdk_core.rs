@@ -21,8 +21,8 @@ pub(crate) fn claude_sdk_dir(data_dir: &Path) -> PathBuf {
 ///
 /// 无入参，返回类似 `@anthropic-ai/claude-agent-sdk@0.2.81` 的安装目标。
 pub(crate) fn claude_sdk_package_spec() -> Result<String, String> {
-    let package_json: Value =
-        serde_json::from_str(ROOT_PACKAGE_JSON).map_err(|error| format!("解析 package.json 失败：{error}"))?;
+    let package_json: Value = serde_json::from_str(ROOT_PACKAGE_JSON)
+        .map_err(|error| format!("解析 package.json 失败：{error}"))?;
     let raw_spec = package_json
         .get("dependencies")
         .and_then(|value| value.get(CLAUDE_SDK_PACKAGE_NAME))
@@ -39,9 +39,12 @@ pub(crate) fn claude_sdk_package_spec() -> Result<String, String> {
 /// `sdk_dir`：Claude SDK 根目录。
 pub(crate) fn resolve_claude_sdk_entry_from_sdk_dir(sdk_dir: &Path) -> Result<PathBuf, String> {
     let candidate = sdk_dir.join("sdk.mjs");
-    candidate
-        .canonicalize()
-        .map_err(|error| format!("无法定位 Claude Agent SDK 入口：{}。原始错误：{error}", candidate.display()))
+    candidate.canonicalize().map_err(|error| {
+        format!(
+            "无法定位 Claude Agent SDK 入口：{}。原始错误：{error}",
+            candidate.display()
+        )
+    })
 }
 
 /// 从指定项目根目录解析 Claude SDK 入口路径。
@@ -72,8 +75,14 @@ pub(crate) fn resolve_claude_sdk_entry_from_binary_path(
     for ancestor in binary_path.ancestors().skip(1).take(6) {
         for candidate in [
             ancestor.join(CLAUDE_SDK_DIR_NAME).join("sdk.mjs"),
-            ancestor.join("resources").join(CLAUDE_SDK_DIR_NAME).join("sdk.mjs"),
-            ancestor.join("Resources").join(CLAUDE_SDK_DIR_NAME).join("sdk.mjs"),
+            ancestor
+                .join("resources")
+                .join(CLAUDE_SDK_DIR_NAME)
+                .join("sdk.mjs"),
+            ancestor
+                .join("Resources")
+                .join(CLAUDE_SDK_DIR_NAME)
+                .join("sdk.mjs"),
         ] {
             if !candidates.iter().any(|existing| existing == &candidate) {
                 candidates.push(candidate);
@@ -181,8 +190,12 @@ fn read_claude_sdk_version_from_dir(sdk_dir: &Path) -> Result<Option<String>, St
         return Ok(None);
     }
 
-    let content = std::fs::read_to_string(&package_json_path)
-        .map_err(|error| format!("读取 Claude SDK package.json 失败（{}）：{error}", package_json_path.display()))?;
+    let content = std::fs::read_to_string(&package_json_path).map_err(|error| {
+        format!(
+            "读取 Claude SDK package.json 失败（{}）：{error}",
+            package_json_path.display()
+        )
+    })?;
     let package_json: Value = serde_json::from_str(&content).map_err(|error| {
         format!(
             "解析 Claude SDK package.json 失败（{}）：{error}",
@@ -200,7 +213,11 @@ fn read_claude_sdk_version_from_dir(sdk_dir: &Path) -> Result<Option<String>, St
 fn normalize_package_version(raw_spec: &str) -> String {
     let trimmed = raw_spec.trim();
     let candidate = trimmed.trim_start_matches(['^', '~', '=']);
-    if candidate.chars().next().is_some_and(|value| value.is_ascii_digit()) {
+    if candidate
+        .chars()
+        .next()
+        .is_some_and(|value| value.is_ascii_digit())
+    {
         candidate.to_string()
     } else {
         trimmed.to_string()
@@ -212,7 +229,8 @@ mod tests {
     use super::{
         claude_sdk_dir, claude_sdk_package_spec, read_claude_sdk_status,
         resolve_claude_sdk_entry_from_binary_path, resolve_claude_sdk_entry_from_root,
-        resolve_claude_sdk_entry_from_sdk_dir, ClaudeSdkSource, ClaudeSdkState, CLAUDE_SDK_DIR_NAME,
+        resolve_claude_sdk_entry_from_sdk_dir, ClaudeSdkSource, ClaudeSdkState,
+        CLAUDE_SDK_DIR_NAME,
     };
     use std::path::PathBuf;
     use uuid::Uuid;
@@ -252,18 +270,23 @@ mod tests {
             .join("@anthropic-ai")
             .join("claude-agent-sdk");
         std::fs::create_dir_all(&project_sdk_dir).expect("create project sdk dir");
-        std::fs::write(project_sdk_dir.join("sdk.mjs"), "export default {};\n").expect("write project sdk");
+        std::fs::write(project_sdk_dir.join("sdk.mjs"), "export default {};\n")
+            .expect("write project sdk");
         let project_entry =
             resolve_claude_sdk_entry_from_root(&project_root).expect("resolve project sdk");
         assert!(project_entry.ends_with(PathBuf::from("claude-agent-sdk").join("sdk.mjs")));
 
-        let install_root = temp_dir.join("install").join("resources").join(CLAUDE_SDK_DIR_NAME);
+        let install_root = temp_dir
+            .join("install")
+            .join("resources")
+            .join(CLAUDE_SDK_DIR_NAME);
         std::fs::create_dir_all(&install_root).expect("create bundled sdk dir");
-        std::fs::write(install_root.join("sdk.mjs"), "export default {};\n").expect("write bundled sdk");
+        std::fs::write(install_root.join("sdk.mjs"), "export default {};\n")
+            .expect("write bundled sdk");
         let binary_path = temp_dir.join("install").join("codex-monitor.exe");
         std::fs::write(&binary_path, "").expect("write fake binary");
-        let bundled_entry = resolve_claude_sdk_entry_from_binary_path(&binary_path)
-            .expect("resolve bundled sdk");
+        let bundled_entry =
+            resolve_claude_sdk_entry_from_binary_path(&binary_path).expect("resolve bundled sdk");
         assert!(bundled_entry.ends_with(PathBuf::from(CLAUDE_SDK_DIR_NAME).join("sdk.mjs")));
 
         let direct_entry =
