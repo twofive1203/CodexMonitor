@@ -9,7 +9,7 @@
 .messages-full {
   background: transparent;
   border-radius: 0;
-  padding: 14px var(--main-panel-padding) 18px;
+  padding: 14px var(--main-panel-padding) calc(18px + var(--composer-overlay-height, 0px));
   border: none;
 }
 
