@@ -105,38 +105,46 @@ function getExplicitWorkspaceIdFromThread(thread: Record<string, unknown>) {
  * `allowedWorkspaceIds`：当前允许命中的工作区集合。
  * `fallbackWorkspaceId`：当历史线程缺失 `cwd` 时使用的兜底工作区。
  */
+type ThreadWorkspaceResolution = {
+  matchedKnownWorkspace: boolean;
+  workspaceId: string | null;
+};
+
 function resolveWorkspaceIdForThread(
   thread: Record<string, unknown>,
   lookup: WorkspacePathLookup,
   allowedWorkspaceIds?: Set<string>,
   fallbackWorkspaceId?: string | null,
-) {
+): ThreadWorkspaceResolution {
   const explicitWorkspaceId = getExplicitWorkspaceIdFromThread(thread);
   if (
     explicitWorkspaceId &&
     (!allowedWorkspaceIds || allowedWorkspaceIds.has(explicitWorkspaceId))
   ) {
-    return explicitWorkspaceId;
+    return { workspaceId: explicitWorkspaceId, matchedKnownWorkspace: true };
+  }
+  if (explicitWorkspaceId) {
+    return { workspaceId: null, matchedKnownWorkspace: true };
   }
 
-  const mappedWorkspaceId = resolveWorkspaceIdForThreadPath(
-    asString(thread.cwd),
-    lookup,
-    allowedWorkspaceIds,
-  );
+  const threadCwd = asString(thread.cwd);
+  const mappedWorkspaceId = resolveWorkspaceIdForThreadPath(threadCwd, lookup);
   if (mappedWorkspaceId) {
-    return mappedWorkspaceId;
+    if (!allowedWorkspaceIds || allowedWorkspaceIds.has(mappedWorkspaceId)) {
+      return { workspaceId: mappedWorkspaceId, matchedKnownWorkspace: true };
+    }
+    return { workspaceId: null, matchedKnownWorkspace: true };
   }
 
   if (
     fallbackWorkspaceId &&
-    (!allowedWorkspaceIds || allowedWorkspaceIds.has(fallbackWorkspaceId)) &&
-    !asString(thread.cwd).trim()
+    (!allowedWorkspaceIds || allowedWorkspaceIds.has(fallbackWorkspaceId))
+    && !threadCwd.trim()
   ) {
-    return fallbackWorkspaceId;
+    return { workspaceId: fallbackWorkspaceId, matchedKnownWorkspace: false };
   }
 
-  return null;
+  return { workspaceId: null, matchedKnownWorkspace: false };
 }
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
@@ -614,6 +622,10 @@ export function useThreadActions({
         const uniqueThreadIdsByWorkspace: Record<string, Set<string>> = {};
         const resumeCursorByWorkspace: Record<string, string | null> = {};
         const finalCursorByWorkspace: Record<string, string | null> = {};
+        const unknownFallbackThreads: Record<string, unknown>[] = [];
+        const unknownFallbackThreadIds = new Set<string>();
+        let unknownFallbackResumeCursor: string | null = null;
+        let sawKnownWorkspaceMatchOutsideTarget = false;
 
         targetGroup.forEach((workspace) => {
           matchingThreadsByWorkspace[workspace.id] = [];
@@ -663,13 +675,30 @@ export function useThreadActions({
             : [];
           const nextCursor = getThreadListNextCursor(result);
           data.forEach((thread) => {
-            const workspaceId = resolveWorkspaceIdForThread(
+            const resolution = resolveWorkspaceIdForThread(
               thread,
               workspacePathLookup,
               targetWorkspaceIds,
               fallbackWorkspaceId,
             );
+            const workspaceId = resolution.workspaceId;
             if (!workspaceId) {
+              if (fallbackWorkspaceId && !resolution.matchedKnownWorkspace) {
+                unknownFallbackThreads.push(thread);
+                const threadId = String(thread?.id ?? "");
+                if (threadId && !unknownFallbackThreadIds.has(threadId)) {
+                  unknownFallbackThreadIds.add(threadId);
+                  if (
+                    unknownFallbackThreadIds.size > THREAD_LIST_TARGET_COUNT &&
+                    unknownFallbackResumeCursor === null
+                  ) {
+                    unknownFallbackResumeCursor =
+                      pageCursor ?? THREAD_LIST_CURSOR_PAGE_START;
+                  }
+                }
+              } else if (resolution.matchedKnownWorkspace) {
+                sawKnownWorkspaceMatchOutsideTarget = true;
+              }
               return;
             }
             const threadId = String(thread?.id ?? "");
@@ -700,6 +729,18 @@ export function useThreadActions({
           }
         } while (cursor);
 
+        if (
+          fallbackWorkspaceId &&
+          matchingThreadsByWorkspace[fallbackWorkspaceId]?.length === 0 &&
+          !sawKnownWorkspaceMatchOutsideTarget &&
+          unknownFallbackThreads.length > 0
+        ) {
+          matchingThreadsByWorkspace[fallbackWorkspaceId] = [...unknownFallbackThreads];
+          if (resumeCursorByWorkspace[fallbackWorkspaceId] === null) {
+            resumeCursorByWorkspace[fallbackWorkspaceId] = unknownFallbackResumeCursor;
+          }
+        }
+
         targetGroup.forEach((workspace) => {
           finalCursorByWorkspace[workspace.id] = cursor;
         });
@@ -721,9 +762,8 @@ export function useThreadActions({
           resumeCursorByWorkspace[workspace.id] = null;
           finalCursorByWorkspace[workspace.id] = null;
         });
-        // `thread/list` 在真实运行中会按当前 workspace 的 cwd 返回历史，
-        // 因此这里改为每个 workspace 单独拉取，再并发聚合结果，
-        // 避免只拿到第一个项目的历史列表。
+        // 不同 provider / 运行时对 `thread/list` 的 cwd 过滤行为并不完全一致，
+        // 这里保持按 workspace 单独拉取，再统一聚合，尽量避免历史遗漏。
         const groupedTargets = historyTargets.map((workspace) => [workspace]);
         const successfulWorkspaceIds = new Set<string>();
         const failedWorkspaceIds = new Set<string>();
@@ -940,6 +980,8 @@ export function useThreadActions({
           workspacePathLookup = buildWorkspacePathLookup([workspace]);
         }
         const matchingThreads: Record<string, unknown>[] = [];
+        const unknownFallbackThreads: Record<string, unknown>[] = [];
+        let sawKnownWorkspaceMatchOutsideTarget = false;
         const maxPagesWithoutMatch = THREAD_LIST_MAX_PAGES_OLDER;
         let pagesFetched = 0;
         let cursor: string | null = nextCursor;
@@ -964,27 +1006,28 @@ export function useThreadActions({
             ? (result.data as Record<string, unknown>[]).map(normalizeThreadListEntry)
             : [];
           const next = getThreadListNextCursor(result);
-          matchingThreads.push(
-            ...data.filter(
-              (thread) => {
-                const workspaceId = resolveWorkspaceIdForThread(
-                  thread,
-                  workspacePathLookup,
-                  allowedWorkspaceIds,
-                  workspace.id,
-                );
-                if (workspaceId !== workspace.id) {
-                  return false;
-                }
-                const threadId = String(thread?.id ?? "");
-                if (threadId && shouldHideSubagentThreadFromSidebar(thread.source)) {
-                  dispatch({ type: "hideThread", workspaceId, threadId });
-                  return false;
-                }
-                return true;
-              },
-            ),
-          );
+          data.forEach((thread) => {
+            const resolution = resolveWorkspaceIdForThread(
+              thread,
+              workspacePathLookup,
+              allowedWorkspaceIds,
+              workspace.id,
+            );
+            if (resolution.workspaceId !== workspace.id) {
+              if (!resolution.workspaceId && !resolution.matchedKnownWorkspace) {
+                unknownFallbackThreads.push(thread);
+              } else if (resolution.matchedKnownWorkspace) {
+                sawKnownWorkspaceMatchOutsideTarget = true;
+              }
+              return;
+            }
+            const threadId = String(thread?.id ?? "");
+            if (threadId && shouldHideSubagentThreadFromSidebar(thread.source)) {
+              dispatch({ type: "hideThread", workspaceId: workspace.id, threadId });
+              return;
+            }
+            matchingThreads.push(thread);
+          });
           cursor = next;
           if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
             break;
@@ -993,6 +1036,14 @@ export function useThreadActions({
             break;
           }
         } while (cursor && matchingThreads.length < THREAD_LIST_TARGET_COUNT);
+
+        if (
+          matchingThreads.length === 0 &&
+          !sawKnownWorkspaceMatchOutsideTarget &&
+          unknownFallbackThreads.length > 0
+        ) {
+          matchingThreads.push(...unknownFallbackThreads);
+        }
 
         const existingIds = new Set(existing.map((thread) => thread.id));
         const additions: ThreadSummary[] = [];

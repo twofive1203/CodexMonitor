@@ -805,6 +805,45 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("keeps single-workspace history entries when thread/list cwd cannot map to known roots", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-unknown-cwd",
+            cwd: "/private/var/tmp/codex",
+            preview: "Unknown path history",
+            updated_at: 5250,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(listWorkspaces).mockResolvedValue([workspace]);
+    vi.mocked(getThreadTimestamp).mockReturnValue(5250);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-unknown-cwd",
+          name: "Unknown path history",
+          updatedAt: 5250,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
   it("keeps single-workspace history entries when thread/list nests thread payload", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
@@ -1823,6 +1862,53 @@ describe("useThreadActions", () => {
           id: "thread-older-no-cwd",
           name: "Older recovered history",
           updatedAt: 3800,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("keeps older history entries when pagination cwd cannot map to known roots", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-older-unknown-cwd",
+            cwd: "/private/var/tmp/codex",
+            preview: "Older unknown path history",
+            updated_at: 3700,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(listWorkspaces).mockResolvedValue([workspace]);
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
+        {
+          id: "thread-older-unknown-cwd",
+          name: "Older unknown path history",
+          updatedAt: 3700,
           createdAt: 0,
         },
       ],

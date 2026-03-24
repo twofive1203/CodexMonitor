@@ -261,6 +261,20 @@ fn build_workspace_thread_params(workspace_path: String, extra: Value) -> Value 
     params.insert("cwd".to_string(), json!(workspace_path));
     Value::Object(params)
 }
+
+/// 构造历史线程相关请求参数。
+///
+/// 历史线程读取/恢复不能强依赖当前工作区绝对路径，否则换电脑或路径变化时，
+/// 后端会把可恢复的历史线程直接过滤掉。
+///
+/// `extra`：历史线程请求额外参数。
+fn build_history_thread_params(extra: Value) -> Value {
+    match extra {
+        Value::Object(map) => Value::Object(map),
+        _ => Value::Object(Map::new()),
+    }
+}
+
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
@@ -268,10 +282,8 @@ pub(crate) async fn start_thread_core(
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = json!({
-        "cwd": workspace_path,
-        "approvalPolicy": "on-request"
-    });
+    let params =
+        build_workspace_thread_params(workspace_path, json!({ "approvalPolicy": "on-request" }));
     session
         .send_request_for_workspace(&workspace_id, "thread/start", params)
         .await
@@ -279,13 +291,12 @@ pub(crate) async fn start_thread_core(
 
 pub(crate) async fn resume_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
+    let params = build_history_thread_params(json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/resume", params)
         .await
@@ -293,13 +304,12 @@ pub(crate) async fn resume_thread_core(
 
 pub(crate) async fn read_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
+    let params = build_history_thread_params(json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/read", params)
         .await
@@ -330,13 +340,12 @@ pub(crate) async fn thread_live_unsubscribe_core(
 
 pub(crate) async fn fork_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
+    let params = build_history_thread_params(json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/fork", params)
         .await
@@ -344,27 +353,23 @@ pub(crate) async fn fork_thread_core(
 
 pub(crate) async fn list_threads_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
     sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(
-        workspace_path,
-        json!({
-            "cursor": cursor,
-            "limit": limit,
-            "sortKey": sort_key,
-            // Keep interactive and sub-agent sessions visible across CLI versions so
-            // thread/list refreshes do not drop valid historical conversations.
-            // Intentionally exclude generic "subAgent" so parentless internal jobs
-            // (for example memory consolidation) do not leak back into app state.
-            "sourceKinds": THREAD_LIST_SOURCE_KINDS
-        }),
-    );
+    let params = build_history_thread_params(json!({
+        "cursor": cursor,
+        "limit": limit,
+        "sortKey": sort_key,
+        // Keep interactive and sub-agent sessions visible across CLI versions so
+        // thread/list refreshes do not drop valid historical conversations.
+        // Intentionally exclude generic "subAgent" so parentless internal jobs
+        // (for example memory consolidation) do not leak back into app state.
+        "sourceKinds": THREAD_LIST_SOURCE_KINDS
+    }));
     session
         .send_request_for_workspace(&workspace_id, "thread/list", params)
         .await
@@ -385,13 +390,12 @@ pub(crate) async fn list_mcp_server_status_core(
 
 pub(crate) async fn archive_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
+    let params = build_history_thread_params(json!({ "threadId": thread_id }));
     session
         .send_request_for_workspace(&workspace_id, "thread/archive", params)
         .await
@@ -411,17 +415,13 @@ pub(crate) async fn compact_thread_core(
 
 pub(crate) async fn set_thread_name_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    _workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     thread_id: String,
     name: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
-    let params = build_workspace_thread_params(
-        workspace_path,
-        json!({ "threadId": thread_id, "name": name }),
-    );
+    let params = build_history_thread_params(json!({ "threadId": thread_id, "name": name }));
     session
         .send_request_for_workspace(&workspace_id, "thread/name/set", params)
         .await
@@ -1082,5 +1082,20 @@ mod tests {
                 "threadId": "thread-1",
             })
         );
+    }
+
+    #[test]
+    fn build_history_thread_params_keeps_payload_without_cwd() {
+        let params =
+            build_history_thread_params(json!({ "threadId": "thread-1", "cursor": "cursor-1" }));
+
+        assert_eq!(
+            params,
+            json!({
+                "threadId": "thread-1",
+                "cursor": "cursor-1",
+            })
+        );
+        assert!(params.get("cwd").is_none());
     }
 }

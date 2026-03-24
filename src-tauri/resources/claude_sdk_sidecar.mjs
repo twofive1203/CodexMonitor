@@ -1263,8 +1263,65 @@ function buildQueryOptions(envConfig, threadState, params) {
  * `state`：全局 sidecar 状态。
  * `cwd`：目标工作区目录。
  */
+function getPathTail(value) {
+  const normalized = normalizeString(value);
+  if (!normalized) {
+    return null;
+  }
+  const segments = normalized
+    .replace(/[\\/]+/g, "/")
+    .replace(/\/+$/g, "")
+    .split("/")
+    .filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1].toLowerCase() : null;
+}
+
+/**
+ * 判断全局回退拿到的 session 是否仍然像是当前工作区的历史。
+ *
+ * `sessionInfo`：Claude SDK 返回的 session 元信息。
+ * `cwd`：当前工作区目录。
+ */
+function sessionLooksRelevantToWorkspace(sessionInfo, cwd) {
+  const workspaceTail = getPathTail(cwd);
+  if (!workspaceTail) {
+    return true;
+  }
+  const sessionTail = getPathTail(sessionInfo?.cwd);
+  return !sessionTail || sessionTail === workspaceTail;
+}
+
+async function listSessionsWithFallback(sdk, cwd) {
+  let scoped = [];
+  try {
+    const result = await sdk.listSessions({ dir: cwd });
+    if (Array.isArray(result)) {
+      scoped = result;
+    }
+  } catch {
+    scoped = [];
+  }
+  if (scoped.length > 0) {
+    return scoped;
+  }
+  try {
+    const fallback = await sdk.listSessions();
+    if (Array.isArray(fallback) && fallback.length > 0) {
+      const filtered = fallback.filter((sessionInfo) =>
+        sessionLooksRelevantToWorkspace(sessionInfo, cwd),
+      );
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    }
+  } catch {
+    // 静默回退到 scoped 结果，避免旧版 SDK 因无参调用报错。
+  }
+  return scoped;
+}
+
 async function listWorkspaceThreads(sdk, state, cwd) {
-  const persisted = await sdk.listSessions({ dir: cwd });
+  const persisted = await listSessionsWithFallback(sdk, cwd);
   const persistedById = new Map();
   const result = [];
 
@@ -1331,6 +1388,61 @@ function createState(sdk) {
       return next;
     },
   };
+}
+
+/**
+ * 读取 Claude session 元信息，并在目录级查询失败时尝试全局回退。
+ *
+ * `sdk`：Claude SDK 导出对象。
+ * `threadId`：目标线程 ID。
+ * `cwd`：当前工作区目录。
+ */
+async function getSessionInfoWithFallback(sdk, threadId, cwd) {
+  let scoped = null;
+  try {
+    scoped = (await sdk.getSessionInfo(threadId, { dir: cwd })) ?? null;
+  } catch {
+    scoped = null;
+  }
+  if (scoped) {
+    return scoped;
+  }
+  try {
+    return (await sdk.getSessionInfo(threadId)) ?? null;
+  } catch {
+    return scoped;
+  }
+}
+
+/**
+ * 读取 Claude session 消息，并在目录级查询失败时尝试全局回退。
+ *
+ * `sdk`：Claude SDK 导出对象。
+ * `threadId`：目标线程 ID。
+ * `cwd`：当前工作区目录。
+ */
+async function getSessionMessagesWithFallback(sdk, threadId, cwd) {
+  let scoped = [];
+  try {
+    const result = await sdk.getSessionMessages(threadId, { dir: cwd });
+    if (Array.isArray(result)) {
+      scoped = result;
+    }
+  } catch {
+    scoped = [];
+  }
+  if (scoped.length > 0) {
+    return scoped;
+  }
+  try {
+    const fallback = await sdk.getSessionMessages(threadId);
+    if (Array.isArray(fallback)) {
+      return fallback;
+    }
+  } catch {
+    // 静默保留 scoped 结果，避免旧版 SDK 因无参调用报错。
+  }
+  return scoped;
 }
 
 /**
@@ -1564,7 +1676,11 @@ async function handleThreadResume(state, request) {
   }
   const cwd = readString(request.params, "cwd") ?? process.cwd();
   const threadState = state.ensureThread(threadId, cwd);
-  const sessionInfo = await state.sdk.getSessionInfo(threadId, { dir: threadState.cwd });
+  const sessionInfo = await getSessionInfoWithFallback(
+    state.sdk,
+    threadId,
+    threadState.cwd,
+  );
   if (sessionInfo) {
     threadState.cwd = sessionInfo.cwd ?? threadState.cwd;
     threadState.preview =
@@ -1577,7 +1693,7 @@ async function handleThreadResume(state, request) {
     threadState.hasTranscript = true;
   }
   const messages = sessionInfo
-    ? await state.sdk.getSessionMessages(threadId, { dir: threadState.cwd })
+    ? await getSessionMessagesWithFallback(state.sdk, threadId, threadState.cwd)
     : [];
   await writeResponse(request.id, {
     thread: buildThreadResumePayload(threadState, sessionInfo, messages),
