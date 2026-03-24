@@ -17,6 +17,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { exportMarkdownFile } from "@services/tauri";
 import { pushErrorToast } from "@services/toasts";
 import type { ConversationItem } from "../../../types";
+import type { ParsedFileLocation } from "../../../utils/fileLinks";
 import { PierreDiffBlock } from "../../git/components/PierreDiffBlock";
 import {
   MAX_COMMAND_OUTPUT_LINES,
@@ -34,12 +35,13 @@ import {
   type ToolSummary,
 } from "../utils/messageRenderUtils";
 import { Markdown } from "./Markdown";
+import { isStandaloneMarkdownTable } from "./Markdown";
 
 type MarkdownFileLinkProps = {
   showMessageFilePath?: boolean;
   workspacePath?: string | null;
-  onOpenFileLink?: (path: string) => void;
-  onOpenFileLinkMenu?: (event: MouseEvent, path: string) => void;
+  onOpenFileLink?: (path: ParsedFileLocation) => void;
+  onOpenFileLinkMenu?: (event: MouseEvent, path: ParsedFileLocation) => void;
   onOpenThreadLink?: (threadId: string) => void;
 };
 
@@ -394,6 +396,11 @@ export const MessageRow = memo(function MessageRow({
       })
       .filter(Boolean) as MessageImage[];
   }, [item.images]);
+  const isTableOnlyAssistantMessage =
+    item.role === "assistant" &&
+    hasText &&
+    imageItems.length === 0 &&
+    isStandaloneMarkdownTable(item.text);
 
   const getSelectedMessageText = useCallback(() => {
     const bubble = bubbleRef.current;
@@ -435,7 +442,10 @@ export const MessageRow = memo(function MessageRow({
 
   return (
     <div className={`message ${item.role}`}>
-      <div ref={bubbleRef} className="bubble message-bubble">
+      <div
+        ref={bubbleRef}
+        className={`bubble message-bubble${isTableOnlyAssistantMessage ? " message-bubble-table-only" : ""}`}
+      >
         {imageItems.length > 0 && (
           <MessageImageGrid
             images={imageItems}
@@ -770,7 +780,7 @@ export const ToolRow = memo(function ToolRow({
   );
 
   return (
-    <div className={`tool-inline ${isExpanded ? "tool-inline-expanded" : ""}`}>
+    <div className={`tool-inline tool-inline-row ${isExpanded ? "tool-inline-expanded" : ""}`}>
       <button
         type="button"
         className="tool-inline-bar-toggle"

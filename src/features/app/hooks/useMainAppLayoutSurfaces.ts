@@ -15,7 +15,6 @@ import type { RuntimeCapabilities } from "@services/runtime/capabilities";
 import {
   getAgentProviderLabel,
   getWorkspaceProvider,
-  providerSupportsAccountUi,
   resolveProviderCapabilities,
 } from "@utils/agentProvider";
 
@@ -450,20 +449,6 @@ export function useMainAppLayoutSurfaces({
     : homeSupportsLogin
       ? homeAccount
       : null;
-  const showSidebarAccountSwitcher = Boolean(activeWorkspaceId && activeSupportsLogin);
-  const showSidebarUsageFooter = activeWorkspace
-    ? activeSupportsRateLimits
-    : homeSupportsRateLimits;
-  const hasAnyAccountCapableWorkspace = workspaces.some((workspace) =>
-    providerSupportsAccountUi(getWorkspaceProvider(workspace)),
-  );
-  const homeAccountSectionHint = homeAccountWorkspace
-    ? !homeSupportsLogin && !homeSupportsRateLimits
-      ? `${getAgentProviderLabel(homeProvider)} 一期暂不支持账号与额度展示。`
-      : null
-    : workspaces.length > 0 && !hasAnyAccountCapableWorkspace
-      ? "当前工作区 provider 暂不支持账号与额度展示。"
-      : null;
   const desktopShellEnabled = runtimeCapabilities.kind === "tauri";
   const webGitReadOnly = runtimeCapabilities.kind === "web";
 
@@ -494,8 +479,6 @@ export function useMainAppLayoutSurfaces({
         accountRateLimits: sidebarRateLimits,
         usageShowRemaining: appSettings.usageShowRemaining,
         accountInfo: sidebarAccount,
-        showAccountSwitcher: showSidebarAccountSwitcher,
-        showUsageFooter: showSidebarUsageFooter,
         onSwitchAccount,
         onCancelSwitchAccount,
         accountSwitching,
@@ -699,7 +682,6 @@ export function useMainAppLayoutSurfaces({
         accountRateLimits: homeSupportsRateLimits ? homeRateLimits : null,
         usageShowRemaining: appSettings.usageShowRemaining,
         accountInfo: homeSupportsLogin ? homeAccount : null,
-        accountSectionHint: homeAccountSectionHint,
         onSelectThread: (workspaceId, threadId) => {
           threadNavigation.exitDiffView();
           threadNavigation.clearDraftState();

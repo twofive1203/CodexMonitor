@@ -660,7 +660,7 @@ dependencies = [
 
 [[package]]
 name = "codex-monitor"
-version = "0.7.64"
+version = "0.7.68"
 dependencies = [
  "axum",
  "base64 0.22.1",

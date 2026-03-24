@@ -39,7 +39,9 @@ function isCompletedStatus(status: unknown) {
     normalized === "completed" ||
     normalized === "complete" ||
     normalized === "done" ||
-    normalized.includes("complete")
+    normalized === "已完成" ||
+    normalized.includes("complete") ||
+    normalized.includes("完成")
   );
 }
 

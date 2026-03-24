@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use crate::backend::app_server::WorkspaceSession;
 use crate::shared::provider_core::build_provider_session_key;
 use crate::types::{WorkspaceEntry, WorkspaceInfo};
+use crate::utils::normalize_windows_namespace_path;
 
 pub(crate) const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
 pub(crate) const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
@@ -82,6 +83,10 @@ pub(crate) fn normalize_workspace_path_input(path: &str) -> PathBuf {
     PathBuf::from(trimmed)
 }
 
+pub(crate) fn workspace_path_to_string(path: &PathBuf) -> String {
+    normalize_windows_namespace_path(&path.to_string_lossy())
+}
+
 pub(crate) async fn list_workspaces_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
@@ -150,7 +155,8 @@ pub(super) fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        copy_agents_md_from_parent_to_worktree, normalize_workspace_path_input, AGENTS_MD_FILE_NAME,
+        copy_agents_md_from_parent_to_worktree, normalize_workspace_path_input,
+        workspace_path_to_string, AGENTS_MD_FILE_NAME,
     };
     use std::path::PathBuf;
     use std::sync::Mutex;
@@ -219,5 +225,13 @@ mod tests {
             Some(value) => std::env::set_var("HOME", value),
             None => std::env::remove_var("HOME"),
         }
+    }
+
+    #[test]
+    fn workspace_path_to_string_strips_windows_namespace_prefixes() {
+        assert_eq!(
+            workspace_path_to_string(&PathBuf::from(r"\\?\I:\gpt-projects\CodexMonitor")),
+            r"I:\gpt-projects\CodexMonitor"
+        );
     }
 }

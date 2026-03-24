@@ -6,6 +6,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(target_os = "macos")]
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::timeout;
@@ -34,11 +37,16 @@ const THREAD_LIST_SOURCE_KINDS: &[&str] = &[
 ];
 
 #[allow(dead_code)]
-fn image_mime_type_for_path(path: &str) -> Option<&'static str> {
-    let extension = Path::new(path)
+fn image_extension_for_path(path: &str) -> Option<String> {
+    Path::new(path)
         .extension()
-        .and_then(|value| value.to_str())?
-        .to_ascii_lowercase();
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())
+}
+
+#[allow(dead_code)]
+fn image_mime_type_for_path(path: &str) -> Option<&'static str> {
+    let extension = image_extension_for_path(path)?;
     match extension.as_str() {
         "png" => Some("image/png"),
         "jpg" | "jpeg" => Some("image/jpeg"),
@@ -48,6 +56,62 @@ fn image_mime_type_for_path(path: &str) -> Option<&'static str> {
         "tiff" | "tif" => Some("image/tiff"),
         _ => None,
     }
+}
+
+#[allow(dead_code)]
+fn should_inline_image_path_for_codex(path: &str) -> bool {
+    matches!(
+        image_extension_for_path(path).as_deref(),
+        Some("heic") | Some("heif")
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn temp_converted_image_path(path: &str, extension: &str) -> PathBuf {
+    let stem = Path::new(path)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("image");
+    let safe_stem = stem
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect::<String>();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis())
+        .unwrap_or_default();
+    std::env::temp_dir().join(format!("codex-monitor-image-{safe_stem}-{ts}.{extension}"))
+}
+
+#[cfg(target_os = "macos")]
+fn convert_heif_image_to_jpeg_bytes(path: &str) -> Result<Vec<u8>, String> {
+    let output_path = temp_converted_image_path(path, "jpg");
+    let status = std::process::Command::new("/usr/bin/sips")
+        .args(["-s", "format", "jpeg"])
+        .arg(path)
+        .arg("--out")
+        .arg(&output_path)
+        .status()
+        .map_err(|err| format!("Failed to launch HEIC/HEIF conversion for {path}: {err}"))?;
+    if !status.success() {
+        let _ = std::fs::remove_file(&output_path);
+        return Err(format!(
+            "Failed to convert HEIC/HEIF image into a Codex-compatible JPEG: {path}"
+        ));
+    }
+    let bytes = std::fs::read(&output_path).map_err(|err| {
+        format!(
+            "Failed to read converted JPEG for {path} at {}: {err}",
+            output_path.display()
+        )
+    })?;
+    let _ = std::fs::remove_file(&output_path);
+    if bytes.is_empty() {
+        return Err(format!(
+            "Converted JPEG is empty after HEIC/HEIF conversion: {path}"
+        ));
+    }
+    Ok(bytes)
 }
 
 #[allow(dead_code)]
@@ -96,6 +160,19 @@ pub(crate) fn read_image_as_data_url_core(path: &str) -> Result<String, String> 
     let trimmed_path = normalize_file_path(path);
     if trimmed_path.is_empty() {
         return Err("Image path is required".to_string());
+    }
+    if should_inline_image_path_for_codex(&trimmed_path) {
+        #[cfg(target_os = "macos")]
+        {
+            let encoded = STANDARD.encode(convert_heif_image_to_jpeg_bytes(&trimmed_path)?);
+            return Ok(format!("data:image/jpeg;base64,{encoded}"));
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            return Err(format!(
+                "HEIC/HEIF images are not supported on this platform; convert to JPEG or PNG first: {trimmed_path}"
+            ));
+        }
     }
     let mime_type = image_mime_type_for_path(&trimmed_path).ok_or_else(|| {
         format!("Unsupported or missing image extension for path: {trimmed_path}")
@@ -184,7 +261,6 @@ fn build_workspace_thread_params(workspace_path: String, extra: Value) -> Value 
     params.insert("cwd".to_string(), json!(workspace_path));
     Value::Object(params)
 }
-
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
@@ -215,6 +291,19 @@ pub(crate) async fn resume_thread_core(
         .await
 }
 
+pub(crate) async fn read_thread_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    thread_id: String,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let params = build_workspace_thread_params(workspace_path, json!({ "threadId": thread_id }));
+    session
+        .send_request_for_workspace(&workspace_id, "thread/read", params)
+        .await
+}
 pub(crate) async fn thread_live_subscribe_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
@@ -359,6 +448,11 @@ fn build_turn_input_items(
                 || trimmed.starts_with("https://")
             {
                 input.push(json!({ "type": "image", "url": trimmed }));
+            } else if should_inline_image_path_for_codex(trimmed) {
+                input.push(json!({
+                    "type": "image",
+                    "url": read_image_as_data_url_core(trimmed)?,
+                }));
             } else {
                 input.push(json!({ "type": "localImage", "path": trimmed }));
             }
@@ -943,6 +1037,13 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn heif_paths_are_inlined_for_codex() {
+        assert!(should_inline_image_path_for_codex("/tmp/photo.heic"));
+        assert!(should_inline_image_path_for_codex("/tmp/photo.HEIF"));
+        assert!(!should_inline_image_path_for_codex("/tmp/photo.png"));
     }
 
     #[test]

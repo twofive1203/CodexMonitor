@@ -7,6 +7,7 @@ import type {
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../../../types";
+import { normalizeRootPath } from "../../threads/utils/threadNormalize";
 import {
   addWorkspace as addWorkspaceService,
   addWorkspaceFromGitUrl as addWorkspaceFromGitUrlService,
@@ -40,7 +41,7 @@ export type AddWorkspacesFromPathsResult = {
 };
 
 function normalizeWorkspacePathKey(value: string) {
-  return value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  return normalizeRootPath(value.trim());
 }
 
 function inferHomePrefixes(paths: string[]): string[] {

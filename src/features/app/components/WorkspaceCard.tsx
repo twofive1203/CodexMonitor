@@ -9,6 +9,7 @@ import {
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
   workspaceName?: React.ReactNode;
+  summary?: string | null;
   isActive: boolean;
   isCollapsed: boolean;
   addMenuOpen: boolean;
@@ -29,6 +30,7 @@ type WorkspaceCardProps = {
 export function WorkspaceCard({
   workspace,
   workspaceName,
+  summary = null,
   isActive,
   isCollapsed,
   addMenuOpen,
@@ -59,7 +61,7 @@ export function WorkspaceCard({
           }
         }}
       >
-        <div>
+        <div className="workspace-copy">
           <div className="workspace-name-row">
             <div className="workspace-title">
               <span className="workspace-name">{workspaceName ?? workspace.name}</span>
@@ -82,47 +84,50 @@ export function WorkspaceCard({
                 <span className="workspace-toggle-icon">›</span>
               </button>
             </div>
-            <button
-              className="ghost workspace-add"
-              onClick={(event) => {
-                event.stopPropagation();
-                const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-                const left = Math.min(
-                  Math.max(rect.left, 12),
-                  window.innerWidth - addMenuWidth - 12,
-                );
-                const top = rect.bottom + 8;
-                onToggleAddMenu(
-                  addMenuOpen
-                    ? null
-                    : {
-                        workspaceId: workspace.id,
-                        top,
-                        left,
-                        width: addMenuWidth,
-                      },
-                );
-              }}
-              data-tauri-drag-region="false"
-              aria-label="添加智能体选项"
-              aria-expanded={addMenuOpen}
-            >
-              +
-            </button>
           </div>
+          {summary && <div className="workspace-summary">{summary}</div>}
         </div>
-        {!workspace.connected && (
-          <span
-            className="connect"
-            title={`连接项目上下文到共享 ${providerLabel} 运行时`}
+        <div className="workspace-actions">
+          <button
+            className="ghost workspace-add"
             onClick={(event) => {
               event.stopPropagation();
-              onConnectWorkspace(workspace);
+              const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+              const left = Math.min(
+                Math.max(rect.left, 12),
+                window.innerWidth - addMenuWidth - 12,
+              );
+              const top = rect.bottom + 8;
+              onToggleAddMenu(
+                addMenuOpen
+                  ? null
+                  : {
+                      workspaceId: workspace.id,
+                      top,
+                      left,
+                      width: addMenuWidth,
+                    },
+                );
             }}
+            data-tauri-drag-region="false"
+            aria-label="添加智能体选项"
+            aria-expanded={addMenuOpen}
           >
-            连接
-          </span>
-        )}
+            +
+          </button>
+          {!workspace.connected && (
+            <span
+              className="connect"
+              title={`连接项目上下文到共享 ${providerLabel} 运行时`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onConnectWorkspace(workspace);
+              }}
+            >
+              连接
+            </span>
+          )}
+        </div>
       </div>
       <div
         className={`workspace-card-content${contentCollapsedClass}`}

@@ -30,6 +30,8 @@ export function WorktreeCard({
   const worktreeCollapsed = worktree.settings.sidebarCollapsed;
   const worktreeBranch = worktree.worktree?.branch ?? "";
   const worktreeLabel = worktree.name?.trim() || worktreeBranch;
+  const worktreeMeta =
+    worktreeBranch && worktreeBranch !== worktreeLabel ? worktreeBranch : null;
   const contentCollapsedClass = worktreeCollapsed ? " collapsed" : "";
   const provider = getWorkspaceProvider(worktree);
   const providerLabel = getAgentProviderLabel(provider);
@@ -61,14 +63,17 @@ export function WorktreeCard({
           }
         }}
       >
-        <div className="worktree-label">
-          <span>{worktreeLabel}</span>
-          <span
-            className={`workspace-provider-badge is-${provider}`}
-            title={`${providerLabel} provider`}
-          >
-            {providerLabel}
-          </span>
+        <div className="worktree-copy">
+          <div className="worktree-label">
+            <span>{worktreeLabel}</span>
+            <span
+              className={`workspace-provider-badge is-${provider}`}
+              title={`${providerLabel} provider`}
+            >
+              {providerLabel}
+            </span>
+          </div>
+          {worktreeMeta && <div className="worktree-meta">{worktreeMeta}</div>}
         </div>
         <div className="worktree-actions">
           {isDeleting ? (

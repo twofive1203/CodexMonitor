@@ -13,17 +13,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
 import {
   connectWorkspace,
-  getClaudeSdkStatus,
   getAppBuildType,
   getAgentsSettings,
   getConfigModel,
   getExperimentalFeatureList,
   isMobileRuntime,
-  installClaudeSdk,
   getModelList,
   listWorkspaces,
-  removeClaudeSdk,
-  webAccessStatus,
 } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
@@ -33,10 +29,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  openUrl: vi.fn(),
-}));
-
 vi.mock("@services/tauri", async () => {
   const actual = await vi.importActual<typeof import("@services/tauri")>(
     "@services/tauri",
@@ -44,67 +36,29 @@ vi.mock("@services/tauri", async () => {
   return {
     ...actual,
     connectWorkspace: vi.fn(),
-    getClaudeSdkStatus: vi.fn(),
     getAppBuildType: vi.fn(),
     getModelList: vi.fn(),
     getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
     getAgentsSettings: vi.fn(),
-    installClaudeSdk: vi.fn(),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
-    removeClaudeSdk: vi.fn(),
-    webAccessStatus: vi.fn(),
   };
 });
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
-const getClaudeSdkStatusMock = vi.mocked(getClaudeSdkStatus);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
 const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
-const installClaudeSdkMock = vi.mocked(installClaudeSdk);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
-const removeClaudeSdkMock = vi.mocked(removeClaudeSdk);
-const webAccessStatusMock = vi.mocked(webAccessStatus);
 connectWorkspaceMock.mockResolvedValue(undefined);
-getClaudeSdkStatusMock.mockResolvedValue({
-  state: "missing",
-  version: null,
-  path: null,
-  source: null,
-  error: "未检测到 Claude Agent SDK。开发态请先执行 `npm install`；安装包请在设置中下载 Claude SDK。",
-});
 getAppBuildTypeMock.mockResolvedValue("release");
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
-installClaudeSdkMock.mockResolvedValue({
-  state: "ready",
-  version: "0.2.81",
-  path: "/app/data/claude-agent-sdk/sdk.mjs",
-  source: "app_data",
-  error: null,
-});
 listWorkspacesMock.mockResolvedValue([]);
-removeClaudeSdkMock.mockResolvedValue({
-  state: "missing",
-  version: null,
-  path: "/app/data/claude-agent-sdk",
-  source: null,
-  error: "未检测到 Claude Agent SDK。开发态请先执行 `npm install`；安装包请在设置中下载 Claude SDK。",
-});
-webAccessStatusMock.mockResolvedValue({
-  enabled: false,
-  state: "stopped",
-  pid: null,
-  startedAtMs: null,
-  lastError: null,
-  listenAddr: "127.0.0.1:4733",
-  localUrl: "http://127.0.0.1:4733",
-});
 getAgentsSettingsMock.mockResolvedValue({
   configPath: "/Users/me/.codex/config.toml",
   multiAgentEnabled: false,
@@ -121,6 +75,7 @@ const baseSettings: AppSettings = {
   claudeArgs: null,
   claudePermissionMode: null,
   claudeUseSdkSidecar: true,
+  experimentalClaudeEnabled: false,
   backendMode: "local",
   remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
@@ -132,7 +87,7 @@ const baseSettings: AppSettings = {
   remoteBackends: [
     {
       id: "remote-default",
-      name: "主远程连接",
+      name: "Primary remote",
       provider: "tcp",
       host: "127.0.0.1:4732",
       token: null,
@@ -168,7 +123,7 @@ const baseSettings: AppSettings = {
   showMessageFilePath: true,
   chatHistoryScrollbackItems: 200,
   threadTitleAutogenerationEnabled: false,
-  automaticAppUpdateChecksEnabled: false,
+  automaticAppUpdateChecksEnabled: true,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:
@@ -188,7 +143,6 @@ const baseSettings: AppSettings = {
   composerFollowUpHintEnabled: true,
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
-  experimentalClaudeEnabled: false,
   experimentalAppsEnabled: false,
   personality: "friendly",
   dictationEnabled: false,
@@ -400,7 +354,7 @@ const renderFeaturesSection = (
           stage: "stable",
           enabled: true,
           defaultEnabled: true,
-          displayName: "Steer mode",
+          displayName: "引导",
           description:
             "Send messages immediately. Use Tab to queue while a run is active.",
           announcement: null,
@@ -410,7 +364,7 @@ const renderFeaturesSection = (
           stage: "stable",
           enabled: true,
           defaultEnabled: true,
-          displayName: "Background terminal",
+          displayName: "统一执行",
           description: "Run long-running terminal commands in the background.",
           announcement: null,
         },
@@ -426,12 +380,12 @@ const renderFeaturesSection = (
     onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces: [
-        {
-          id: null,
-          name: "未分组",
-          workspaces: [workspace({ id: "w-features", name: "Features Workspace", connected: true })],
-        },
-      ],
+      {
+        id: null,
+        name: "未分组",
+        workspaces: [workspace({ id: "w-features", name: "Features Workspace", connected: true })],
+      },
+    ],
     ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
@@ -468,7 +422,6 @@ const workspace = (
   name: overrides.name,
   path: overrides.path ?? `/tmp/${overrides.id}`,
   connected: overrides.connected ?? false,
-  provider: overrides.provider,
   kind: overrides.kind ?? "main",
   parentId: overrides.parentId ?? null,
   worktree: overrides.worktree ?? null,
@@ -486,39 +439,49 @@ const workspace = (
 
 const renderEnvironmentsSection = (
   options: {
+    appSettings?: Partial<AppSettings>;
     groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
     onUpdateWorkspaceSettings?: ComponentProps<typeof SettingsView>["onUpdateWorkspaceSettings"];
   } = {},
 ) => {
   cleanup();
+  const onUpdateAppSettings =
+    options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
   const onUpdateWorkspaceSettings =
     options.onUpdateWorkspaceSettings ?? vi.fn().mockResolvedValue(undefined);
+  const defaultGroupedWorkspaces =
+    options.groupedWorkspaces ??
+    [
+      {
+        id: null,
+        name: "未分组",
+        workspaces: [
+          workspace({
+            id: "w1",
+            name: "Project One",
+            settings: {
+              sidebarCollapsed: false,
+              worktreeSetupScript: "echo one",
+            },
+          }),
+        ],
+      },
+    ];
 
-  const props: ComponentProps<typeof SettingsView> = {
+  const buildProps = (
+    nextOptions: {
+      appSettings?: Partial<AppSettings>;
+      groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+    } = {},
+  ): ComponentProps<typeof SettingsView> => ({
     reduceTransparency: false,
     onToggleTransparency: vi.fn(),
-    appSettings: baseSettings,
+    appSettings: { ...baseSettings, ...options.appSettings, ...nextOptions.appSettings },
     openAppIconById: {},
-    onUpdateAppSettings: vi.fn().mockResolvedValue(undefined),
+    onUpdateAppSettings,
     workspaceGroups: [],
-    groupedWorkspaces:
-      options.groupedWorkspaces ??
-      [
-        {
-          id: null,
-          name: "未分组",
-          workspaces: [
-            workspace({
-              id: "w1",
-              name: "Project One",
-              settings: {
-                sidebarCollapsed: false,
-                worktreeSetupScript: "echo one",
-              },
-            }),
-          ],
-        },
-      ],
+    groupedWorkspaces: nextOptions.groupedWorkspaces ?? defaultGroupedWorkspaces,
     ungroupedLabel: "未分组",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
@@ -539,10 +502,19 @@ const renderEnvironmentsSection = (
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
     initialSection: "environments",
-  };
+  });
 
-  render(<SettingsView {...props} />);
-  return { onUpdateWorkspaceSettings };
+  const renderResult = render(<SettingsView {...buildProps()} />);
+  return {
+    onUpdateAppSettings,
+    onUpdateWorkspaceSettings,
+    rerender: (
+      nextOptions: {
+        appSettings?: Partial<AppSettings>;
+        groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+      } = {},
+    ) => renderResult.rerender(<SettingsView {...buildProps(nextOptions)} />),
+  };
 };
 
 describe("SettingsView Display", () => {
@@ -812,6 +784,246 @@ describe("SettingsView About", () => {
 });
 
 describe("SettingsView Environments", () => {
+  it("shows the global worktrees root input", () => {
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+    });
+
+    const input = screen.getByLabelText("全局工作树根目录");
+    expect(input).toBeTruthy();
+    expect((input as HTMLInputElement).value).toBe("I:/existing-worktrees");
+    expect((input as HTMLInputElement).placeholder).toBe("/path/to/worktrees-root");
+  });
+
+  it("saves the global worktrees root through app settings", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const input = screen.getByLabelText("全局工作树根目录");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+    });
+    expect(onUpdateWorkspaceSettings).not.toHaveBeenCalled();
+  });
+
+  it("does not clear an existing global worktrees root when saving project-only changes", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const textarea = screen.getByPlaceholderText("pnpm install");
+    fireEvent.change(textarea, { target: { value: "echo updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        worktreeSetupScript: "echo updated",
+        worktreesFolder: null,
+      });
+    });
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
+  });
+
+  it("keeps the global worktrees root marked as saved after workspace save fails", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed to save workspace settings"))
+      .mockResolvedValueOnce(undefined);
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    fireEvent.change(screen.getByLabelText("全局工作树根目录"), {
+      target: { value: "I:/cm-worktrees" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("pnpm install"), {
+      target: { value: "echo updated" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(
+      await screen.findByText("Failed to save workspace settings"),
+    ).toBeTruthy();
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+    expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
+    });
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the global worktrees root editable when there are no projects", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    expect(screen.getByText("暂无项目。")).toBeTruthy();
+    const input = screen.getByLabelText("全局工作树根目录");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+    });
+  });
+
+  it("keeps the no-project global worktrees root save state active until the request resolves", async () => {
+    let resolveSave: (() => void) | null = null;
+    const pendingSave = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    const onUpdateAppSettings = vi.fn().mockImplementation(() => pendingSave);
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    fireEvent.change(screen.getByLabelText("全局工作树根目录"), {
+      target: { value: "I:/cm-worktrees" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("button", { name: "保存中..." }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+    });
+    expect((screen.getByLabelText("全局工作树根目录") as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "保存中..." }));
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSave?.();
+      await pendingSave;
+    });
+
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "保存" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+  });
+
+  it("resyncs the global worktrees root baseline after dirty state clears", async () => {
+    const { rerender } = renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      appSettings: { globalWorktreesFolder: null },
+    });
+
+    const input = screen.getByLabelText("全局工作树根目录");
+    fireEvent.change(input, { target: { value: "I:/typing" } });
+
+    rerender({
+      groupedWorkspaces: [],
+      appSettings: { globalWorktreesFolder: "I:/loaded-from-settings" },
+    });
+
+    expect((screen.getByLabelText("全局工作树根目录") as HTMLInputElement).value).toBe(
+      "I:/typing",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "重置" }));
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("全局工作树根目录") as HTMLInputElement).value).toBe(
+        "I:/loaded-from-settings",
+      );
+    });
+  });
+
+  it("shows save errors for the global worktrees root when there are no projects", async () => {
+    const onUpdateAppSettings = vi
+      .fn()
+      .mockRejectedValue(new Error("Failed to save global worktrees root"));
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    const input = screen.getByLabelText("全局工作树根目录");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(
+      await screen.findByText("Failed to save global worktrees root"),
+    ).toBeTruthy();
+  });
+
+  it("keeps the new global worktrees root as saved when workspace settings fail afterward", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi
+      .fn()
+      .mockRejectedValue(new Error("Failed to save workspace settings"));
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const input = screen.getByLabelText("全局工作树根目录");
+    const textarea = screen.getByPlaceholderText("pnpm install");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.change(textarea, { target: { value: "echo updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(
+      await screen.findByText("Failed to save workspace settings"),
+    ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        worktreeSetupScript: "echo updated",
+        worktreesFolder: null,
+      });
+    });
+
+    expect((input as HTMLInputElement).value).toBe("I:/cm-worktrees");
+
+    onUpdateWorkspaceSettings.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
+    });
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("saves the setup script for the selected project", async () => {
     const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
     renderEnvironmentsSection({ onUpdateWorkspaceSettings });
@@ -877,218 +1089,7 @@ describe("SettingsView Environments", () => {
 });
 
 describe("SettingsView Codex section", () => {
-  it("updates default provider in runtime section", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="runtime"
-      />,
-    );
-
-    fireEvent.change(screen.getByLabelText("默认 provider"), {
-      target: { value: "claude" },
-    });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ defaultAgentProvider: "claude" }),
-      );
-    });
-  });
-
-  it("hides Claude settings when the experimental feature is disabled", async () => {
-    cleanup();
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={baseSettings}
-        openAppIconById={{}}
-        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="claude"
-      />,
-    );
-
-    expect(screen.queryByRole("button", { name: "Claude" })).toBeNull();
-    expect(screen.queryByLabelText("Claude 路径")).toBeNull();
-    expect(screen.getByText("Claude Provider")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "当前策略：Claude 继续保持实验态并默认关闭，建议先完成本地与远程人工验收，再面向稳定环境开启。",
-      ),
-    ).toBeTruthy();
-  });
-
-  it("disables Claude experimental feature and resets the default provider", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{
-          ...baseSettings,
-          experimentalClaudeEnabled: true,
-          defaultAgentProvider: "claude",
-        }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="features"
-      />,
-    );
-
-    const claudeFeatureRow = screen
-      .getByText("Claude Provider")
-      .closest(".settings-toggle-row");
-    expect(claudeFeatureRow).toBeTruthy();
-    if (!claudeFeatureRow) {
-      throw new Error("Expected Claude Provider toggle row");
-    }
-
-    fireEvent.click(within(claudeFeatureRow as HTMLElement).getByRole("button"));
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          experimentalClaudeEnabled: false,
-          defaultAgentProvider: "codex",
-        }),
-      );
-    });
-  });
-
-  it("keeps stored Claude workspace provider visible but locked when the feature is disabled", async () => {
-    cleanup();
-    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[
-          {
-            id: null,
-            name: "未分组",
-            workspaces: [
-              workspace({
-                id: "ws-claude",
-                name: "Claude Workspace",
-                provider: "claude",
-              }),
-            ],
-          },
-        ]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={baseSettings}
-        openAppIconById={{}}
-        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="environments"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "项目" }));
-
-    const providerSelect = screen.getByLabelText(
-      "Claude Workspace provider",
-    ) as HTMLSelectElement;
-    expect(providerSelect.value).toBe("claude");
-    expect(providerSelect.disabled).toBe(true);
-    expect(providerSelect.title).toContain("开启 Claude 实验功能后才可修改");
-    expect(onUpdateWorkspaceSettings).not.toHaveBeenCalled();
-  });
-
-  it("updates review mode in runtime section", async () => {
+  it("updates review mode in codex section", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     render(
@@ -1132,124 +1133,6 @@ describe("SettingsView Codex section", () => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ reviewDeliveryMode: "detached" }),
       );
-    });
-  });
-
-  it("saves Claude runtime settings in Claude section", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
-        openAppIconById={{}}
-        onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="claude"
-      />,
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(
-          "打包版默认不内置 Claude SDK。首次使用 Claude 前，请先检测并按需下载到本地应用数据目录。",
-        ),
-      ).toBeTruthy();
-    });
-    expect(screen.getByRole("button", { name: "下载 SDK" })).toBeTruthy();
-    expect(
-      screen.getByText(
-        "当前策略：Claude 仍保持实验态并默认关闭，建议先按人工验收矩阵完成本地与远程验证。",
-      ),
-    ).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText("Claude 路径"), {
-      target: { value: "  C:/tools/claude.exe  " },
-    });
-    fireEvent.change(screen.getByLabelText("Claude 参数"), {
-      target: { value: "  --verbose  " },
-    });
-    fireEvent.change(screen.getByLabelText("权限模式"), {
-      target: { value: "acceptEdits" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          claudeBin: "C:/tools/claude.exe",
-          claudeArgs: "--verbose",
-          claudePermissionMode: "acceptEdits",
-        }),
-      );
-    });
-  });
-
-  it("downloads Claude SDK in Claude section", async () => {
-    cleanup();
-    render(
-      <SettingsView
-        workspaceGroups={[]}
-        groupedWorkspaces={[]}
-        ungroupedLabel="未分组"
-        onClose={vi.fn()}
-        onMoveWorkspace={vi.fn()}
-        onDeleteWorkspace={vi.fn()}
-        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-        reduceTransparency={false}
-        onToggleTransparency={vi.fn()}
-        appSettings={{ ...baseSettings, experimentalClaudeEnabled: true }}
-        openAppIconById={{}}
-        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
-        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-        scaleShortcutTitle="Scale shortcut"
-        scaleShortcutText="Use Command +/-"
-        onTestNotificationSound={vi.fn()}
-        onTestSystemNotification={vi.fn()}
-        dictationModelStatus={null}
-        onDownloadDictationModel={vi.fn()}
-        onCancelDictationDownload={vi.fn()}
-        onRemoveDictationModel={vi.fn()}
-        initialSection="claude"
-      />,
-    );
-
-    const downloadButton = await screen.findByRole("button", { name: "下载 SDK" });
-    fireEvent.click(downloadButton);
-
-    await waitFor(() => {
-      expect(installClaudeSdkMock).toHaveBeenCalledTimes(1);
-      expect(
-        screen.getByText("Claude SDK 已就绪，来源：应用数据目录，版本 0.2.81。"),
-      ).toBeTruthy();
     });
   });
 
@@ -1374,11 +1257,13 @@ describe("SettingsView Codex section", () => {
         expect(screen.getByRole("button", { name: "连接并测试" })).toBeTruthy();
       });
 
-      expect(screen.queryByLabelText("Backend mode")).toBeNull();
+      expect(screen.queryByLabelText("后端模式")).toBeNull();
       expect(screen.queryByRole("button", { name: "启动守护进程" })).toBeNull();
       expect(screen.queryByRole("button", { name: "检测 Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
-      expect(screen.getByText(/Tailscale 主机名和令牌/)).toBeTruthy();
+      expect(
+        screen.getByText(/Tailscale 主机名和令牌/),
+      ).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
         Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
@@ -1605,7 +1490,7 @@ describe("SettingsView Codex section", () => {
         Reflect.deleteProperty(window.navigator, "maxTouchPoints");
       }
     }
-  });
+  }, 10000);
 
 });
 
@@ -1852,7 +1737,7 @@ describe("SettingsView Features", () => {
             stage: "underDevelopment",
             enabled: true,
             defaultEnabled: true,
-            displayName: "Steer mode",
+            displayName: "引导",
             description: "Legacy steer feature row.",
             announcement: null,
           },
@@ -2065,7 +1950,7 @@ describe("SettingsView mobile layout", () => {
       );
 
       expect(
-        within(rendered.container).queryByText("Sections"),
+        within(rendered.container).queryByText("分区"),
       ).toBeNull();
       expect(
         rendered.container.querySelectorAll(".ds-panel-nav-item-disclosure")
@@ -2092,13 +1977,13 @@ describe("SettingsView mobile layout", () => {
       });
 
       fireEvent.click(
-        within(rendered.container).getByRole("button", {
-          name: "返回设置分区",
-        }),
+          within(rendered.container).getByRole("button", {
+            name: "返回设置分区",
+          }),
       );
 
       await waitFor(() => {
-        expect(within(rendered.container).queryByText("Sections")).toBeNull();
+        expect(within(rendered.container).queryByText("分区")).toBeNull();
       });
     } finally {
       if (originalMatchMedia) {

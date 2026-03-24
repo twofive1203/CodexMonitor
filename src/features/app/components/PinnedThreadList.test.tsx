@@ -64,7 +64,7 @@ describe("PinnedThreadList", () => {
     expect(row.querySelector(".thread-status")?.className).toContain(
       "reviewing",
     );
-    expect(screen.getByLabelText("已置顶")).toBeTruthy();
+    expect(screen.queryByText("Pinned")).toBeNull();
 
     fireEvent.click(row);
     expect(onSelectThread).toHaveBeenCalledWith("ws-1", "thread-1");

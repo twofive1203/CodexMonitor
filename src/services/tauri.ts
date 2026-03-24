@@ -89,7 +89,8 @@ function pickBrowserImageFiles(): Promise<string[]> {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = true;
-    input.accept = "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff,image/tif";
+    input.accept =
+      "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/tiff,image/tif,image/heic,image/heif";
     input.style.position = "fixed";
     input.style.left = "-9999px";
     input.style.opacity = "0";
@@ -204,7 +205,18 @@ export async function pickImageFiles(): Promise<string[]> {
     filters: [
       {
         name: "图片文件",
-        extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "tif"],
+        extensions: [
+          "png",
+          "jpg",
+          "jpeg",
+          "gif",
+          "webp",
+          "bmp",
+          "tiff",
+          "tif",
+          "heic",
+          "heif",
+        ],
       },
     ],
   });
@@ -1252,6 +1264,10 @@ export async function listMcpServerStatus(
 
 export async function resumeThread(workspaceId: string, threadId: string) {
   return invoke<any>("resume_thread", { workspaceId, threadId });
+}
+
+export async function readThread(workspaceId: string, threadId: string) {
+  return invoke<any>("read_thread", { workspaceId, threadId });
 }
 
 export async function threadLiveSubscribe(workspaceId: string, threadId: string) {

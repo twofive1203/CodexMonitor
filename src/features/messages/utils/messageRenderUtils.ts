@@ -444,13 +444,13 @@ export function statusToneFromText(status?: string): StatusTone {
     return "unknown";
   }
   const normalized = status.toLowerCase();
-  if (/(fail|error)/.test(normalized)) {
+  if (/(fail|error|失败|出错|错误)/.test(normalized)) {
     return "failed";
   }
-  if (/(pending|running|processing|started|in[_\s-]?progress)/.test(normalized)) {
+  if (/(pending|running|processing|started|in[_\s-]?progress|进行中|处理中|运行中|已开始)/.test(normalized)) {
     return "processing";
   }
-  if (/(complete|completed|success|done)/.test(normalized)) {
+  if (/(complete|completed|success|done|完成|已完成|成功)/.test(normalized)) {
     return "completed";
   }
   return "unknown";

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
 import { Sidebar } from "./Sidebar";
@@ -74,20 +74,20 @@ describe("Sidebar", () => {
     render(<Sidebar {...baseProps} />);
 
     const toggleButton = screen.getByRole("button", { name: "切换搜索" });
-    expect(screen.queryByLabelText("搜索项目")).toBeNull();
+    expect(screen.queryByLabelText("Search conversations")).toBeNull();
 
     fireEvent.click(toggleButton);
-    const input = screen.getByLabelText("搜索项目") as HTMLInputElement;
+    const input = screen.getByLabelText("Search conversations") as HTMLInputElement;
     expect(input).toBeTruthy();
 
     fireEvent.change(input, { target: { value: "alpha" } });
     expect(input.value).toBe("alpha");
 
     fireEvent.click(toggleButton);
-    expect(screen.queryByLabelText("搜索项目")).toBeNull();
+    expect(screen.queryByLabelText("Search conversations")).toBeNull();
 
     fireEvent.click(toggleButton);
-    const reopened = screen.getByLabelText("搜索项目") as HTMLInputElement;
+    const reopened = screen.getByLabelText("Search conversations") as HTMLInputElement;
     expect(reopened.value).toBe("");
   });
 
@@ -153,6 +153,26 @@ describe("Sidebar", () => {
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
+  it("opens the account menu from the bottom rail", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        accountInfo={{
+          email: "dimillian@example.com",
+          type: "chatgpt",
+          planType: "pro",
+          requiresOpenaiAuth: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+
+    expect(screen.getByText("dimillian@example.com")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Switch account" })).toBeTruthy();
+  });
+
   it("renders threads-only mode as a global chronological list", () => {
     const older = Date.now() - 10_000;
     const newer = Date.now();
@@ -208,10 +228,299 @@ describe("Sidebar", () => {
     const renderedNames = Array.from(container.querySelectorAll(".thread-row .thread-name")).map(
       (node) => node.textContent?.trim(),
     );
+    expect(screen.getByText("Recent conversations")).toBeTruthy();
     expect(renderedNames[0]).toBe("Newer thread");
     expect(renderedNames[1]).toBe("Older thread");
     expect(screen.getByText("Alpha Project")).toBeTruthy();
     expect(screen.getByText("Beta Project")).toBeTruthy();
+  });
+
+  it("keeps a project visible when its thread matches the search query", async () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Fix workspace restore", updatedAt: 1000 }],
+          "ws-2": [{ id: "thread-2", name: "Unrelated thread", updatedAt: 900 }],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "restore" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Alpha Project")).toBeTruthy();
+      expect(screen.getByText("Fix workspace restore")).toBeTruthy();
+      expect(screen.queryByText("Beta Project")).toBeNull();
+      expect(screen.queryByText("Unrelated thread")).toBeNull();
+    });
+  });
+
+  it("searches across loaded root threads before collapsed truncation", async () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [
+            { id: "thread-1", name: "Alpha thread", updatedAt: 1000 },
+            { id: "thread-2", name: "Beta thread", updatedAt: 900 },
+            { id: "thread-3", name: "Gamma thread", updatedAt: 800 },
+            { id: "thread-4", name: "Delta thread", updatedAt: 700 },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "delta" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Alpha Project")).toBeTruthy();
+      expect(screen.getByText("Delta thread")).toBeTruthy();
+      expect(screen.queryByText("Alpha thread")).toBeNull();
+      expect(screen.queryByText("More...")).toBeNull();
+    });
+  });
+
+  it("keeps a project visible during search when only older pages may contain matches", async () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Current page thread", updatedAt: 1000 }],
+        }}
+        threadListCursorByWorkspace={{ "ws-1": "cursor-1" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "historical" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Alpha Project")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "搜索更早会话..." })).toBeTruthy();
+      expect(screen.queryByText("Current page thread")).toBeNull();
+    });
+  });
+
+  it("keeps the parent project visible when only a worktree thread matches search", async () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-root",
+            name: "Main Project",
+            path: "/tmp/main",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-worktree",
+            name: "Feature Worktree",
+            path: "/tmp/main-feature",
+            connected: true,
+            kind: "worktree",
+            parentId: "ws-root",
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-root",
+                name: "Main Project",
+                path: "/tmp/main",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-worktree": [
+            { id: "thread-worktree", name: "Feature thread routing fix", updatedAt: 1000 },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "routing fix" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Main Project")).toBeTruthy();
+      expect(screen.getByText("工作树")).toBeTruthy();
+      expect(screen.getByText("Feature Worktree")).toBeTruthy();
+      expect(screen.getByText("Feature thread routing fix")).toBeTruthy();
+    });
+  });
+
+  it("keeps clone agents visible when their thread matches search", async () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-root",
+            name: "Main Project",
+            path: "/tmp/main",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-clone",
+            name: "Clone Agent",
+            path: "/tmp/main-clone",
+            connected: true,
+            settings: {
+              sidebarCollapsed: false,
+              cloneSourceWorkspaceId: "ws-root",
+            },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-root",
+                name: "Main Project",
+                path: "/tmp/main",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-clone",
+                name: "Clone Agent",
+                path: "/tmp/main-clone",
+                connected: true,
+                settings: {
+                  sidebarCollapsed: false,
+                  cloneSourceWorkspaceId: "ws-root",
+                },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-clone": [
+            { id: "thread-clone", name: "Investigate clone search bug", updatedAt: 1000 },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
+    fireEvent.change(screen.getByLabelText("Search conversations"), {
+      target: { value: "clone search bug" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Main Project")).toBeTruthy();
+      expect(screen.getByText("Clone agents")).toBeTruthy();
+      expect(screen.getByText("Clone Agent")).toBeTruthy();
+      expect(screen.getByText("Investigate clone search bug")).toBeTruthy();
+    });
   });
 
   it("creates a new thread from the all-threads project picker", () => {
@@ -262,7 +571,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "在项目中新建会话" }));
+    fireEvent.click(screen.getByRole("button", { name: "New thread in project" }));
     fireEvent.click(screen.getByRole("button", { name: "Alpha Project" }));
 
     expect(onAddAgent).toHaveBeenCalledTimes(1);
@@ -380,7 +689,7 @@ describe("Sidebar", () => {
 
     render(<Sidebar {...props} />);
 
-    const draftRow = screen.getByRole("button", { name: "新建智能体" });
+    const draftRow = screen.getByRole("button", { name: /new agent/i });
     expect(draftRow).toBeTruthy();
     expect(draftRow.className).toContain("thread-row-draft");
     expect(draftRow.className).toContain("active");
@@ -440,7 +749,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    expect(screen.getByText("克隆智能体")).toBeTruthy();
+    expect(screen.getByText("Clone agents")).toBeTruthy();
     expect(screen.getByText("Clone Agent")).toBeTruthy();
     expect(container.querySelectorAll(".workspace-row")).toHaveLength(1);
     expect(container.querySelectorAll(".worktree-row")).toHaveLength(1);

@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
-  AccessMode,
   AppMention,
   ComposerSendIntent,
   RateLimitSnapshot,
@@ -34,21 +33,19 @@ import {
   extractRpcErrorMessage,
   parseReviewTarget,
 } from "@threads/utils/threadNormalize";
-import { clampThreadName } from "@threads/utils/threadNaming";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
-import { formatRelativeTime } from "@utils/time";
-
-type SendMessageOptions = {
-  skipPromptExpansion?: boolean;
-  model?: string | null;
-  effort?: string | null;
-  serviceTier?: ServiceTier | null | undefined;
-  collaborationMode?: Record<string, unknown> | null;
-  accessMode?: AccessMode;
-  appMentions?: AppMention[];
-  sendIntent?: ComposerSendIntent;
-};
+import {
+  buildAppsLines,
+  buildMcpStatusLines,
+  buildReviewThreadTitle,
+  buildStatusLines,
+  buildTurnStartPayload,
+  isStaleSteerTurnError,
+  parseFastCommand,
+  resolveSendMessageOptions,
+  type SendMessageOptions,
+} from "./threadMessagingHelpers";
 
 type UseThreadMessagingOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -103,57 +100,6 @@ type UseThreadMessagingOptions = {
   ) => void;
   renameThread?: (workspaceId: string, threadId: string, name: string) => void;
 };
-
-function buildReviewThreadTitle(target: ReviewTarget): string | null {
-  if (target.type === "commit") {
-    const shortSha = target.sha.trim().slice(0, 7);
-    const title = target.title?.trim() ?? "";
-    if (shortSha && title) {
-      return clampThreadName(`审查 ${shortSha}：${title}`);
-    }
-    if (shortSha) {
-      return clampThreadName(`审查 ${shortSha}`);
-    }
-    return clampThreadName("审查提交");
-  }
-  if (target.type === "baseBranch") {
-    return clampThreadName(`审查 ${target.branch}`);
-  }
-  if (target.type === "uncommittedChanges") {
-    return "审查工作区改动";
-  }
-  return null;
-}
-
-function isStaleSteerTurnError(message: string): boolean {
-  const normalized = message.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  if (normalized.includes("no active turn")) {
-    return true;
-  }
-  return normalized.includes("active turn") && normalized.includes("not found");
-}
-
-type FastCommandAction = "toggle" | "on" | "off" | "status" | "invalid";
-
-function parseFastCommand(text: string): FastCommandAction {
-  const arg = text.replace(/^\/fast\b/i, "").trim().toLowerCase();
-  if (!arg) {
-    return "toggle";
-  }
-  if (arg === "on") {
-    return "on";
-  }
-  if (arg === "off") {
-    return "off";
-  }
-  if (arg === "status") {
-    return "status";
-  }
-  return "invalid";
-}
 
 export function useThreadMessaging({
   activeWorkspace,
@@ -216,37 +162,31 @@ export function useThreadMessaging({
         }
         finalText = promptExpansion?.expanded ?? messageText;
       }
-      const resolvedModel =
-        options?.model !== undefined ? options.model : model;
-      const resolvedEffort =
-        options?.effort !== undefined ? options.effort : effort;
-      const resolvedServiceTier =
-        options?.serviceTier !== undefined ? options.serviceTier : serviceTier;
-      const resolvedCollaborationMode =
-        options?.collaborationMode !== undefined
-          ? options.collaborationMode
-          : collaborationMode;
-      const sanitizedCollaborationMode =
-        resolvedCollaborationMode &&
-        typeof resolvedCollaborationMode === "object" &&
-        "settings" in resolvedCollaborationMode
-          ? resolvedCollaborationMode
-          : null;
-      const resolvedAccessMode =
-        options?.accessMode !== undefined ? options.accessMode : accessMode;
-      const appMentions = options?.appMentions ?? [];
-      const sendIntent = options?.sendIntent ?? "default";
-
       const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
       const activeTurnId = activeTurnIdByThread[threadId] ?? null;
-      const canSteerCurrentTurn =
-        isProcessing && steerEnabled && Boolean(activeTurnId);
-      const shouldSteer =
-        sendIntent === "steer"
-          ? canSteerCurrentTurn
-          : sendIntent === "queue"
-            ? false
-            : canSteerCurrentTurn;
+      const {
+        resolvedModel,
+        resolvedEffort,
+        resolvedServiceTier,
+        sanitizedCollaborationMode,
+        resolvedAccessMode,
+        appMentions,
+        sendIntent,
+        shouldSteer,
+        requestMode,
+      } = resolveSendMessageOptions({
+        options,
+        defaults: {
+          accessMode,
+          model,
+          effort,
+          serviceTier,
+          collaborationMode,
+          steerEnabled,
+          isProcessing,
+          activeTurnId,
+        },
+      });
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
@@ -290,7 +230,6 @@ export function useThreadMessaging({
           threadCustomName: customThreadName,
         },
       });
-      const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
         const workspaceSupportsRuntimeCodexArgs = providerSupportsRuntimeCodexArgs(
           getWorkspaceProvider(workspace),
@@ -305,36 +244,6 @@ export function useThreadMessaging({
         ) {
           await ensureWorkspaceRuntimeCodexArgs(workspace.id, threadId);
         }
-        const startTurn = () => {
-          const payload: {
-            model?: string | null;
-            effort?: string | null;
-            serviceTier?: ServiceTier | null | undefined;
-            collaborationMode?: Record<string, unknown> | null;
-            accessMode?: AccessMode;
-            images?: string[];
-            appMentions?: AppMention[];
-          } = {
-            model: resolvedModel,
-            effort: resolvedEffort,
-            collaborationMode: sanitizedCollaborationMode,
-            accessMode: resolvedAccessMode,
-            images,
-          };
-          if (resolvedServiceTier !== undefined) {
-            payload.serviceTier = resolvedServiceTier;
-          }
-          if (appMentions.length > 0) {
-            payload.appMentions = appMentions;
-          }
-          return sendUserMessageService(
-            workspace.id,
-            threadId,
-            finalText,
-            payload,
-          );
-        };
-
         const response: Record<string, unknown> = shouldSteer
           ? (await (appMentions.length > 0
             ? steerTurnService(
@@ -352,7 +261,20 @@ export function useThreadMessaging({
               finalText,
               images,
             ))) as Record<string, unknown>
-          : (await startTurn()) as Record<string, unknown>;
+          : (await sendUserMessageService(
+            workspace.id,
+            threadId,
+            finalText,
+            buildTurnStartPayload({
+              model: resolvedModel,
+              effort: resolvedEffort,
+              serviceTier: resolvedServiceTier,
+              collaborationMode: sanitizedCollaborationMode,
+              accessMode: resolvedAccessMode,
+              images,
+              appMentions,
+            }),
+          )) as Record<string, unknown>;
 
         const rpcError = extractRpcErrorMessage(response);
 
@@ -757,74 +679,14 @@ export function useThreadMessaging({
         return;
       }
 
-      const rateLimits = rateLimitsByWorkspace[activeWorkspace.id] ?? null;
-      const primaryUsed = rateLimits?.primary?.usedPercent;
-      const secondaryUsed = rateLimits?.secondary?.usedPercent;
-      const primaryReset = rateLimits?.primary?.resetsAt;
-      const secondaryReset = rateLimits?.secondary?.resetsAt;
-      const credits = rateLimits?.credits ?? null;
-
-      const normalizeReset = (value?: number | null) => {
-        if (typeof value !== "number" || !Number.isFinite(value)) {
-          return null;
-        }
-        return value > 1_000_000_000_000 ? value : value * 1000;
-      };
-
-      const resetLabel = (value?: number | null) => {
-        const resetAt = normalizeReset(value);
-        return resetAt ? formatRelativeTime(resetAt) : null;
-      };
-
-      const collabId =
-        collaborationMode &&
-        typeof collaborationMode === "object" &&
-        "settings" in collaborationMode &&
-        collaborationMode.settings &&
-        typeof collaborationMode.settings === "object" &&
-        "id" in collaborationMode.settings
-          ? String(collaborationMode.settings.id ?? "")
-          : "";
-      const accessLabel =
-        accessMode === "read-only"
-          ? "只读"
-          : accessMode === "full-access"
-            ? "完全访问"
-            : "当前工作区";
-
-      const lines = [
-        "会话状态：",
-        `- 模型：${model ?? "默认"}`,
-        `- 快速模式：${serviceTier === "fast" ? "开启" : "关闭"}`,
-        `- 推理强度：${effort ?? "默认"}`,
-        `- 访问权限：${accessLabel}`,
-        `- 协作模式：${collabId || "关闭"}`,
-      ];
-
-      if (typeof primaryUsed === "number") {
-        const reset = resetLabel(primaryReset);
-        lines.push(
-          `- 会话用量：${Math.round(primaryUsed)}%${
-            reset ? `（${reset} 重置）` : ""
-          }`,
-        );
-      }
-      if (typeof secondaryUsed === "number") {
-        const reset = resetLabel(secondaryReset);
-        lines.push(
-          `- 周用量：${Math.round(secondaryUsed)}%${
-            reset ? `（${reset} 重置）` : ""
-          }`,
-        );
-      }
-      if (credits?.hasCredits) {
-        if (credits.unlimited) {
-          lines.push("- 点数：不限");
-        } else if (credits.balance) {
-          lines.push(`- 点数：${credits.balance}`);
-        }
-      }
-
+      const lines = buildStatusLines({
+        model,
+        serviceTier,
+        effort,
+        accessMode,
+        collaborationMode,
+        rateLimits: rateLimitsByWorkspace[activeWorkspace.id] ?? null,
+      });
       const timestamp = Date.now();
       recordThreadActivity(activeWorkspace.id, threadId, timestamp);
       dispatch({
@@ -923,58 +785,7 @@ export function useThreadMessaging({
         const data = Array.isArray(result?.data)
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
-
-        const lines: string[] = ["MCP 工具："];
-        if (data.length === 0) {
-          lines.push("- 未配置 MCP 服务器。");
-        } else {
-          const servers = [...data].sort((a, b) =>
-            String(a.name ?? "").localeCompare(String(b.name ?? "")),
-          );
-          for (const server of servers) {
-            const name = String(server.name ?? "未知");
-            const authStatus = server.authStatus ?? server.auth_status ?? null;
-            const authLabel =
-              typeof authStatus === "string"
-                ? authStatus
-                : authStatus &&
-                    typeof authStatus === "object" &&
-                    "status" in authStatus
-                  ? String((authStatus as { status?: unknown }).status ?? "")
-                  : "";
-            lines.push(`- ${name}${authLabel ? `（认证：${authLabel}）` : ""}`);
-
-            const toolsRecord =
-              server.tools && typeof server.tools === "object"
-                ? (server.tools as Record<string, unknown>)
-                : {};
-            const prefix = `mcp__${name}__`;
-            const toolNames = Object.keys(toolsRecord)
-              .map((toolName) =>
-                toolName.startsWith(prefix)
-                  ? toolName.slice(prefix.length)
-                  : toolName,
-              )
-              .sort((a, b) => a.localeCompare(b));
-            lines.push(
-              toolNames.length > 0
-                ? `  工具：${toolNames.join(", ")}`
-                : "  工具：无",
-            );
-
-            const resources = Array.isArray(server.resources)
-              ? server.resources.length
-              : 0;
-            const templates = Array.isArray(server.resourceTemplates)
-              ? server.resourceTemplates.length
-              : Array.isArray(server.resource_templates)
-                ? server.resource_templates.length
-                : 0;
-            if (resources > 0 || templates > 0) {
-              lines.push(`  资源：${resources}，模板：${templates}`);
-            }
-          }
-        }
+        const lines = buildMcpStatusLines(data);
 
         const timestamp = Date.now();
         recordThreadActivity(activeWorkspace.id, threadId, timestamp);
@@ -1027,40 +838,7 @@ export function useThreadMessaging({
         const data = Array.isArray(result?.data)
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
-
-        const lines: string[] = ["应用："];
-        if (data.length === 0) {
-          lines.push("- 没有可用应用。");
-        } else {
-          const apps = [...data].sort((a, b) =>
-            String(a.name ?? "").localeCompare(String(b.name ?? "")),
-          );
-          for (const app of apps) {
-            const name = String(app.name ?? app.id ?? "未知");
-            const appId = String(app.id ?? "");
-            const isAccessible = Boolean(
-              app.isAccessible ?? app.is_accessible ?? false,
-            );
-            const status = isAccessible ? "已连接" : "可安装";
-            const description =
-              typeof app.description === "string" && app.description.trim().length > 0
-                ? app.description.trim()
-                : "";
-            lines.push(
-              `- ${name}${appId ? ` (${appId})` : ""} - ${status}${description ? `：${description}` : ""}`,
-            );
-
-            const installUrl =
-              typeof app.installUrl === "string"
-                ? app.installUrl
-                : typeof app.install_url === "string"
-                  ? app.install_url
-                  : "";
-            if (!isAccessible && installUrl) {
-              lines.push(`  安装：${installUrl}`);
-            }
-          }
-        }
+        const lines = buildAppsLines(data);
 
         const timestamp = Date.now();
         recordThreadActivity(activeWorkspace.id, threadId, timestamp);

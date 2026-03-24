@@ -82,7 +82,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const initButton = within(container).getByRole("button", { name: "初始化 Git" });
+    const initButton = within(container).getByRole("button", { name: "Initialize Git" });
     fireEvent.click(initButton);
     expect(onInitGitRepo).toHaveBeenCalledTimes(1);
   });
@@ -96,7 +96,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    expect(within(container).queryByRole("button", { name: "初始化 Git" })).toBeNull();
+    expect(within(container).queryByRole("button", { name: "Initialize Git" })).toBeNull();
   });
 
   it("enables commit when message exists and only unstaged changes", () => {

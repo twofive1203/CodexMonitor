@@ -18,9 +18,12 @@ use crate::storage::write_workspaces;
 use crate::types::{
     AgentProvider, AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings,
 };
+use crate::utils::normalize_windows_namespace_path;
 
 use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
-use super::helpers::{normalize_setup_script, normalize_workspace_path_input};
+use super::helpers::{
+    normalize_setup_script, normalize_workspace_path_input, workspace_path_to_string,
+};
 
 async fn resolve_default_workspace_provider(
     app_settings: &Mutex<AppSettings>,
@@ -68,7 +71,7 @@ where
     if !normalized_path.is_dir() {
         return Err("工作区路径必须是文件夹。".to_string());
     }
-    let path = normalized_path.to_string_lossy().to_string();
+    let path = workspace_path_to_string(&normalized_path);
 
     let name = PathBuf::from(&path)
         .file_name()
@@ -199,6 +202,7 @@ where
     let destination_path =
         worktree_core::build_clone_destination_path(&copies_folder_path, &copy_name);
     let destination_path_string = destination_path.to_string_lossy().to_string();
+    let stored_destination_path = workspace_path_to_string(&destination_path);
 
     if let Err(error) = git_core::run_git_command(
         &copies_folder_path,
@@ -234,7 +238,7 @@ where
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: copy_name,
-        path: destination_path_string,
+        path: stored_destination_path,
         provider: {
             let next_provider = provider.unwrap_or_else(|| source_entry.provider.clone());
             let settings = app_settings.lock().await;
@@ -398,6 +402,7 @@ where
     }
 
     let clone_path_string = clone_path.to_string_lossy().to_string();
+    let stored_clone_path = workspace_path_to_string(&clone_path);
     if let Err(error) =
         git_core::run_git_command(&destination_parent, &["clone", &url, &clone_path_string]).await
     {
@@ -414,7 +419,7 @@ where
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: workspace_name,
-        path: clone_path_string,
+        path: stored_clone_path,
         provider,
         kind: WorkspaceKind::Main,
         parent_id: None,
@@ -618,6 +623,9 @@ where
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
+    settings.worktrees_folder = settings
+        .worktrees_folder
+        .map(|path| normalize_windows_namespace_path(&path));
 
     let (entry_snapshot, previous_worktree_setup_script, child_entries, previous_provider) = {
         let mut workspaces = workspaces.lock().await;
