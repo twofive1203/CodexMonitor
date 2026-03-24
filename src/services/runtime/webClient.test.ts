@@ -145,6 +145,8 @@ function createJsonResponse(payload: unknown, status = 200): Response {
 }
 
 describe("webClient", () => {
+  let visibilityState: DocumentVisibilityState;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.resetModules();
@@ -170,6 +172,11 @@ describe("webClient", () => {
       }),
       writable: true,
       configurable: true,
+    });
+    visibilityState = "visible";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibilityState,
     });
     window.history.replaceState({}, "", "/app");
   });
@@ -265,6 +272,31 @@ describe("webClient", () => {
     );
 
     expect(onEvent).toHaveBeenCalledWith(payload);
+    cleanup();
+  });
+
+  it("reconnects the app-server websocket when the page returns from background", async () => {
+    const module = await import("./webClient");
+    await module.ensureWebBootstrap(true);
+
+    const cleanup = await module.webRuntimeClient.subscribe<AppServerEvent>(
+      "app-server-event",
+      vi.fn(),
+    );
+
+    const firstSocket = MockWebSocket.instances[0];
+    firstSocket.emitOpen();
+
+    visibilityState = "hidden";
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    visibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(firstSocket.closeCalls).toBe(1);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[1]).not.toBe(firstSocket);
+
     cleanup();
   });
 

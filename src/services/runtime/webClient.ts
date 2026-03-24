@@ -51,6 +51,9 @@ const listeners = new Map<RuntimeEventName, Set<(payload: unknown) => void>>();
 let socket: WebSocket | null = null;
 let socketConnectPromise: Promise<void> | null = null;
 let reconnectTimer: number | null = null;
+let webSocketLifecycleBound = false;
+let webSocketResumeReconnectPending = false;
+let webSocketConnectionOptions: RuntimeSubscribeOptions | undefined;
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -92,15 +95,27 @@ function clearReconnectTimer() {
 
 function disconnectSocket() {
   clearReconnectTimer();
+  webSocketResumeReconnectPending = false;
   socketConnectPromise = null;
-  if (socket) {
+  const currentSocket = socket;
+  socket = null;
+  if (currentSocket) {
     try {
-      socket.close();
+      currentSocket.close();
     } catch {
       // 忽略浏览器在关闭中的竞态错误。
     }
   }
-  socket = null;
+}
+
+/**
+ * 主动重建浏览器事件 WebSocket。
+ *
+ * `options`：订阅时透传的运行时错误处理器。
+ */
+function reconnectSocket(options?: RuntimeSubscribeOptions) {
+  disconnectSocket();
+  ensureWebSocketConnection(options ?? webSocketConnectionOptions);
 }
 
 function webHttpUrl(path: string) {
@@ -131,6 +146,110 @@ function dispatchWebSocketEvent(eventName: RuntimeEventName, payload: unknown) {
       console.error(`[runtime:web] ${eventName} listener failed`, error);
     }
   });
+}
+
+/**
+ * 标记页面恢复前台后需要重新建立事件连接。
+ *
+ * 无入参，仅在页面隐藏或失焦时记录状态。
+ */
+function markWebSocketResumeReconnectPending() {
+  if (!sessionState.authenticated || !hasActiveWebSocketListener()) {
+    return;
+  }
+  webSocketResumeReconnectPending = true;
+}
+
+/**
+ * 页面恢复前台或重新联网时，校验并恢复事件 WebSocket。
+ *
+ * 无入参；若后台期间连接可能失活，则主动重连。
+ */
+function recoverWebSocketAfterResume() {
+  if (
+    typeof window === "undefined" ||
+    !sessionState.authenticated ||
+    !hasActiveWebSocketListener()
+  ) {
+    return;
+  }
+  const currentSocket = socket;
+  const needsReconnect =
+    webSocketResumeReconnectPending ||
+    currentSocket === null ||
+    currentSocket.readyState === WebSocket.CLOSING ||
+    currentSocket.readyState === WebSocket.CLOSED;
+  webSocketResumeReconnectPending = false;
+  if (!needsReconnect) {
+    return;
+  }
+  reconnectSocket(webSocketConnectionOptions);
+}
+
+function handleWebSocketWindowFocus() {
+  if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+    return;
+  }
+  recoverWebSocketAfterResume();
+}
+
+function handleWebSocketWindowBlur() {
+  markWebSocketResumeReconnectPending();
+}
+
+function handleWebSocketVisibilityChange() {
+  if (typeof document === "undefined") {
+    return;
+  }
+  if (document.visibilityState === "visible") {
+    recoverWebSocketAfterResume();
+    return;
+  }
+  markWebSocketResumeReconnectPending();
+}
+
+function handleWebSocketOnline() {
+  recoverWebSocketAfterResume();
+}
+
+/**
+ * 为浏览器事件 WebSocket 安装页面生命周期监听。
+ *
+ * 无入参；首次需要事件订阅时注册，最后一个订阅移除时解绑。
+ */
+function ensureWebSocketLifecycleListeners() {
+  if (
+    webSocketLifecycleBound ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
+    return;
+  }
+  webSocketLifecycleBound = true;
+  window.addEventListener("focus", handleWebSocketWindowFocus);
+  window.addEventListener("blur", handleWebSocketWindowBlur);
+  window.addEventListener("online", handleWebSocketOnline);
+  document.addEventListener("visibilitychange", handleWebSocketVisibilityChange);
+}
+
+/**
+ * 移除页面生命周期监听，避免无订阅时保留额外副作用。
+ *
+ * 无入参，仅在最后一个事件订阅取消时调用。
+ */
+function removeWebSocketLifecycleListeners() {
+  if (
+    !webSocketLifecycleBound ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
+    return;
+  }
+  webSocketLifecycleBound = false;
+  window.removeEventListener("focus", handleWebSocketWindowFocus);
+  window.removeEventListener("blur", handleWebSocketWindowBlur);
+  window.removeEventListener("online", handleWebSocketOnline);
+  document.removeEventListener("visibilitychange", handleWebSocketVisibilityChange);
 }
 
 function updateBootstrapCacheAfterRpc(
@@ -271,17 +390,26 @@ function ensureWebSocketConnection(options?: RuntimeSubscribeOptions) {
   ) {
     return;
   }
+  webSocketConnectionOptions = options ?? webSocketConnectionOptions;
 
   socketConnectPromise = new Promise<void>((resolve) => {
     const nextSocket = new WebSocket(webSocketUrl("/api/ws/events"));
     socket = nextSocket;
 
     nextSocket.onopen = () => {
+      if (socket !== nextSocket) {
+        resolve();
+        return;
+      }
       socketConnectPromise = null;
+      webSocketResumeReconnectPending = false;
       resolve();
     };
 
     nextSocket.onmessage = (event) => {
+      if (socket !== nextSocket) {
+        return;
+      }
       try {
         const payload = JSON.parse(String(event.data)) as {
           method?: RuntimeEventName;
@@ -297,10 +425,16 @@ function ensureWebSocketConnection(options?: RuntimeSubscribeOptions) {
     };
 
     nextSocket.onerror = (error) => {
-      options?.onError?.(error);
+      if (socket !== nextSocket) {
+        return;
+      }
+      (options ?? webSocketConnectionOptions)?.onError?.(error);
     };
 
     nextSocket.onclose = () => {
+      if (socket !== nextSocket) {
+        return;
+      }
       socket = null;
       socketConnectPromise = null;
       if (!sessionState.authenticated || !hasActiveWebSocketListener()) {
@@ -492,6 +626,8 @@ async function subscribeWebRuntime<T>(
   current.add(wrapped);
   listeners.set(eventName, current);
   if (WEBSOCKET_EVENT_NAMES.has(eventName)) {
+    webSocketConnectionOptions = options ?? webSocketConnectionOptions;
+    ensureWebSocketLifecycleListeners();
     ensureWebSocketConnection(options);
   }
   return () => {
@@ -504,6 +640,8 @@ async function subscribeWebRuntime<T>(
       listeners.delete(eventName);
     }
     if (!hasActiveWebSocketListener()) {
+      removeWebSocketLifecycleListeners();
+      webSocketConnectionOptions = undefined;
       disconnectSocket();
     }
   };
