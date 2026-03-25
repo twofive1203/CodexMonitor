@@ -6,6 +6,11 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { generateRunMetadata } from "../../../services/tauri";
+import {
+  readStoredDraftMap,
+  WORKSPACE_HOME_DRAFTS_STORAGE_KEY,
+  writeStoredDraft,
+} from "../../composer/utils/draftStorage";
 
 export type WorkspaceRunMode = "local" | "worktree";
 
@@ -200,7 +205,7 @@ export function useWorkspaceHome({
 }: UseWorkspaceHomeOptions) {
   const [state, setState] = useState<WorkspaceHomeState>({
     runsByWorkspace: {},
-    draftsByWorkspace: {},
+    draftsByWorkspace: readStoredDraftMap(WORKSPACE_HOME_DRAFTS_STORAGE_KEY),
     modeByWorkspace: {},
     modelSelectionsByWorkspace: {},
     errorByWorkspace: {},
@@ -249,6 +254,7 @@ export function useWorkspaceHome({
       if (!activeWorkspaceId) {
         return;
       }
+      writeStoredDraft(WORKSPACE_HOME_DRAFTS_STORAGE_KEY, activeWorkspaceId, value);
       setState((prev) => ({
         ...prev,
         draftsByWorkspace: { ...prev.draftsByWorkspace, [activeWorkspaceId]: value },
@@ -413,6 +419,7 @@ export function useWorkspaceHome({
 
     setSubmitting(true);
     setWorkspaceError(null);
+    writeStoredDraft(WORKSPACE_HOME_DRAFTS_STORAGE_KEY, activeWorkspaceId, "");
 
     const runId = createRunId();
     const runIdParts = runId.split("-");

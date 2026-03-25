@@ -8,6 +8,11 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
+import {
+  COMPOSER_DRAFTS_STORAGE_KEY,
+  readStoredDraftMap,
+  writeStoredDraft,
+} from "../../composer/utils/draftStorage";
 import { useQueuedSend } from "../../threads/hooks/useQueuedSend";
 
 export function useComposerController({
@@ -72,10 +77,14 @@ export function useComposerController({
 }) {
   const [composerDraftsByThread, setComposerDraftsByThread] = useState<
     Record<string, string>
-  >({});
+  >(() => readStoredDraftMap(COMPOSER_DRAFTS_STORAGE_KEY));
   const [prefillDraft, setPrefillDraft] = useState<QueuedMessage | null>(null);
   const [composerInsert, setComposerInsert] = useState<QueuedMessage | null>(
     null,
+  );
+  const activeDraftKey = useMemo(
+    () => activeThreadId ?? (activeWorkspaceId ? `draft-${activeWorkspaceId}` : null),
+    [activeThreadId, activeWorkspaceId],
   );
 
   const {
@@ -119,22 +128,28 @@ export function useComposerController({
   });
 
   const activeDraft = useMemo(
-    () =>
-      activeThreadId ? composerDraftsByThread[activeThreadId] ?? "" : "",
-    [activeThreadId, composerDraftsByThread],
+    () => (activeDraftKey ? composerDraftsByThread[activeDraftKey] ?? "" : ""),
+    [activeDraftKey, composerDraftsByThread],
   );
 
   const handleDraftChange = useCallback(
     (next: string) => {
-      if (!activeThreadId) {
+      if (!activeDraftKey) {
         return;
       }
-      setComposerDraftsByThread((prev) => ({
-        ...prev,
-        [activeThreadId]: next,
-      }));
+      writeStoredDraft(COMPOSER_DRAFTS_STORAGE_KEY, activeDraftKey, next);
+      setComposerDraftsByThread((prev) => {
+        if (next.length > 0) {
+          return { ...prev, [activeDraftKey]: next };
+        }
+        if (!(activeDraftKey in prev)) {
+          return prev;
+        }
+        const { [activeDraftKey]: _removed, ...rest } = prev;
+        return rest;
+      });
     },
-    [activeThreadId],
+    [activeDraftKey],
   );
 
   const handleSendPrompt = useCallback(
@@ -170,6 +185,7 @@ export function useComposerController({
   );
 
   const clearDraftForThread = useCallback((threadId: string) => {
+    writeStoredDraft(COMPOSER_DRAFTS_STORAGE_KEY, threadId, "");
     setComposerDraftsByThread((prev) => {
       if (!(threadId in prev)) {
         return prev;

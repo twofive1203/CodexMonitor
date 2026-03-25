@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModelOption, WorkspaceInfo } from "../../../types";
 import { generateRunMetadata } from "../../../services/tauri";
+import {
+  readStoredDraft,
+  WORKSPACE_HOME_DRAFTS_STORAGE_KEY,
+  writeStoredDraft,
+} from "../../composer/utils/draftStorage";
 import { useWorkspaceHome } from "./useWorkspaceHome";
 
 vi.mock("../../../services/tauri", () => ({
@@ -46,6 +51,41 @@ const models: ModelOption[] = [
 ];
 
 describe("useWorkspaceHome", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(generateRunMetadata).mockReset();
+  });
+
+  it("restores persisted workspace drafts", () => {
+    writeStoredDraft(
+      WORKSPACE_HOME_DRAFTS_STORAGE_KEY,
+      workspace.id,
+      "恢复上次未发送的任务",
+    );
+
+    const { result } = renderHook(() =>
+      useWorkspaceHome({
+        activeWorkspace: workspace,
+        models,
+        selectedModelId: null,
+        addWorktreeAgent: vi.fn(),
+        connectWorkspace: vi.fn(),
+        startThreadForWorkspace: vi.fn(),
+        sendUserMessageToThread: vi.fn(),
+      }),
+    );
+
+    expect(result.current.draft).toBe("恢复上次未发送的任务");
+
+    act(() => {
+      result.current.setDraft("恢复后继续编辑");
+    });
+
+    expect(readStoredDraft(WORKSPACE_HOME_DRAFTS_STORAGE_KEY, workspace.id)).toBe(
+      "恢复后继续编辑",
+    );
+  });
+
   it("uses provider model name for worktree runs", async () => {
     const addWorktreeAgent = vi.fn().mockResolvedValue(worktreeWorkspace);
     const connectWorkspace = vi.fn().mockResolvedValue(undefined);
