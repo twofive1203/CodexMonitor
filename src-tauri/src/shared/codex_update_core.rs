@@ -7,7 +7,9 @@ use tokio::sync::Mutex;
 use tokio::time::timeout;
 
 use crate::backend::app_server::check_codex_installation;
-use crate::shared::process_core::tokio_command;
+use crate::shared::process_core::{
+    build_gui_cli_command, build_gui_command_path_env, tokio_command,
+};
 use crate::types::AppSettings;
 
 #[derive(serde::Serialize)]
@@ -100,11 +102,17 @@ fn brew_output_indicates_upgrade(output: &str) -> bool {
 }
 
 async fn npm_has_package(package: &str) -> Result<bool, String> {
-    let mut command = tokio_command("npm");
-    command.arg("list");
-    command.arg("-g");
-    command.arg(package);
-    command.arg("--depth=0");
+    let path_env = build_gui_command_path_env(None);
+    let mut command = build_gui_cli_command(
+        "npm",
+        vec![
+            "list".to_string(),
+            "-g".to_string(),
+            package.to_string(),
+            "--depth=0".to_string(),
+        ],
+        path_env,
+    )?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
@@ -125,10 +133,16 @@ async fn npm_has_package(package: &str) -> Result<bool, String> {
 }
 
 async fn run_npm_install_latest(package: &str) -> Result<(bool, String), String> {
-    let mut command = tokio_command("npm");
-    command.arg("install");
-    command.arg("-g");
-    command.arg(format!("{package}@latest"));
+    let path_env = build_gui_command_path_env(None);
+    let mut command = build_gui_cli_command(
+        "npm",
+        vec![
+            "install".to_string(),
+            "-g".to_string(),
+            format!("{package}@latest"),
+        ],
+        path_env,
+    )?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 

@@ -856,11 +856,7 @@ impl DaemonState {
         .await
     }
 
-    async fn read_thread(
-        &self,
-        workspace_id: String,
-        thread_id: String,
-    ) -> Result<Value, String> {
+    async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         codex_core::read_thread_core(&self.sessions, &self.workspaces, workspace_id, thread_id)
             .await
     }

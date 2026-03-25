@@ -31,6 +31,119 @@ pub(crate) fn std_command(program: impl AsRef<OsStr>) -> std::process::Command {
     command
 }
 
+/// 构建适合桌面应用子进程的 PATH。
+///
+/// `bin_override`：显式指定的可执行文件路径，可为空；若提供则会把其父目录补入 PATH。
+pub(crate) fn build_gui_command_path_env(bin_override: Option<&str>) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut paths: Vec<PathBuf> = env::var_os("PATH")
+            .map(|value| env::split_paths(&value).collect())
+            .unwrap_or_default();
+        let mut extras: Vec<PathBuf> = Vec::new();
+
+        if let Ok(appdata) = env::var("APPDATA") {
+            extras.push(Path::new(&appdata).join("npm"));
+        }
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            extras.push(
+                Path::new(&local_app_data)
+                    .join("Microsoft")
+                    .join("WindowsApps"),
+            );
+        }
+        if let Ok(program_files) = env::var("ProgramFiles") {
+            extras.push(Path::new(&program_files).join("nodejs"));
+        }
+        if let Ok(program_files_x86) = env::var("ProgramFiles(x86)") {
+            extras.push(Path::new(&program_files_x86).join("nodejs"));
+        }
+        if let Ok(home) = env::var("USERPROFILE").or_else(|_| env::var("HOME")) {
+            let home_path = Path::new(&home);
+            extras.push(home_path.join(".cargo").join("bin"));
+            extras.push(home_path.join("scoop").join("shims"));
+        }
+        if let Ok(program_data) = env::var("PROGRAMDATA") {
+            extras.push(Path::new(&program_data).join("chocolatey").join("bin"));
+        }
+        if let Some(bin_path) = bin_override.filter(|value| !value.trim().is_empty()) {
+            if let Some(parent) = Path::new(bin_path).parent() {
+                extras.push(parent.to_path_buf());
+            }
+        }
+
+        for extra in extras {
+            if !paths.iter().any(|path| path == &extra) {
+                paths.push(extra);
+            }
+        }
+
+        if paths.is_empty() {
+            return None;
+        }
+
+        return env::join_paths(paths)
+            .ok()
+            .map(|joined| joined.to_string_lossy().to_string());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = bin_override;
+        None
+    }
+}
+
+/// 构建适合桌面应用执行 CLI 的命令对象。
+///
+/// `program`：命令名或绝对路径。
+/// `args`：命令参数列表。
+/// `path_env`：可选 PATH 内容；若提供则注入到子进程环境。
+pub(crate) fn build_gui_cli_command(
+    program: &str,
+    args: Vec<String>,
+    path_env: Option<String>,
+) -> Result<Command, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let resolved = resolve_windows_executable(program, path_env.as_deref());
+        let resolved_path = resolved.as_deref().unwrap_or_else(|| Path::new(program));
+        let ext = resolved_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase());
+
+        let mut command = if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
+            let mut command = tokio_command("cmd");
+            let command_line = build_cmd_c_command(resolved_path, &args)?;
+            command.arg("/D");
+            command.arg("/S");
+            command.arg("/C");
+            command.raw_arg(command_line);
+            command
+        } else {
+            let mut command = tokio_command(resolved_path);
+            command.args(args);
+            command
+        };
+
+        if let Some(path_env) = path_env {
+            command.env("PATH", path_env);
+        }
+        return Ok(command);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut command = tokio_command(program);
+        command.args(args);
+        if let Some(path_env) = path_env {
+            command.env("PATH", path_env);
+        }
+        Ok(command)
+    }
+}
+
 pub(crate) async fn kill_child_process_tree(child: &mut Child) {
     #[cfg(windows)]
     {

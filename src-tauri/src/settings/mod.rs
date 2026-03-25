@@ -7,7 +7,7 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use crate::shared::claude_sdk_core;
-use crate::shared::process_core::tokio_command;
+use crate::shared::process_core::{build_gui_cli_command, build_gui_command_path_env};
 use crate::shared::settings_core::{
     get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
 };
@@ -133,13 +133,19 @@ async fn install_claude_sdk_into_dir(staging_root: &Path, target_dir: &Path) -> 
         .await
         .map_err(|error| format!("创建 Claude SDK 临时目录失败：{error}"))?;
 
-    let mut command = tokio_command("npm");
+    let path_env = build_gui_command_path_env(None);
+    let mut command = build_gui_cli_command(
+        "npm",
+        vec![
+            "install".to_string(),
+            "--no-save".to_string(),
+            "--no-package-lock".to_string(),
+            "--omit=dev".to_string(),
+            package_spec.to_string(),
+        ],
+        path_env,
+    )?;
     command.current_dir(staging_root);
-    command.arg("install");
-    command.arg("--no-save");
-    command.arg("--no-package-lock");
-    command.arg("--omit=dev");
-    command.arg(package_spec);
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
