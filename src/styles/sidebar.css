@@ -881,9 +881,39 @@
 
 .workspace-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.workspace-row .workspace-provider-badge,
+.worktree-row .workspace-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.workspace-row .workspace-provider-badge.is-codex,
+.worktree-row .workspace-provider-badge.is-codex {
+  color: color-mix(in srgb, var(--text-strong) 82%, #7fd6b6);
+  background: rgba(90, 196, 156, 0.14);
+  border-color: rgba(90, 196, 156, 0.24);
+}
+
+.workspace-row .workspace-provider-badge.is-claude,
+.worktree-row .workspace-provider-badge.is-claude {
+  color: color-mix(in srgb, var(--text-strong) 82%, #ffc887);
+  background: rgba(245, 181, 99, 0.14);
+  border-color: rgba(245, 181, 99, 0.24);
 }
 
 .workspace-toggle {
@@ -1564,13 +1594,21 @@
 }
 
 .worktree-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-strong);
-  white-space: nowrap;
+  min-width: 0;
+}
+
+.worktree-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .worktree-meta {

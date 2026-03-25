@@ -95,6 +95,27 @@ type SidebarWorkspaceEntryProps = Omit<
   workspace: WorkspaceInfo;
 };
 
+/**
+ * 构建工作区摘要文案。
+ *
+ * `threadCount`：当前工作区可见的根会话数量。
+ * `latestThreadTime`：最近会话的相对时间，可为空。
+ */
+function buildWorkspaceSummary(
+  threadCount: number,
+  latestThreadTime: string | null,
+): string {
+  if (threadCount <= 0) {
+    return "暂无会话";
+  }
+  if (!latestThreadTime) {
+    return `${threadCount} 个会话`;
+  }
+  const updatedLabel =
+    latestThreadTime === "刚刚" ? "刚刚更新" : `${latestThreadTime}前更新`;
+  return `${threadCount} 个会话 · ${updatedLabel}`;
+}
+
 function SidebarWorkspaceEntry({
   workspace,
   cloneChildIds,
@@ -199,13 +220,10 @@ function SidebarWorkspaceEntry({
     <WorkspaceCard
       workspace={workspace}
       workspaceName={renderHighlightedName(workspace.name)}
-      summary={
-        displayThreadRootCount > 0
-          ? `${displayThreadRootCount} conversation${
-              displayThreadRootCount === 1 ? "" : "s"
-            }${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
-          : "No conversations yet"
-      }
+      summary={buildWorkspaceSummary(
+        displayThreadRootCount,
+        threads[0] ? getThreadTime(threads[0]) : null,
+      )}
       isActive={workspace.id === activeWorkspaceId}
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
@@ -236,7 +254,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              新建智能体
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -247,7 +265,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<GitBranch aria-hidden />}
             >
-              New worktree agent
+              新建工作树智能体
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -258,7 +276,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Copy aria-hidden />}
             >
-              New clone agent
+              新建克隆智能体
             </PopoverMenuItem>
           </PopoverSurface>,
           document.body,
@@ -279,7 +297,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">新建智能体</span>
             </div>
           </div>
         </div>
@@ -313,7 +331,7 @@ function SidebarWorkspaceEntry({
           onLoadOlderThreads={onLoadOlderThreads}
           searchQuery={normalizedQuery}
           isSearchActive={isSearchActive}
-          sectionLabel="Clone agents"
+          sectionLabel="克隆智能体"
           sectionIcon={<Copy className="worktree-header-icon" aria-hidden />}
           className="clone-section"
         />

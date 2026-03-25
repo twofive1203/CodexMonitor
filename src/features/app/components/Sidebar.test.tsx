@@ -74,20 +74,20 @@ describe("Sidebar", () => {
     render(<Sidebar {...baseProps} />);
 
     const toggleButton = screen.getByRole("button", { name: "切换搜索" });
-    expect(screen.queryByLabelText("Search conversations")).toBeNull();
+    expect(screen.queryByLabelText("搜索会话")).toBeNull();
 
     fireEvent.click(toggleButton);
-    const input = screen.getByLabelText("Search conversations") as HTMLInputElement;
+    const input = screen.getByLabelText("搜索会话") as HTMLInputElement;
     expect(input).toBeTruthy();
 
     fireEvent.change(input, { target: { value: "alpha" } });
     expect(input.value).toBe("alpha");
 
     fireEvent.click(toggleButton);
-    expect(screen.queryByLabelText("Search conversations")).toBeNull();
+    expect(screen.queryByLabelText("搜索会话")).toBeNull();
 
     fireEvent.click(toggleButton);
-    const reopened = screen.getByLabelText("Search conversations") as HTMLInputElement;
+    const reopened = screen.getByLabelText("搜索会话") as HTMLInputElement;
     expect(reopened.value).toBe("");
   });
 
@@ -228,7 +228,7 @@ describe("Sidebar", () => {
     const renderedNames = Array.from(container.querySelectorAll(".thread-row .thread-name")).map(
       (node) => node.textContent?.trim(),
     );
-    expect(screen.getByText("Recent conversations")).toBeTruthy();
+    expect(screen.getByText("最近会话")).toBeTruthy();
     expect(renderedNames[0]).toBe("Newer thread");
     expect(renderedNames[1]).toBe("Older thread");
     expect(screen.getByText("Alpha Project")).toBeTruthy();
@@ -285,7 +285,7 @@ describe("Sidebar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
-    fireEvent.change(screen.getByLabelText("Search conversations"), {
+    fireEvent.change(screen.getByLabelText("搜索会话"), {
       target: { value: "restore" },
     });
 
@@ -337,7 +337,7 @@ describe("Sidebar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
-    fireEvent.change(screen.getByLabelText("Search conversations"), {
+    fireEvent.change(screen.getByLabelText("搜索会话"), {
       target: { value: "delta" },
     });
 
@@ -385,7 +385,7 @@ describe("Sidebar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
-    fireEvent.change(screen.getByLabelText("Search conversations"), {
+    fireEvent.change(screen.getByLabelText("搜索会话"), {
       target: { value: "historical" },
     });
 
@@ -442,7 +442,7 @@ describe("Sidebar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
-    fireEvent.change(screen.getByLabelText("Search conversations"), {
+    fireEvent.change(screen.getByLabelText("搜索会话"), {
       target: { value: "routing fix" },
     });
 
@@ -511,13 +511,13 @@ describe("Sidebar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "切换搜索" }));
-    fireEvent.change(screen.getByLabelText("Search conversations"), {
+    fireEvent.change(screen.getByLabelText("搜索会话"), {
       target: { value: "clone search bug" },
     });
 
     await waitFor(() => {
       expect(screen.getByText("Main Project")).toBeTruthy();
-      expect(screen.getByText("Clone agents")).toBeTruthy();
+      expect(screen.getByText("克隆智能体")).toBeTruthy();
       expect(screen.getByText("Clone Agent")).toBeTruthy();
       expect(screen.getByText("Investigate clone search bug")).toBeTruthy();
     });
@@ -571,7 +571,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "New thread in project" }));
+    fireEvent.click(screen.getByRole("button", { name: "在项目中新建会话" }));
     fireEvent.click(screen.getByRole("button", { name: "Alpha Project" }));
 
     expect(onAddAgent).toHaveBeenCalledTimes(1);
@@ -653,7 +653,7 @@ describe("Sidebar", () => {
     expect(icon?.getAttribute("class") ?? "").toContain("spinning");
   });
 
-  it("shows a top New Agent draft row and selects workspace when clicked", () => {
+  it("shows a top draft row and selects workspace when clicked", () => {
     const onSelectWorkspace = vi.fn();
     const props = {
       ...baseProps,
@@ -689,7 +689,7 @@ describe("Sidebar", () => {
 
     render(<Sidebar {...props} />);
 
-    const draftRow = screen.getByRole("button", { name: /new agent/i });
+    const draftRow = screen.getByRole("button", { name: /新建智能体/i });
     expect(draftRow).toBeTruthy();
     expect(draftRow.className).toContain("thread-row-draft");
     expect(draftRow.className).toContain("active");
@@ -749,7 +749,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    expect(screen.getByText("Clone agents")).toBeTruthy();
+    expect(screen.getByText("克隆智能体")).toBeTruthy();
     expect(screen.getByText("Clone Agent")).toBeTruthy();
     expect(container.querySelectorAll(".workspace-row")).toHaveLength(1);
     expect(container.querySelectorAll(".worktree-row")).toHaveLength(1);

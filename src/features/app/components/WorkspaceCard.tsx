@@ -67,7 +67,7 @@ export function WorkspaceCard({
               <span className="workspace-name">{workspaceName ?? workspace.name}</span>
               <span
                 className={`workspace-provider-badge is-${provider}`}
-                title={`${providerLabel} provider`}
+                title={`${providerLabel} 运行时`}
               >
                 {providerLabel}
               </span>

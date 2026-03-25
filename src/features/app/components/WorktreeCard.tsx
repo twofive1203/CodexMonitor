@@ -65,10 +65,10 @@ export function WorktreeCard({
       >
         <div className="worktree-copy">
           <div className="worktree-label">
-            <span>{worktreeLabel}</span>
+            <span className="worktree-name">{worktreeLabel}</span>
             <span
               className={`workspace-provider-badge is-${provider}`}
-              title={`${providerLabel} provider`}
+              title={`${providerLabel} 运行时`}
             >
               {providerLabel}
             </span>
