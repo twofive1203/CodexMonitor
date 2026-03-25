@@ -1033,6 +1033,8 @@ export default function MainApp() {
       doctor,
       codexUpdate,
       updateWorkspaceSettings,
+      resetWorkspaceThreads,
+      listThreadsForWorkspace,
       scaleShortcutTitle,
       scaleShortcutText,
       handleTestNotificationSound,
@@ -1449,6 +1451,7 @@ export default function MainApp() {
       setActiveTab,
       workspacesById,
       updateWorkspaceSettings,
+      resetWorkspaceThreads,
       removeThread,
       clearDraftForThread,
       removeImagesForThread,
@@ -1599,6 +1602,7 @@ export default function MainApp() {
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {
       usageShowRemaining: appSettings.usageShowRemaining,
+      experimentalClaudeEnabled: appSettings.experimentalClaudeEnabled,
       composerCodeBlockCopyUseModifier:
         appSettings.composerCodeBlockCopyUseModifier,
       showMessageFilePath:

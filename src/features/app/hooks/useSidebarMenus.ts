@@ -3,11 +3,17 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-import type { WorkspaceInfo } from "../../../types";
+import type { AgentProvider, WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
 import { fileManagerName } from "../../../utils/platformPaths";
+import {
+  canEditWorkspaceProvider,
+  getAgentProviderLabel,
+  getWorkspaceProvider,
+} from "@utils/agentProvider";
 
 type SidebarMenuHandlers = {
+  claudeEnabled: boolean;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
   onSyncThread: (workspaceId: string, threadId: string) => void;
   onPinThread: (workspaceId: string, threadId: string) => void;
@@ -17,9 +23,76 @@ type SidebarMenuHandlers = {
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onUpdateWorkspaceProvider: (
+    workspaceId: string,
+    provider: AgentProvider,
+  ) => void | Promise<unknown>;
 };
 
+/**
+ * 构建工作区运行时相关菜单项。
+ *
+ * `workspace`：当前右键命中的工作区。
+ * `claudeEnabled`：Claude 实验能力是否已开启。
+ * `onUpdateWorkspaceProvider`：更新工作区运行时的回调。
+ */
+async function buildWorkspaceProviderMenuItems({
+  workspace,
+  claudeEnabled,
+  onUpdateWorkspaceProvider,
+}: {
+  workspace: WorkspaceInfo;
+  claudeEnabled: boolean;
+  onUpdateWorkspaceProvider: (
+    workspaceId: string,
+    provider: AgentProvider,
+  ) => void | Promise<unknown>;
+}) {
+  const currentProvider = getWorkspaceProvider(workspace);
+  if (!claudeEnabled && currentProvider !== "claude") {
+    return [] as MenuItem[];
+  }
+
+  const providerEditable = canEditWorkspaceProvider(workspace, {
+    experimentalClaudeEnabled: claudeEnabled,
+  });
+  const currentProviderLabel = getAgentProviderLabel(currentProvider);
+  const items = [
+    await MenuItem.new({
+      text: providerEditable
+        ? `当前运行时：${currentProviderLabel}`
+        : `当前运行时：${currentProviderLabel}（开启 Claude 实验功能后可切换）`,
+      enabled: false,
+    }),
+  ];
+
+  if (!providerEditable) {
+    return items;
+  }
+
+  const targetProviders: AgentProvider[] =
+    currentProvider === "claude"
+      ? ["codex"]
+      : claudeEnabled
+        ? ["claude"]
+        : [];
+
+  for (const provider of targetProviders) {
+    items.push(
+      await MenuItem.new({
+        text: `切换到 ${getAgentProviderLabel(provider)}`,
+        action: () => {
+          void onUpdateWorkspaceProvider(workspace.id, provider);
+        },
+      }),
+    );
+  }
+
+  return items;
+}
+
 export function useSidebarMenus({
+  claudeEnabled,
   onDeleteThread,
   onSyncThread,
   onPinThread,
@@ -29,6 +102,7 @@ export function useSidebarMenus({
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
+  onUpdateWorkspaceProvider,
 }: SidebarMenuHandlers) {
   const showThreadMenu = useCallback(
     async (
@@ -94,29 +168,46 @@ export function useSidebarMenus({
   );
 
   const showWorkspaceMenu = useCallback(
-    async (event: MouseEvent, workspaceId: string) => {
+    async (event: MouseEvent, workspace: WorkspaceInfo) => {
       event.preventDefault();
       event.stopPropagation();
+      const providerItems = await buildWorkspaceProviderMenuItems({
+        workspace,
+        claudeEnabled,
+        onUpdateWorkspaceProvider,
+      });
       const reloadItem = await MenuItem.new({
         text: "重新加载会话",
-        action: () => onReloadWorkspaceThreads(workspaceId),
+        action: () => onReloadWorkspaceThreads(workspace.id),
       });
       const deleteItem = await MenuItem.new({
         text: "删除",
-        action: () => onDeleteWorkspace(workspaceId),
+        action: () => onDeleteWorkspace(workspace.id),
       });
-      const menu = await Menu.new({ items: [reloadItem, deleteItem] });
+      const menu = await Menu.new({
+        items: [...providerItems, reloadItem, deleteItem],
+      });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onReloadWorkspaceThreads, onDeleteWorkspace],
+    [
+      claudeEnabled,
+      onDeleteWorkspace,
+      onReloadWorkspaceThreads,
+      onUpdateWorkspaceProvider,
+    ],
   );
 
   const showWorktreeMenu = useCallback(
     async (event: MouseEvent, worktree: WorkspaceInfo) => {
       event.preventDefault();
       event.stopPropagation();
+      const providerItems = await buildWorkspaceProviderMenuItems({
+        workspace: worktree,
+        claudeEnabled,
+        onUpdateWorkspaceProvider,
+      });
       const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
         text: "重新加载会话",
@@ -151,18 +242,30 @@ export function useSidebarMenus({
         text: "删除工作树",
         action: () => onDeleteWorktree(worktree.id),
       });
-      const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });
+      const menu = await Menu.new({
+        items: [...providerItems, reloadItem, revealItem, deleteItem],
+      });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onReloadWorkspaceThreads, onDeleteWorktree],
+    [
+      claudeEnabled,
+      onDeleteWorktree,
+      onReloadWorkspaceThreads,
+      onUpdateWorkspaceProvider,
+    ],
   );
 
   const showCloneMenu = useCallback(
     async (event: MouseEvent, clone: WorkspaceInfo) => {
       event.preventDefault();
       event.stopPropagation();
+      const providerItems = await buildWorkspaceProviderMenuItems({
+        workspace: clone,
+        claudeEnabled,
+        onUpdateWorkspaceProvider,
+      });
       const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
         text: "重新加载会话",
@@ -197,12 +300,19 @@ export function useSidebarMenus({
         text: "删除克隆副本",
         action: () => onDeleteWorkspace(clone.id),
       });
-      const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });
+      const menu = await Menu.new({
+        items: [...providerItems, reloadItem, revealItem, deleteItem],
+      });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onReloadWorkspaceThreads, onDeleteWorkspace],
+    [
+      claudeEnabled,
+      onDeleteWorkspace,
+      onReloadWorkspaceThreads,
+      onUpdateWorkspaceProvider,
+    ],
   );
 
   return { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu };

@@ -21,6 +21,7 @@ import { useInitGitRepoPrompt } from "@/features/git/hooks/useInitGitRepoPrompt"
 import type { InitGitRepoOutcome } from "@/features/git/hooks/useGitActions";
 import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
+import { updateWorkspaceSettingsWithHistoryRefresh } from "@/features/workspaces/utils/updateWorkspaceSettingsWithHistoryRefresh";
 
 type GroupedWorkspaceInfo = SettingsViewProps["groupedWorkspaces"];
 
@@ -129,6 +130,8 @@ type UseMainAppModalsArgs = {
       settings: Partial<WorkspaceSettings>,
       provider?: AgentProvider | null,
     ) => Promise<WorkspaceInfo>;
+    resetWorkspaceThreads: (workspaceId: string) => void;
+    listThreadsForWorkspace: (workspace: WorkspaceInfo) => Promise<unknown>;
     scaleShortcutTitle: string;
     scaleShortcutText: string;
     handleTestNotificationSound: () => void;
@@ -287,7 +290,18 @@ export function useMainAppModals({
       onRunDoctor: settings.doctor,
       onRunCodexUpdate: settings.codexUpdate,
       onUpdateWorkspaceSettings: async (id, nextSettings, provider) => {
-        await settings.updateWorkspaceSettings(id, nextSettings, provider);
+        const workspace = workspaces.find((entry) => entry.id === id) ?? null;
+        if (!workspace) {
+          return;
+        }
+        await updateWorkspaceSettingsWithHistoryRefresh({
+          workspace,
+          patch: nextSettings,
+          provider,
+          updateWorkspaceSettings: settings.updateWorkspaceSettings,
+          resetWorkspaceThreads: settings.resetWorkspaceThreads,
+          listThreadsForWorkspace: settings.listThreadsForWorkspace,
+        });
       },
       scaleShortcutTitle: settings.scaleShortcutTitle,
       scaleShortcutText: settings.scaleShortcutText,
@@ -302,6 +316,7 @@ export function useMainAppModals({
     [
       groupedWorkspaces,
       settings,
+      workspaces,
       ungroupedLabel,
       workspaceGroups,
     ],

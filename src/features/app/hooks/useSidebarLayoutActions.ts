@@ -3,8 +3,13 @@ import {
   getWorkspaceProvider,
   providerSupportsHistoryThreads,
 } from "@utils/agentProvider";
+import { updateWorkspaceSettingsWithHistoryRefresh } from "../../workspaces/utils/updateWorkspaceSettingsWithHistoryRefresh";
 
-import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
+import type {
+  AgentProvider,
+  WorkspaceInfo,
+  WorkspaceSettings,
+} from "../../../types";
 
 type AppTab = "home" | "projects" | "codex" | "git" | "log";
 
@@ -24,7 +29,9 @@ type UseSidebarLayoutActionsOptions = {
   updateWorkspaceSettings: (
     workspaceId: string,
     patch: Partial<WorkspaceSettings>,
-  ) => void | Promise<unknown>;
+    provider?: AgentProvider | null,
+  ) => Promise<WorkspaceInfo>;
+  resetWorkspaceThreads: (workspaceId: string) => void;
   removeThread: (workspaceId: string, threadId: string) => void;
   clearDraftForThread: (threadId: string) => void;
   removeImagesForThread: (threadId: string) => void;
@@ -50,6 +57,7 @@ export function useSidebarLayoutActions({
   setActiveTab,
   workspacesById,
   updateWorkspaceSettings,
+  resetWorkspaceThreads,
   removeThread,
   clearDraftForThread,
   removeImagesForThread,
@@ -164,6 +172,30 @@ export function useSidebarLayoutActions({
     [removeWorktree],
   );
 
+  const onUpdateWorkspaceProvider = useCallback(
+    (workspaceId: string, provider: AgentProvider) => {
+      const target = workspacesById.get(workspaceId);
+      if (!target) {
+        return;
+      }
+      void updateWorkspaceSettingsWithHistoryRefresh({
+        workspace: target,
+        patch: target.settings,
+        provider,
+        updateWorkspaceSettings,
+        resetWorkspaceThreads,
+        listThreadsForWorkspace: async (workspaceValue) =>
+          Promise.resolve(listThreadsForWorkspace(workspaceValue)),
+      });
+    },
+    [
+      listThreadsForWorkspace,
+      resetWorkspaceThreads,
+      updateWorkspaceSettings,
+      workspacesById,
+    ],
+  );
+
   const onLoadOlderThreads = useCallback(
     (workspaceId: string) => {
       const workspace = workspacesById.get(workspaceId);
@@ -204,6 +236,7 @@ export function useSidebarLayoutActions({
     onRenameThread,
     onDeleteWorkspace,
     onDeleteWorktree,
+    onUpdateWorkspaceProvider,
     onLoadOlderThreads,
     onReloadWorkspaceThreads,
   };

@@ -1,4 +1,5 @@
 import type {
+  AgentProvider,
   AccountSnapshot,
   RequestUserInputRequest,
   RateLimitSnapshot,
@@ -97,6 +98,7 @@ function groupFlatThreadRowsByTimeBucket(
 }
 
 type SidebarProps = {
+  claudeEnabled: boolean;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: WorkspaceGroupSection[];
   hasWorkspaceGroups: boolean;
@@ -146,6 +148,7 @@ type SidebarProps = {
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onUpdateWorkspaceProvider: (workspaceId: string, provider: AgentProvider) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   workspaceDropTargetRef: RefObject<HTMLElement | null>;
@@ -158,6 +161,7 @@ type SidebarProps = {
 };
 
 export const Sidebar = memo(function Sidebar({
+  claudeEnabled,
   workspaces,
   groupedWorkspaces,
   hasWorkspaceGroups,
@@ -207,6 +211,7 @@ export const Sidebar = memo(function Sidebar({
   onRenameThread,
   onDeleteWorkspace,
   onDeleteWorktree,
+  onUpdateWorkspaceProvider,
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
   workspaceDropTargetRef,
@@ -243,6 +248,7 @@ export const Sidebar = memo(function Sidebar({
   const { getThreadRows } = useThreadRows(threadParentById);
   const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu } =
     useSidebarMenus({
+      claudeEnabled,
       onDeleteThread,
       onSyncThread,
       onPinThread: pinThread,
@@ -252,6 +258,7 @@ export const Sidebar = memo(function Sidebar({
       onReloadWorkspaceThreads,
       onDeleteWorkspace,
       onDeleteWorktree,
+      onUpdateWorkspaceProvider,
     });
   const {
     sessionPercent,

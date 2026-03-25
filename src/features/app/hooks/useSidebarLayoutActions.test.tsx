@@ -38,6 +38,7 @@ describe("useSidebarLayoutActions", () => {
       setActiveTab: vi.fn(),
       workspacesById: new Map([[workspace.id, workspace]]),
       updateWorkspaceSettings: vi.fn(async () => workspace),
+      resetWorkspaceThreads: vi.fn(),
       removeThread: vi.fn(),
       clearDraftForThread: vi.fn(),
       removeImagesForThread: vi.fn(),
@@ -95,6 +96,7 @@ describe("useSidebarLayoutActions", () => {
         setActiveTab: vi.fn(),
         workspacesById: new Map([[workspace.id, workspace]]),
         updateWorkspaceSettings: vi.fn(async () => workspace),
+        resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
         clearDraftForThread: vi.fn(),
         removeImagesForThread: vi.fn(),
@@ -136,6 +138,7 @@ describe("useSidebarLayoutActions", () => {
         setActiveTab,
         workspacesById: new Map([[workspace.id, workspace]]),
         updateWorkspaceSettings: vi.fn(async () => workspace),
+        resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
         clearDraftForThread: vi.fn(),
         removeImagesForThread: vi.fn(),
@@ -174,6 +177,7 @@ describe("useSidebarLayoutActions", () => {
         setActiveTab: vi.fn(),
         workspacesById: new Map([[claudeWorkspace.id, claudeWorkspace]]),
         updateWorkspaceSettings: vi.fn(async () => claudeWorkspace),
+        resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
         clearDraftForThread: vi.fn(),
         removeImagesForThread: vi.fn(),
@@ -195,5 +199,58 @@ describe("useSidebarLayoutActions", () => {
     expect(listThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
     expect(loadOlderThreadsForWorkspace).toHaveBeenCalledTimes(1);
     expect(loadOlderThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
+  });
+
+  it("reloads workspace history after provider changes", async () => {
+    const updatedWorkspace: WorkspaceInfo = {
+      ...workspace,
+      provider: "claude",
+    };
+    const updateWorkspaceSettings = vi.fn(async () => updatedWorkspace);
+    const resetWorkspaceThreads = vi.fn();
+    const listThreadsForWorkspace = vi.fn(async () => ({}));
+
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId: vi.fn(),
+        connectWorkspace: vi.fn(async () => {}),
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[workspace.id, workspace]]),
+        updateWorkspaceSettings,
+        resetWorkspaceThreads,
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread: vi.fn(async () => {}),
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace: vi.fn(async () => {}),
+        listThreadsForWorkspace,
+      }),
+    );
+
+    await act(async () => {
+      result.current.onUpdateWorkspaceProvider("ws-1", "claude");
+      await Promise.resolve();
+    });
+
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith(
+      "ws-1",
+      workspace.settings,
+      "claude",
+    );
+    expect(resetWorkspaceThreads).toHaveBeenCalledTimes(1);
+    expect(resetWorkspaceThreads).toHaveBeenCalledWith("ws-1");
+    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith(updatedWorkspace);
   });
 });

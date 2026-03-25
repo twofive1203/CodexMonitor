@@ -13,6 +13,7 @@ afterEach(() => {
 });
 
 const baseProps = {
+  claudeEnabled: false,
   workspaces: [],
   groupedWorkspaces: [],
   hasWorkspaceGroups: false,
@@ -58,6 +59,7 @@ const baseProps = {
   onRenameThread: vi.fn(),
   onDeleteWorkspace: vi.fn(),
   onDeleteWorktree: vi.fn(),
+  onUpdateWorkspaceProvider: vi.fn(),
   onLoadOlderThreads: vi.fn(),
   onReloadWorkspaceThreads: vi.fn(),
   workspaceDropTargetRef: createRef<HTMLElement>(),

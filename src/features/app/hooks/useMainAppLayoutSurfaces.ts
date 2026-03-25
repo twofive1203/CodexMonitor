@@ -27,6 +27,7 @@ type UseMainAppLayoutSurfacesArgs = {
   appSettings: Pick<
     AppSettings,
     | "usageShowRemaining"
+    | "experimentalClaudeEnabled"
     | "composerCodeBlockCopyUseModifier"
     | "showMessageFilePath"
     | "openAppTargets"
@@ -455,6 +456,7 @@ export function useMainAppLayoutSurfaces({
   return {
     primary: {
       sidebarProps: {
+        claudeEnabled: appSettings.experimentalClaudeEnabled,
         workspaces,
         groupedWorkspaces,
         hasWorkspaceGroups: workspaceGroupsCount > 0,
@@ -504,6 +506,7 @@ export function useMainAppLayoutSurfaces({
         onRenameThread: sidebarHandlers.onRenameThread,
         onDeleteWorkspace: sidebarHandlers.onDeleteWorkspace,
         onDeleteWorktree: sidebarHandlers.onDeleteWorktree,
+        onUpdateWorkspaceProvider: sidebarHandlers.onUpdateWorkspaceProvider,
         onLoadOlderThreads: sidebarHandlers.onLoadOlderThreads,
         onReloadWorkspaceThreads: sidebarHandlers.onReloadWorkspaceThreads,
         workspaceDropTargetRef: workspaceDrop.workspaceDropTargetRef,
