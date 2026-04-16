@@ -88,6 +88,8 @@ type UseMainAppLayoutSurfacesArgs = {
   onRefreshLocalUsage: LayoutNodesOptions["primary"]["homeProps"]["onRefreshLocalUsage"];
   usageMetric: LayoutNodesOptions["primary"]["homeProps"]["usageMetric"];
   onUsageMetricChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageMetricChange"];
+  usageRange: LayoutNodesOptions["primary"]["homeProps"]["usageRange"];
+  onUsageRangeChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageRangeChange"];
   usageWorkspaceId: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceId"];
   usageWorkspaceOptions: LayoutNodesOptions["primary"]["homeProps"]["usageWorkspaceOptions"];
   onUsageWorkspaceChange: LayoutNodesOptions["primary"]["homeProps"]["onUsageWorkspaceChange"];
@@ -289,6 +291,8 @@ export function useMainAppLayoutSurfaces({
   onRefreshLocalUsage,
   usageMetric,
   onUsageMetricChange,
+  usageRange,
+  onUsageRangeChange,
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
@@ -679,6 +683,8 @@ export function useMainAppLayoutSurfaces({
         onRefreshLocalUsage,
         usageMetric,
         onUsageMetricChange,
+        usageRange,
+        onUsageRangeChange,
         usageWorkspaceId,
         usageWorkspaceOptions,
         onUsageWorkspaceChange,

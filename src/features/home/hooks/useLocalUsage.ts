@@ -16,11 +16,23 @@ const emptyState: LocalUsageState = {
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
-export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
+/**
+ * 构造本地用量查询键。
+ *
+ * `workspacePath`：当前选择的工作区路径，`null` 表示全部项目。
+ * `days`：当前查询天数，`0` 表示全部时间。
+ */
+function buildUsageQueryKey(workspacePath: string | null, days: number) {
+  return `${workspacePath ?? "__all__"}::${days}`;
+}
+
+export function useLocalUsage(enabled: boolean, workspacePath: string | null, days: number) {
   const [state, setState] = useState<LocalUsageState>(emptyState);
   const requestIdRef = useRef(0);
   const enabledRef = useRef(enabled);
   const workspaceRef = useRef(workspacePath);
+  const daysRef = useRef(days);
+  const queryKey = buildUsageQueryKey(workspacePath, days);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -33,6 +45,10 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     workspaceRef.current = workspacePath;
   }, [workspacePath]);
 
+  useEffect(() => {
+    daysRef.current = days;
+  }, [days]);
+
   const refresh = useCallback(() => {
     if (!enabledRef.current) {
       return Promise.resolve();
@@ -40,7 +56,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
-    return localUsageSnapshot(30, workspaceRef.current ?? undefined)
+    return localUsageSnapshot(daysRef.current, workspaceRef.current ?? undefined)
       .then((snapshot) => {
         if (requestIdRef.current !== requestId || !enabledRef.current) {
           return;
@@ -60,6 +76,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     if (!enabled) {
       return;
     }
+    setState(emptyState);
     refresh()?.catch(() => {});
     const interval = window.setInterval(() => {
       refresh()?.catch(() => {});
@@ -67,7 +84,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [enabled, refresh, workspacePath]);
+  }, [enabled, queryKey, refresh]);
 
   return { ...state, refresh };
 }

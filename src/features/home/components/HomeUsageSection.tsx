@@ -13,7 +13,13 @@ import {
   formatDuration,
   formatWeekRange,
 } from "../homeFormatters";
-import type { HomeStatCard, UsageMetric, UsageWorkspaceOption } from "../homeTypes";
+import { USAGE_RANGE_OPTIONS } from "../homeUsageRange";
+import type {
+  HomeStatCard,
+  UsageMetric,
+  UsageRange,
+  UsageWorkspaceOption,
+} from "../homeTypes";
 import { buildHomeUsageViewModel } from "../homeUsageViewModel";
 
 type HomeUsageSectionProps = {
@@ -24,8 +30,10 @@ type HomeUsageSectionProps = {
   localUsageSnapshot: LocalUsageSnapshot | null;
   onRefreshLocalUsage: () => void;
   onUsageMetricChange: (metric: UsageMetric) => void;
+  onUsageRangeChange: (range: UsageRange) => void;
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
   usageMetric: UsageMetric;
+  usageRange: UsageRange;
   usageShowRemaining: boolean;
   usageWorkspaceId: string | null;
   usageWorkspaceOptions: UsageWorkspaceOption[];
@@ -52,8 +60,10 @@ export function HomeUsageSection({
   localUsageSnapshot,
   onRefreshLocalUsage,
   onUsageMetricChange,
+  onUsageRangeChange,
   onUsageWorkspaceChange,
   usageMetric,
+  usageRange,
   usageShowRemaining,
   usageWorkspaceId,
   usageWorkspaceOptions,
@@ -71,6 +81,7 @@ export function HomeUsageSection({
     accountRateLimits,
     localUsageSnapshot,
     usageMetric,
+    usageRange,
     usageShowRemaining,
   });
 
@@ -78,6 +89,10 @@ export function HomeUsageSection({
   useEffect(() => {
     setChartWeekOffset((previous) => Math.min(previous, maxHistoricalWeekOffset));
   }, [maxHistoricalWeekOffset]);
+
+  useEffect(() => {
+    setChartWeekOffset(0);
+  }, [usageRange, usageWorkspaceId]);
 
   const chartWeekEnd = Math.max(0, usageDays.length - chartWeekOffset * 7);
   const chartWeekStart = Math.max(0, chartWeekEnd - 7);
@@ -136,10 +151,28 @@ export function HomeUsageSection({
               value={usageWorkspaceId ?? ""}
               onChange={(event) => onUsageWorkspaceChange(event.target.value || null)}
               disabled={usageWorkspaceOptions.length === 0}
+              aria-label="用量工作区"
             >
               <option value="">全部项目</option>
               {usageWorkspaceOptions.map((option) => (
                 <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="home-usage-control-group">
+          <span className="home-usage-control-label">范围</span>
+          <div className="home-usage-select-wrap">
+            <select
+              className="home-usage-select"
+              value={usageRange}
+              onChange={(event) => onUsageRangeChange(event.target.value as UsageRange)}
+              aria-label="用量范围"
+            >
+              {USAGE_RANGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}

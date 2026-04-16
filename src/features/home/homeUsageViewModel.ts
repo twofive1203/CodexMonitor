@@ -6,6 +6,7 @@ import type {
 } from "../../types";
 import { formatRelativeTime } from "../../utils/time";
 import { getUsageLabels } from "../app/utils/usageLabels";
+import { getUsageRangeSummaryLabel } from "./homeUsageRange";
 import {
   buildWindowCaption,
   formatAccountTypeLabel,
@@ -19,7 +20,7 @@ import {
   formatPlanType,
   isUsageDayActive,
 } from "./homeFormatters";
-import type { HomeStatCard, UsageMetric } from "./homeTypes";
+import type { HomeStatCard, UsageMetric, UsageRange } from "./homeTypes";
 
 type HomeUsageViewModel = {
   accountCards: HomeStatCard[];
@@ -35,16 +36,19 @@ export function buildHomeUsageViewModel({
   accountRateLimits,
   localUsageSnapshot,
   usageMetric,
+  usageRange,
   usageShowRemaining,
 }: {
   accountInfo: AccountSnapshot | null;
   accountRateLimits: RateLimitSnapshot | null;
   localUsageSnapshot: LocalUsageSnapshot | null;
   usageMetric: UsageMetric;
+  usageRange: UsageRange;
   usageShowRemaining: boolean;
 }): HomeUsageViewModel {
   const usageTotals = localUsageSnapshot?.totals ?? null;
   const usageDays = localUsageSnapshot?.days ?? [];
+  const currentRangeLabel = getUsageRangeSummaryLabel(usageRange);
   const latestUsageDay = usageDays[usageDays.length - 1] ?? null;
   const last7Days = usageDays.slice(-7);
   const last7Tokens = last7Days.reduce((total, day) => total + day.totalTokens, 0);
@@ -57,7 +61,8 @@ export function buildHomeUsageViewModel({
     (total, day) => total + (day.agentTimeMs ?? 0),
     0,
   );
-  const last30AgentMs = usageDays.reduce(
+  const currentRangeTokens = usageDays.reduce((total, day) => total + day.totalTokens, 0);
+  const currentRangeAgentMs = usageDays.reduce(
     (total, day) => total + (day.agentTimeMs ?? 0),
     0,
   );
@@ -67,7 +72,7 @@ export function buildHomeUsageViewModel({
     (total, day) => total + (day.agentRuns ?? 0),
     0,
   );
-  const last30AgentRuns = usageDays.reduce(
+  const currentRangeAgentRuns = usageDays.reduce(
     (total, day) => total + (day.agentRuns ?? 0),
     0,
   );
@@ -124,10 +129,10 @@ export function buildHomeUsageViewModel({
             caption: `平均 ${formatCompactNumber(usageTotals?.averageDailyTokens)} / 天`,
           },
           {
-            label: "近30天",
-            value: formatCompactNumber(usageTotals?.last30DaysTokens ?? last7Tokens),
+            label: currentRangeLabel,
+            value: formatCompactNumber(currentRangeTokens),
             suffix: "令牌",
-            caption: `总计 ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
+            caption: `总计 ${formatCount(currentRangeTokens)}`,
           },
           {
             label: "缓存命中率",
@@ -171,16 +176,16 @@ export function buildHomeUsageViewModel({
             caption: `平均 ${formatDurationCompact(averageDailyAgentMs)} / 天`,
           },
           {
-            label: "近30天时长",
-            value: formatDurationCompact(last30AgentMs),
+            label: usageRange === "all" ? "全部时长" : `${currentRangeLabel}时长`,
+            value: formatDurationCompact(currentRangeAgentMs),
             suffix: "累计",
-            caption: `总计 ${formatDuration(last30AgentMs)}`,
+            caption: `总计 ${formatDuration(currentRangeAgentMs)}`,
           },
           {
             label: "运行次数",
             value: formatCount(last7AgentRuns),
             suffix: "次",
-            caption: `近30天 ${formatCount(last30AgentRuns)} 次`,
+            caption: `${currentRangeLabel} ${formatCount(currentRangeAgentRuns)} 次`,
           },
           {
             label: "平均每次",

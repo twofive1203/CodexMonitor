@@ -9,6 +9,7 @@ import { HomeUsageSection } from "./HomeUsageSection";
 import type {
   LatestAgentRun,
   UsageMetric,
+  UsageRange,
   UsageWorkspaceOption,
 } from "../homeTypes";
 
@@ -23,6 +24,8 @@ type HomeProps = {
   onRefreshLocalUsage: () => void;
   usageMetric: UsageMetric;
   onUsageMetricChange: (metric: UsageMetric) => void;
+  usageRange: UsageRange;
+  onUsageRangeChange: (range: UsageRange) => void;
   usageWorkspaceId: string | null;
   usageWorkspaceOptions: UsageWorkspaceOption[];
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
@@ -43,6 +46,8 @@ export function Home({
   onRefreshLocalUsage,
   usageMetric,
   onUsageMetricChange,
+  usageRange,
+  onUsageRangeChange,
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
@@ -74,8 +79,10 @@ export function Home({
         localUsageSnapshot={localUsageSnapshot}
         onRefreshLocalUsage={onRefreshLocalUsage}
         onUsageMetricChange={onUsageMetricChange}
+        onUsageRangeChange={onUsageRangeChange}
         onUsageWorkspaceChange={onUsageWorkspaceChange}
         usageMetric={usageMetric}
+        usageRange={usageRange}
         usageShowRemaining={usageShowRemaining}
         usageWorkspaceId={usageWorkspaceId}
         usageWorkspaceOptions={usageWorkspaceOptions}

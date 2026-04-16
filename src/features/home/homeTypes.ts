@@ -9,6 +9,7 @@ export type LatestAgentRun = {
 };
 
 export type UsageMetric = "tokens" | "time";
+export type UsageRange = "30d" | "90d" | "365d" | "all";
 
 export type UsageWorkspaceOption = {
   id: string;

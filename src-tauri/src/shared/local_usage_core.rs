@@ -1,6 +1,6 @@
-use chrono::{DateTime, Duration, Local, TimeZone, Utc};
+use chrono::{DateTime, Duration, Local, NaiveDate, TimeZone, Utc};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -29,13 +29,31 @@ struct UsageTotals {
 }
 
 const MAX_ACTIVITY_GAP_MS: i64 = 2 * 60 * 1000;
+const DEFAULT_LOCAL_USAGE_DAYS: u32 = 30;
+const MAX_RECENT_LOCAL_USAGE_DAYS: u32 = 366;
+
+#[derive(Clone, Copy)]
+enum UsageWindow {
+    Recent(u32),
+    All,
+}
+
+/// 归一本地用量查询窗口。
+///
+/// `days`：前端传入的查询天数，`0` 表示全部时间，`None` 表示默认 30 天。
+fn normalize_usage_window(days: Option<u32>) -> UsageWindow {
+    match days.unwrap_or(DEFAULT_LOCAL_USAGE_DAYS) {
+        0 => UsageWindow::All,
+        value => UsageWindow::Recent(value.clamp(1, MAX_RECENT_LOCAL_USAGE_DAYS)),
+    }
+}
 
 pub(crate) async fn local_usage_snapshot_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     days: Option<u32>,
     workspace_path: Option<String>,
 ) -> Result<LocalUsageSnapshot, String> {
-    let days = days.unwrap_or(30).clamp(1, 90);
+    let usage_window = normalize_usage_window(days);
     let workspace_path = workspace_path.and_then(|value| {
         let trimmed = value.trim();
         if trimmed.is_empty() {
@@ -49,15 +67,20 @@ pub(crate) async fn local_usage_snapshot_core(
         resolve_sessions_roots(&workspaces, workspace_path.as_deref())
     };
     let snapshot = tokio::task::spawn_blocking(move || {
-        scan_local_usage(days, workspace_path.as_deref(), &sessions_roots)
+        scan_local_usage(usage_window, workspace_path.as_deref(), &sessions_roots)
     })
     .await
     .map_err(|err| err.to_string())??;
     Ok(snapshot)
 }
 
+/// 扫描指定查询窗口内的本地用量文件。
+///
+/// `usage_window`：本次查询窗口，支持最近 N 天或全部时间。
+/// `workspace_path`：工作区过滤路径，`None` 表示全部工作区。
+/// `sessions_roots`：需要扫描的会话根目录列表。
 fn scan_local_usage(
-    days: u32,
+    usage_window: UsageWindow,
     workspace_path: Option<&Path>,
     sessions_roots: &[PathBuf],
 ) -> Result<LocalUsageSnapshot, String> {
@@ -66,7 +89,7 @@ fn scan_local_usage(
         .unwrap_or_default()
         .as_millis() as i64;
 
-    let day_keys = make_day_keys(days);
+    let day_keys = resolve_day_keys(usage_window, sessions_roots);
     let mut daily: HashMap<String, DailyTotals> = day_keys
         .iter()
         .map(|key| (key.clone(), DailyTotals::default()))
@@ -508,7 +531,18 @@ fn path_matches_workspace(cwd: &str, workspace_path: &Path) -> bool {
     cwd_path == workspace_path || cwd_path.starts_with(workspace_path)
 }
 
-fn make_day_keys(days: u32) -> Vec<String> {
+/// 解析本次查询需要覆盖的日期键列表。
+///
+/// `usage_window`：本次查询窗口。
+/// `sessions_roots`：需要扫描的会话根目录列表。
+fn resolve_day_keys(usage_window: UsageWindow, sessions_roots: &[PathBuf]) -> Vec<String> {
+    match usage_window {
+        UsageWindow::Recent(days) => make_recent_day_keys(days),
+        UsageWindow::All => make_all_day_keys(sessions_roots),
+    }
+}
+
+fn make_recent_day_keys(days: u32) -> Vec<String> {
     let today = Local::now().date_naive();
     (0..days)
         .rev()
@@ -517,6 +551,92 @@ fn make_day_keys(days: u32) -> Vec<String> {
             day.format("%Y-%m-%d").to_string()
         })
         .collect()
+}
+
+/// 构造全部时间范围内的连续日期键列表。
+///
+/// `sessions_roots`：需要扫描的会话根目录列表。
+fn make_all_day_keys(sessions_roots: &[PathBuf]) -> Vec<String> {
+    let existing_day_keys = collect_existing_day_keys(sessions_roots);
+    let Some(first_day) = existing_day_keys
+        .first()
+        .and_then(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").ok())
+    else {
+        return Vec::new();
+    };
+
+    let last_existing_day = existing_day_keys
+        .last()
+        .and_then(|value| NaiveDate::parse_from_str(value, "%Y-%m-%d").ok())
+        .unwrap_or(first_day);
+    let end_day = std::cmp::max(Local::now().date_naive(), last_existing_day);
+    let span_days = (end_day - first_day).num_days().max(0);
+
+    (0..=span_days)
+        .map(|offset| (first_day + Duration::days(offset)).format("%Y-%m-%d").to_string())
+        .collect()
+}
+
+/// 收集会话目录中已存在的日期键。
+///
+/// `sessions_roots`：需要扫描的会话根目录列表。
+fn collect_existing_day_keys(sessions_roots: &[PathBuf]) -> BTreeSet<String> {
+    let mut day_keys = BTreeSet::new();
+
+    for root in sessions_roots {
+        let Ok(year_entries) = std::fs::read_dir(root) else {
+            continue;
+        };
+        for year_entry in year_entries.flatten() {
+            let year_path = year_entry.path();
+            if !year_path.is_dir() {
+                continue;
+            }
+            let Some(year) = year_path.file_name().and_then(|value| value.to_str()) else {
+                continue;
+            };
+
+            let Ok(month_entries) = std::fs::read_dir(&year_path) else {
+                continue;
+            };
+            for month_entry in month_entries.flatten() {
+                let month_path = month_entry.path();
+                if !month_path.is_dir() {
+                    continue;
+                }
+                let Some(month) = month_path.file_name().and_then(|value| value.to_str()) else {
+                    continue;
+                };
+
+                let Ok(day_entries) = std::fs::read_dir(&month_path) else {
+                    continue;
+                };
+                for day_entry in day_entries.flatten() {
+                    let day_path = day_entry.path();
+                    if !day_path.is_dir() {
+                        continue;
+                    }
+                    let Some(day) = day_path.file_name().and_then(|value| value.to_str()) else {
+                        continue;
+                    };
+
+                    let Some(date) = parse_day_from_parts(year, month, day) else {
+                        continue;
+                    };
+                    day_keys.insert(date.format("%Y-%m-%d").to_string());
+                }
+            }
+        }
+    }
+
+    day_keys
+}
+
+fn parse_day_from_parts(year: &str, month: &str, day: &str) -> Option<NaiveDate> {
+    let year = year.parse::<i32>().ok()?;
+    let month = month.parse::<u32>().ok()?;
+    let day = day.parse::<u32>().ok()?;
+    NaiveDate::from_ymd_opt(year, month, day)
 }
 
 fn resolve_codex_sessions_root(codex_home_override: Option<PathBuf>) -> Option<PathBuf> {
@@ -768,7 +888,7 @@ mod tests {
 
     #[test]
     fn scan_local_usage_aggregates_multiple_session_roots() {
-        let day_keys = make_day_keys(2);
+        let day_keys = make_recent_day_keys(2);
         let day_key = day_keys
             .last()
             .cloned()
@@ -795,7 +915,8 @@ mod tests {
         write_session_file(&root_a, &day_key, &[line_a]);
         write_session_file(&root_b, &day_key, &[line_b]);
 
-        let snapshot = scan_local_usage(2, None, &[root_a, root_b]).expect("scan usage");
+        let snapshot = scan_local_usage(UsageWindow::Recent(2), None, &[root_a, root_b])
+            .expect("scan usage");
         let day = snapshot
             .days
             .iter()
@@ -805,6 +926,38 @@ mod tests {
         assert_eq!(day.input_tokens, 8);
         assert_eq!(day.output_tokens, 3);
         assert_eq!(snapshot.totals.last30_days_tokens, 11);
+    }
+
+    #[test]
+    fn scan_local_usage_all_time_includes_history_older_than_ninety_days() {
+        let root = make_temp_sessions_root();
+        let old_day = (Local::now().date_naive() - Duration::days(120))
+            .format("%Y-%m-%d")
+            .to_string();
+        let naive =
+            NaiveDateTime::parse_from_str(&format!("{old_day} 12:00:00"), "%Y-%m-%d %H:%M:%S")
+                .expect("timestamp");
+        let timestamp_ms = Local
+            .from_local_datetime(&naive)
+            .single()
+            .expect("timestamp")
+            .timestamp_millis();
+        let line = format!(
+            r#"{{"timestamp":{timestamp_ms},"payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":12,"cached_input_tokens":0,"output_tokens":4}}}}}}}}"#
+        );
+
+        write_session_file(&root, &old_day, &[line]);
+
+        let snapshot =
+            scan_local_usage(UsageWindow::All, None, &[root]).expect("scan all-time usage");
+        let day = snapshot
+            .days
+            .iter()
+            .find(|entry| entry.day == old_day)
+            .expect("old day entry");
+
+        assert_eq!(day.input_tokens, 12);
+        assert_eq!(day.output_tokens, 4);
     }
 
     #[test]

@@ -18,6 +18,7 @@ import {
   getOpenAppIcon,
   listThreads,
   listMcpServerStatus,
+  localUsageSnapshot,
   readThread,
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
@@ -362,6 +363,18 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("set_tray_session_usage", {
       usage,
+    });
+  });
+
+  it("maps days and workspacePath for local_usage_snapshot", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ days: [], totals: {}, topModels: [] });
+
+    await localUsageSnapshot(0, "D:/workspace/demo");
+
+    expect(invokeMock).toHaveBeenCalledWith("local_usage_snapshot", {
+      days: 0,
+      workspacePath: "D:/workspace/demo",
     });
   });
 

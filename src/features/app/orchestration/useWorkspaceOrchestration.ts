@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "@/types";
 import { useLocalUsage } from "@/features/home/hooks/useLocalUsage";
+import { getUsageRangeDays } from "@/features/home/homeUsageRange";
+import type { UsageRange } from "@/features/home/homeTypes";
 
 type ThreadSummary = {
   id: string;
@@ -95,6 +97,7 @@ export function useWorkspaceInsightsOrchestration({
   );
 
   const [usageMetric, setUsageMetric] = useState<"tokens" | "time">("tokens");
+  const [usageRange, setUsageRange] = useState<UsageRange>("30d");
   const [usageWorkspaceId, setUsageWorkspaceId] = useState<string | null>(null);
 
   const usageWorkspaceOptions = useMemo(
@@ -129,13 +132,15 @@ export function useWorkspaceInsightsOrchestration({
     isLoading: isLoadingLocalUsage,
     error: localUsageError,
     refresh: refreshLocalUsage,
-  } = useLocalUsage(showHome, usageWorkspacePath);
+  } = useLocalUsage(showHome, usageWorkspacePath, getUsageRangeDays(usageRange));
 
   return {
     latestAgentRuns,
     isLoadingLatestAgents,
     usageMetric,
     setUsageMetric,
+    usageRange,
+    setUsageRange,
     usageWorkspaceId,
     setUsageWorkspaceId,
     usageWorkspaceOptions,

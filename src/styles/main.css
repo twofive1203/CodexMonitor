@@ -1018,7 +1018,7 @@
   visibility: hidden;
   position: absolute;
   z-index: -1;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .content-layer.is-active {
@@ -1026,7 +1026,7 @@
   pointer-events: auto;
   visibility: visible;
   z-index: 0;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .app.reduced-transparency .content {

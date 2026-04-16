@@ -19,6 +19,8 @@ const baseProps = {
   onRefreshLocalUsage: vi.fn(),
   usageMetric: "tokens" as const,
   onUsageMetricChange: vi.fn(),
+  usageRange: "30d" as const,
+  onUsageRangeChange: vi.fn(),
   usageWorkspaceId: null,
   usageWorkspaceOptions: [],
   onUsageWorkspaceChange: vi.fn(),
@@ -110,6 +112,55 @@ describe("Home", () => {
     expect(screen.getByText("平均每个活跃日")).toBeTruthy();
     expect(screen.getByText("最长连续活跃")).toBeTruthy();
     expect(screen.getByText("活跃天数")).toBeTruthy();
+  });
+
+  it("supports switching usage range", () => {
+    const onUsageRangeChange = vi.fn();
+    render(<Home {...baseProps} onUsageRangeChange={onUsageRangeChange} />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "用量范围" }), {
+      target: { value: "365d" },
+    });
+
+    expect(onUsageRangeChange).toHaveBeenCalledWith("365d");
+  });
+
+  it("renders all-time labels when the range is all", () => {
+    render(
+      <Home
+        {...baseProps}
+        usageRange="all"
+        localUsageSnapshot={{
+          updatedAt: Date.now(),
+          days: [
+            {
+              day: "2026-01-20",
+              inputTokens: 10,
+              cachedInputTokens: 0,
+              outputTokens: 5,
+              totalTokens: 15,
+              agentTimeMs: 120000,
+              agentRuns: 2,
+            },
+          ],
+          totals: {
+            last7DaysTokens: 15,
+            last30DaysTokens: 15,
+            averageDailyTokens: 15,
+            cacheHitRatePercent: 0,
+            peakDay: "2026-01-20",
+            peakDayTokens: 15,
+          },
+          topModels: [],
+        }}
+      />,
+    );
+
+    expect(
+      Array.from(document.querySelectorAll(".home-usage-label")).some(
+        (node) => node.textContent === "全部时间",
+      ),
+    ).toBe(true);
   });
 
   it("renders expanded token stats and account limits", () => {
