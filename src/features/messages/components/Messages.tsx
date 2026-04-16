@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import type {
@@ -48,6 +48,64 @@ type MessagesProps = {
   onOpenThreadLink?: (threadId: string, workspaceId?: string | null) => void;
   onQuoteMessage?: (text: string) => void;
 };
+
+/**
+ * 判断当前事件目标是否属于交互控件，避免在点击按钮或链接时误进入选词保护模式。
+ *
+ * @param target 当前鼠标事件目标。
+ * @returns 若目标属于按钮、链接或表单控件则返回 true。
+ */
+function isInteractiveSelectionTarget(target: EventTarget | null) {
+  const element =
+    target instanceof Element
+      ? target
+      : target instanceof Node
+        ? target.parentElement
+        : null;
+  if (!element) {
+    return false;
+  }
+  return Boolean(
+    element.closest(
+      [
+        "button",
+        "a",
+        "input",
+        "textarea",
+        "select",
+        "option",
+        "summary",
+        '[role="button"]',
+        '[role="link"]',
+      ].join(","),
+    ),
+  );
+}
+
+/**
+ * 判断当前文档选区是否命中了消息容器内部的文本。
+ *
+ * @param container 消息滚动容器。
+ * @returns 若当前存在未折叠选区且选区位于消息容器内则返回 true。
+ */
+function hasExpandedSelectionWithin(container: HTMLDivElement | null) {
+  if (!container || typeof window === "undefined") {
+    return false;
+  }
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return false;
+  }
+  const range = selection.getRangeAt(0);
+  const isWithinContainer = (node: Node | null) => Boolean(node && container.contains(node));
+  return (
+    isWithinContainer(range.commonAncestorContainer) ||
+    isWithinContainer(selection.anchorNode) ||
+    isWithinContainer(selection.focusNode)
+  );
+}
+
+const SELECTING_TEXT_CLASS_NAME = "is-selecting-text";
 
 export const Messages = memo(function Messages({
   items,
@@ -143,6 +201,51 @@ export const Messages = memo(function Messages({
         }}
       />
     ) : null;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    let isPointerSelectingText = false;
+
+    const syncSelectionState = () => {
+      const shouldProtectSelection =
+        isPointerSelectingText || hasExpandedSelectionWithin(container);
+      container.classList.toggle(SELECTING_TEXT_CLASS_NAME, shouldProtectSelection);
+    };
+
+    const handlePointerStart = (event: MouseEvent) => {
+      if (event.button !== 0 || isInteractiveSelectionTarget(event.target)) {
+        return;
+      }
+      isPointerSelectingText = true;
+      syncSelectionState();
+    };
+
+    const handlePointerRelease = () => {
+      window.requestAnimationFrame(() => {
+        isPointerSelectingText = false;
+        syncSelectionState();
+      });
+    };
+
+    container.addEventListener("mousedown", handlePointerStart, true);
+    document.addEventListener("selectionchange", syncSelectionState);
+    window.addEventListener("mouseup", handlePointerRelease, true);
+    window.addEventListener("dragend", handlePointerRelease, true);
+    window.addEventListener("blur", handlePointerRelease);
+    syncSelectionState();
+
+    return () => {
+      container.classList.remove(SELECTING_TEXT_CLASS_NAME);
+      container.removeEventListener("mousedown", handlePointerStart, true);
+      document.removeEventListener("selectionchange", syncSelectionState);
+      window.removeEventListener("mouseup", handlePointerRelease, true);
+      window.removeEventListener("dragend", handlePointerRelease, true);
+      window.removeEventListener("blur", handlePointerRelease);
+    };
+  }, [containerRef]);
 
   const renderItem = (item: ConversationItem) => {
     if (item.kind === "message") {

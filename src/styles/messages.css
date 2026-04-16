@@ -236,6 +236,13 @@
   transform: translateY(0);
 }
 
+.messages.is-selecting-text .message-copy-button,
+.messages.is-selecting-text .message-quote-button {
+  opacity: 0 !important;
+  transform: translateY(4px) !important;
+  pointer-events: none;
+}
+
 .message-copy-icon {
   position: relative;
   width: 14px;
@@ -962,6 +969,37 @@
   background: color-mix(in srgb, var(--cm-surface-panel) 90%, white);
 }
 
+.messages.is-selecting-text .message.assistant .bubble,
+.messages.is-selecting-text .item-card {
+  transition: none;
+  backdrop-filter: none;
+}
+
+.messages.is-selecting-text .message.assistant .bubble:hover,
+.messages.is-selecting-text .message.assistant .bubble:focus-within {
+  border-color: var(--cm-border-emphasis);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: var(--cm-surface-panel-strong);
+  backdrop-filter: none;
+}
+
+.messages.is-selecting-text .item-card:hover,
+.messages.is-selecting-text .item-card:focus-within {
+  border-color: var(--cm-border-emphasis);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  background: var(--cm-surface-panel);
+  backdrop-filter: none;
+}
+
+.app.is-windows .message.assistant .bubble,
+.app.is-windows .item-card {
+  backdrop-filter: none;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
 .tool-group-body .tool-inline {
   margin: 0;
   border: none;
@@ -1242,6 +1280,19 @@
   border-color: var(--border-accent);
 }
 
+/* Reset message bubble wrapping so code selection follows the actual code layout. */
+.message .markdown-codeblock,
+.message .markdown-codeblock pre,
+.message .markdown-codeblock code,
+.message .markdown-codeblock-single,
+.message .markdown-codeblock-single code {
+  -webkit-user-select: text;
+  user-select: text;
+  overflow-wrap: normal;
+  word-break: normal;
+  word-wrap: normal;
+}
+
 .message .markdown-codeblock pre {
   margin: 0;
   padding: 10px 12px 12px;
@@ -1254,6 +1305,13 @@
   font-size: var(--code-font-size, 11px);
   font-weight: var(--code-font-weight, 400);
   line-height: var(--code-line-height, 1.28);
+}
+
+.message .markdown-codeblock-content {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+  white-space: inherit;
 }
 
 .message .markdown-codeblock-single {
@@ -1275,7 +1333,6 @@
 }
 
 .message .markdown-codeblock-single code {
-  display: block;
   font-family: var(--code-font-family);
   font-weight: var(--code-font-weight, 400);
   line-height: var(--code-line-height, 1.28);

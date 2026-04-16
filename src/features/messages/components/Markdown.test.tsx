@@ -71,6 +71,22 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
+  it("renders message code blocks with dedicated content classes for selection-safe styling", () => {
+    const { container } = render(
+      <Markdown
+        value={"```ts\nconst selected = value;\nconsole.log(selected);\n```"}
+        className="markdown"
+        codeBlockStyle="message"
+      />,
+    );
+
+    const pre = container.querySelector(".markdown-codeblock-body");
+    const code = container.querySelector(".markdown-codeblock-content");
+    expect(pre).toBeTruthy();
+    expect(code).toBeTruthy();
+    expect(code?.textContent).toContain("const selected = value;");
+  });
+
   it("still intercepts explicit workspace file hrefs when a file opener is provided", () => {
     const onOpenFileLink = vi.fn();
     render(

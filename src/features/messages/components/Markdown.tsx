@@ -395,8 +395,12 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
           {copied ? "已复制" : "复制"}
         </button>
       </div>
-      <pre>
-        <code className={className}>{value}</code>
+      <pre className="markdown-codeblock-body">
+        <code
+          className={className ? `${className} markdown-codeblock-content` : "markdown-codeblock-content"}
+        >
+          {value}
+        </code>
       </pre>
     </div>
   );
@@ -415,7 +419,11 @@ function PreBlock({ node, children, copyUseModifier }: PreProps) {
   if (isSingleLine) {
     return (
       <pre className="markdown-codeblock-single">
-        <code className={className}>{value}</code>
+        <code
+          className={className ? `${className} markdown-codeblock-content` : "markdown-codeblock-content"}
+        >
+          {value}
+        </code>
       </pre>
     );
   }

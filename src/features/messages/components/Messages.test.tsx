@@ -243,6 +243,54 @@ describe("Messages", () => {
     selection?.removeAllRanges();
   });
 
+  it("enables selection-safe mode while message text is highlighted", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-selection-safe-1",
+        kind: "message",
+        role: "assistant",
+        text: "Alpha beta gamma",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full");
+    const textNode = screen.getByText("Alpha beta gamma").firstChild;
+    if (!(textNode instanceof Text) || !messagesNode) {
+      throw new Error("Expected message text node");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 5);
+    const selection = window.getSelection();
+
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+
+    expect(messagesNode.classList.contains("is-selecting-text")).toBe(true);
+
+    act(() => {
+      selection?.removeAllRanges();
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+
+    expect(messagesNode.classList.contains("is-selecting-text")).toBe(false);
+  });
+
   it("opens linked review thread when clicking thread link", () => {
     const onOpenThreadLink = vi.fn();
     const items: ConversationItem[] = [
