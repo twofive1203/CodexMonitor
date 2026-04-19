@@ -462,6 +462,7 @@ export function useMainAppLayoutSurfaces({
   return {
     primary: {
       sidebarProps: {
+        nativeContextMenuEnabled: desktopShellEnabled,
         claudeEnabled: appSettings.experimentalClaudeEnabled,
         workspaces,
         groupedWorkspaces,

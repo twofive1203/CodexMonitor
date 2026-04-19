@@ -120,6 +120,98 @@ describe("useSidebarLayoutActions", () => {
     expect(setActiveThreadId).toHaveBeenCalledWith(null, "ws-1");
   });
 
+  it("connects and fully loads history when selecting an unconnected workspace", async () => {
+    const unconnectedWorkspace: WorkspaceInfo = {
+      ...workspace,
+      connected: false,
+    };
+    const connectWorkspace = vi.fn(async () => {});
+    const listThreadsForWorkspace = vi.fn(async () => {});
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId: vi.fn(),
+        connectWorkspace,
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[unconnectedWorkspace.id, unconnectedWorkspace]]),
+        updateWorkspaceSettings: vi.fn(async () => unconnectedWorkspace),
+        resetWorkspaceThreads: vi.fn(),
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread: vi.fn(async () => {}),
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace: vi.fn(async () => {}),
+        listThreadsForWorkspace,
+      }),
+    );
+
+    await act(async () => {
+      result.current.onSelectWorkspace("ws-1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(connectWorkspace).toHaveBeenCalledWith(unconnectedWorkspace);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith({
+      ...unconnectedWorkspace,
+      connected: true,
+    });
+  });
+
+  it("loads full history only once for repeated workspace selections", async () => {
+    const listThreadsForWorkspace = vi.fn(async () => {});
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId: vi.fn(),
+        connectWorkspace: vi.fn(async () => {}),
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[workspace.id, workspace]]),
+        updateWorkspaceSettings: vi.fn(async () => workspace),
+        resetWorkspaceThreads: vi.fn(),
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread: vi.fn(async () => {}),
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace: vi.fn(async () => {}),
+        listThreadsForWorkspace,
+      }),
+    );
+
+    await act(async () => {
+      result.current.onSelectWorkspace("ws-1");
+      result.current.onSelectWorkspace("ws-1");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith({
+      ...workspace,
+      connected: true,
+    });
+  });
+
   it("switches to codex tab after connecting in compact mode", async () => {
     const connectWorkspace = vi.fn(async () => {});
     const setActiveTab = vi.fn();

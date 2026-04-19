@@ -98,6 +98,7 @@ function groupFlatThreadRowsByTimeBucket(
 }
 
 type SidebarProps = {
+  nativeContextMenuEnabled?: boolean;
   claudeEnabled: boolean;
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: WorkspaceGroupSection[];
@@ -162,6 +163,7 @@ type SidebarProps = {
 };
 
 export const Sidebar = memo(function Sidebar({
+  nativeContextMenuEnabled = true,
   claudeEnabled,
   workspaces,
   groupedWorkspaces,
@@ -271,22 +273,28 @@ export const Sidebar = memo(function Sidebar({
     },
     [groupedWorkspaces],
   );
-  const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu } =
-    useSidebarMenus({
-      claudeEnabled,
-      onDeleteThread,
-      onSyncThread,
-      onPinThread: pinThread,
-      onUnpinThread: unpinThread,
-      isThreadPinned,
-      onRenameThread,
-      onReloadWorkspaceThreads,
-      onDeleteWorkspace,
-      onDeleteWorktree,
-      onMoveWorkspace,
-      canMoveWorkspace,
-      onUpdateWorkspaceProvider,
-    });
+  const {
+    showThreadMenu,
+    showWorkspaceMenu,
+    showWorktreeMenu,
+    showCloneMenu,
+    contextMenuNode,
+  } = useSidebarMenus({
+    nativeContextMenuEnabled,
+    claudeEnabled,
+    onDeleteThread,
+    onSyncThread,
+    onPinThread: pinThread,
+    onUnpinThread: unpinThread,
+    isThreadPinned,
+    onRenameThread,
+    onReloadWorkspaceThreads,
+    onDeleteWorkspace,
+    onDeleteWorktree,
+    onMoveWorkspace,
+    canMoveWorkspace,
+    onUpdateWorkspaceProvider,
+  });
   const {
     sessionPercent,
     weeklyPercent,
@@ -1080,6 +1088,7 @@ export const Sidebar = memo(function Sidebar({
         onSwitchAccount={onSwitchAccount}
         onCancelSwitchAccount={onCancelSwitchAccount}
       />
+      {contextMenuNode}
     </aside>
   );
 });

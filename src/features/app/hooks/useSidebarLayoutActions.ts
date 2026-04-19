@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import {
   getWorkspaceProvider,
   providerSupportsHistoryThreads,
@@ -68,6 +68,38 @@ export function useSidebarLayoutActions({
   loadOlderThreadsForWorkspace,
   listThreadsForWorkspace,
 }: UseSidebarLayoutActionsOptions) {
+  const fullHistoryLoadedByWorkspaceRef = useRef<Record<string, true>>({});
+
+  /**
+   * 后台补齐工作区完整历史列表。
+   *
+   * `workspace`：需要补齐历史的工作区，未连接时会先连接运行时。
+   */
+  const ensureFullWorkspaceHistory = useCallback(
+    (workspace: WorkspaceInfo) => {
+      if (!providerSupportsHistoryThreads(getWorkspaceProvider(workspace))) {
+        return;
+      }
+      if (fullHistoryLoadedByWorkspaceRef.current[workspace.id]) {
+        return;
+      }
+      fullHistoryLoadedByWorkspaceRef.current[workspace.id] = true;
+      void (async () => {
+        try {
+          if (!workspace.connected) {
+            await connectWorkspace(workspace);
+          }
+          await Promise.resolve(
+            listThreadsForWorkspace({ ...workspace, connected: true }),
+          );
+        } catch {
+          delete fullHistoryLoadedByWorkspaceRef.current[workspace.id];
+        }
+      })();
+    },
+    [connectWorkspace, listThreadsForWorkspace],
+  );
+
   const onOpenSettings = useCallback(() => {
     openSettings();
   }, [openSettings]);
@@ -85,6 +117,10 @@ export function useSidebarLayoutActions({
       clearDraftStateIfDifferentWorkspace(workspaceId);
       selectWorkspace(workspaceId);
       setActiveThreadId(null, workspaceId);
+      const workspace = workspacesById.get(workspaceId);
+      if (workspace) {
+        ensureFullWorkspaceHistory(workspace);
+      }
     },
     [
       exitDiffView,
@@ -92,17 +128,20 @@ export function useSidebarLayoutActions({
       clearDraftStateIfDifferentWorkspace,
       selectWorkspace,
       setActiveThreadId,
+      ensureFullWorkspaceHistory,
+      workspacesById,
     ],
   );
 
   const onConnectWorkspace = useCallback(
     async (workspace: WorkspaceInfo) => {
       await connectWorkspace(workspace);
+      ensureFullWorkspaceHistory({ ...workspace, connected: true });
       if (isCompact) {
         setActiveTab("codex");
       }
     },
-    [connectWorkspace, isCompact, setActiveTab],
+    [connectWorkspace, ensureFullWorkspaceHistory, isCompact, setActiveTab],
   );
 
   const onToggleWorkspaceCollapse = useCallback(

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { renderHook } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceInfo } from "../../../types";
@@ -224,5 +224,77 @@ describe("useSidebarMenus", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/worktree-1");
+  });
+
+  it("shows a browser context menu when native menus are unavailable", async () => {
+    const onDeleteWorkspace = vi.fn();
+    const workspace: WorkspaceInfo = {
+      id: "workspace-web",
+      name: "Remote Project",
+      path: "/tmp/remote-project",
+      connected: true,
+      provider: "codex",
+      settings: {
+        sidebarCollapsed: false,
+      },
+    };
+
+    /**
+     * 渲染禁用原生菜单后的浏览器右键菜单测试入口。
+     *
+     * 无入参，返回带右键触发按钮和菜单节点的测试组件。
+     */
+    function BrowserMenuHarness() {
+      const menus = useSidebarMenus({
+        nativeContextMenuEnabled: false,
+        claudeEnabled: false,
+        onDeleteThread: vi.fn(),
+        onSyncThread: vi.fn(),
+        onPinThread: vi.fn(),
+        onUnpinThread: vi.fn(),
+        isThreadPinned: vi.fn(() => false),
+        onRenameThread: vi.fn(),
+        onReloadWorkspaceThreads: vi.fn(),
+        onDeleteWorkspace,
+        onDeleteWorktree: vi.fn(),
+        onMoveWorkspace: vi.fn(),
+        canMoveWorkspace: vi.fn(() => false),
+        onUpdateWorkspaceProvider: vi.fn(),
+      });
+
+      return (
+        <>
+          <button
+            type="button"
+            onContextMenu={(event) => {
+              void menus.showWorkspaceMenu(event, workspace);
+            }}
+          >
+            target
+          </button>
+          {menus.contextMenuNode}
+        </>
+      );
+    }
+
+    render(<BrowserMenuHarness />);
+
+    fireEvent.contextMenu(screen.getByText("target"), {
+      clientX: 20,
+      clientY: 30,
+    });
+
+    expect(await screen.findByRole("menu")).toBeTruthy();
+    expect(screen.getByText("重新加载会话")).toBeTruthy();
+    expect(
+      (screen.getByText("项目上移").closest("button") as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(menuNew).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("删除"));
+
+    await waitFor(() => {
+      expect(onDeleteWorkspace).toHaveBeenCalledWith("workspace-web");
+    });
   });
 });

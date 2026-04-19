@@ -961,6 +961,24 @@
   z-index: 9999;
 }
 
+.sidebar-context-menu {
+  position: fixed;
+  isolation: isolate;
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  z-index: 10000;
+}
+
+.sidebar-context-menu-item {
+  color: var(--text-strong);
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
 .all-threads-add-menu {
   max-height: 320px;
   overflow-y: auto;
