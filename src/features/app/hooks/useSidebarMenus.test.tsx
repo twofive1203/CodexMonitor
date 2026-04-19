@@ -61,6 +61,8 @@ describe("useSidebarMenus", () => {
         onReloadWorkspaceThreads: vi.fn(),
         onDeleteWorkspace: vi.fn(),
         onDeleteWorktree: vi.fn(),
+        onMoveWorkspace: vi.fn(),
+        canMoveWorkspace: vi.fn(() => false),
         onUpdateWorkspaceProvider,
       }),
     );
@@ -101,6 +103,65 @@ describe("useSidebarMenus", () => {
     expect(onUpdateWorkspaceProvider).toHaveBeenCalledWith("workspace-1", "claude");
   });
 
+  it("adds project move actions for workspace context menus", async () => {
+    const onMoveWorkspace = vi.fn();
+    const canMoveWorkspace = vi.fn(
+      (workspaceId: string, direction: "up" | "down") => {
+        return workspaceId === "workspace-1" && direction === "down";
+      },
+    );
+    const { result } = renderHook(() =>
+      useSidebarMenus({
+        claudeEnabled: false,
+        onDeleteThread: vi.fn(),
+        onSyncThread: vi.fn(),
+        onPinThread: vi.fn(),
+        onUnpinThread: vi.fn(),
+        isThreadPinned: vi.fn(() => false),
+        onRenameThread: vi.fn(),
+        onReloadWorkspaceThreads: vi.fn(),
+        onDeleteWorkspace: vi.fn(),
+        onDeleteWorktree: vi.fn(),
+        onMoveWorkspace,
+        canMoveWorkspace,
+        onUpdateWorkspaceProvider: vi.fn(),
+      }),
+    );
+
+    const workspace: WorkspaceInfo = {
+      id: "workspace-1",
+      name: "Main Project",
+      path: "/tmp/main-project",
+      connected: true,
+      provider: "codex",
+      settings: {
+        sidebarCollapsed: false,
+      },
+    };
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      clientX: 20,
+      clientY: 30,
+    } as unknown as ReactMouseEvent;
+
+    await result.current.showWorkspaceMenu(event, workspace);
+
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    const moveUpItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "项目上移",
+    );
+    const moveDownItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "项目下移",
+    );
+
+    expect(moveUpItem.enabled).toBe(false);
+    expect(moveDownItem.enabled).toBe(true);
+
+    moveDownItem.action();
+    expect(onMoveWorkspace).toHaveBeenCalledWith("workspace-1", "down");
+  });
+
   it("adds a show in file manager option for worktrees", async () => {
     const onDeleteThread = vi.fn();
     const onSyncThread = vi.fn();
@@ -111,6 +172,8 @@ describe("useSidebarMenus", () => {
     const onReloadWorkspaceThreads = vi.fn();
     const onDeleteWorkspace = vi.fn();
     const onDeleteWorktree = vi.fn();
+    const onMoveWorkspace = vi.fn();
+    const canMoveWorkspace = vi.fn(() => false);
     const onUpdateWorkspaceProvider = vi.fn();
 
     const { result } = renderHook(() =>
@@ -125,6 +188,8 @@ describe("useSidebarMenus", () => {
         onReloadWorkspaceThreads,
         onDeleteWorkspace,
         onDeleteWorktree,
+        onMoveWorkspace,
+        canMoveWorkspace,
         onUpdateWorkspaceProvider,
       }),
     );

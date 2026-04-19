@@ -59,6 +59,7 @@ type UseMainAppLayoutSurfacesArgs = {
   threadListOrganizeMode: SidebarProps["threadListOrganizeMode"];
   onSetThreadListOrganizeMode: SidebarProps["onSetThreadListOrganizeMode"];
   onRefreshAllThreads: SidebarProps["onRefreshAllThreads"];
+  onMoveWorkspace: SidebarProps["onMoveWorkspace"];
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
@@ -262,6 +263,7 @@ export function useMainAppLayoutSurfaces({
   threadListOrganizeMode,
   onSetThreadListOrganizeMode,
   onRefreshAllThreads,
+  onMoveWorkspace,
   activeWorkspace,
   activeWorkspaceId,
   activeThreadId,
@@ -510,6 +512,7 @@ export function useMainAppLayoutSurfaces({
         onRenameThread: sidebarHandlers.onRenameThread,
         onDeleteWorkspace: sidebarHandlers.onDeleteWorkspace,
         onDeleteWorktree: sidebarHandlers.onDeleteWorktree,
+        onMoveWorkspace,
         onUpdateWorkspaceProvider: sidebarHandlers.onUpdateWorkspaceProvider,
         onLoadOlderThreads: sidebarHandlers.onLoadOlderThreads,
         onReloadWorkspaceThreads: sidebarHandlers.onReloadWorkspaceThreads,

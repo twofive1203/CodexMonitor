@@ -148,6 +148,7 @@ type SidebarProps = {
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onMoveWorkspace: (workspaceId: string, direction: "up" | "down") => void;
   onUpdateWorkspaceProvider: (workspaceId: string, provider: AgentProvider) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
@@ -211,6 +212,7 @@ export const Sidebar = memo(function Sidebar({
   onRenameThread,
   onDeleteWorkspace,
   onDeleteWorktree,
+  onMoveWorkspace,
   onUpdateWorkspaceProvider,
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
@@ -246,6 +248,29 @@ export const Sidebar = memo(function Sidebar({
     COLLAPSED_GROUPS_STORAGE_KEY,
   );
   const { getThreadRows } = useThreadRows(threadParentById);
+  /**
+   * 判断工作区是否能在当前自定义项目顺序中移动。
+   *
+   * `workspaceId`：待移动工作区 ID。
+   * `direction`：移动方向，支持上移或下移。
+   */
+  const canMoveWorkspace = useCallback(
+    (workspaceId: string, direction: "up" | "down") => {
+      for (const group of groupedWorkspaces) {
+        const index = group.workspaces.findIndex(
+          (workspace) => workspace.id === workspaceId,
+        );
+        if (index === -1) {
+          continue;
+        }
+        return direction === "up"
+          ? index > 0
+          : index < group.workspaces.length - 1;
+      }
+      return false;
+    },
+    [groupedWorkspaces],
+  );
   const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu } =
     useSidebarMenus({
       claudeEnabled,
@@ -258,6 +283,8 @@ export const Sidebar = memo(function Sidebar({
       onReloadWorkspaceThreads,
       onDeleteWorkspace,
       onDeleteWorktree,
+      onMoveWorkspace,
+      canMoveWorkspace,
       onUpdateWorkspaceProvider,
     });
   const {

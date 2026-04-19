@@ -23,6 +23,8 @@ type SidebarMenuHandlers = {
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
+  onMoveWorkspace: (workspaceId: string, direction: "up" | "down") => void;
+  canMoveWorkspace: (workspaceId: string, direction: "up" | "down") => boolean;
   onUpdateWorkspaceProvider: (
     workspaceId: string,
     provider: AgentProvider,
@@ -102,6 +104,8 @@ export function useSidebarMenus({
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
+  onMoveWorkspace,
+  canMoveWorkspace,
   onUpdateWorkspaceProvider,
 }: SidebarMenuHandlers) {
   const showThreadMenu = useCallback(
@@ -180,12 +184,22 @@ export function useSidebarMenus({
         text: "重新加载会话",
         action: () => onReloadWorkspaceThreads(workspace.id),
       });
+      const moveUpItem = await MenuItem.new({
+        text: "项目上移",
+        enabled: canMoveWorkspace(workspace.id, "up"),
+        action: () => onMoveWorkspace(workspace.id, "up"),
+      });
+      const moveDownItem = await MenuItem.new({
+        text: "项目下移",
+        enabled: canMoveWorkspace(workspace.id, "down"),
+        action: () => onMoveWorkspace(workspace.id, "down"),
+      });
       const deleteItem = await MenuItem.new({
         text: "删除",
         action: () => onDeleteWorkspace(workspace.id),
       });
       const menu = await Menu.new({
-        items: [...providerItems, reloadItem, deleteItem],
+        items: [...providerItems, reloadItem, moveUpItem, moveDownItem, deleteItem],
       });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
@@ -193,7 +207,9 @@ export function useSidebarMenus({
     },
     [
       claudeEnabled,
+      canMoveWorkspace,
       onDeleteWorkspace,
+      onMoveWorkspace,
       onReloadWorkspaceThreads,
       onUpdateWorkspaceProvider,
     ],

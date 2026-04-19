@@ -1640,6 +1640,7 @@ export default function MainApp() {
     threadListOrganizeMode,
     onSetThreadListOrganizeMode: setThreadListOrganizeMode,
     onRefreshAllThreads: handleRefreshAllWorkspaceThreads,
+    onMoveWorkspace: handleMoveWorkspace,
     activeWorkspace,
     activeWorkspaceId,
     activeThreadId,
