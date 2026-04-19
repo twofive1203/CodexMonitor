@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import { renderHook, act } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceRestore } from "./useWorkspaceRestore";
 import type { WorkspaceInfo } from "../../../types";
+import { saveThreadActivity } from "@threads/utils/threadStorage";
 
 function buildWorkspace(overrides: Partial<WorkspaceInfo> = {}): WorkspaceInfo {
   return {
@@ -41,6 +42,10 @@ function createDeferred<T>() {
 }
 
 describe("useWorkspaceRestore", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -85,17 +90,21 @@ describe("useWorkspaceRestore", () => {
     expect(connectWorkspace).toHaveBeenCalledTimes(2);
     expect(listThreadsForWorkspaces).toHaveBeenCalledWith(
       [{ ...workspace, connected: true }],
-      { maxPages: 6 },
+      { maxPages: 1, pageSize: 30 },
     );
   });
 
-  it("loads history for multiple restored workspaces in one batch", async () => {
+  it("restores only the most recently active workspace on startup", async () => {
     const workspaceOne = buildWorkspace({ id: "ws-1", name: "workspace-1" });
     const workspaceTwo = buildWorkspace({
       id: "ws-2",
       name: "workspace-2",
       path: "D:/workspace/project-two",
       provider: "claude",
+    });
+    saveThreadActivity({
+      "ws-1": { "thread-old": 100 },
+      "ws-2": { "thread-recent": 200 },
     });
     const connectWorkspace = vi
       .fn<(workspace: WorkspaceInfo) => Promise<void>>()
@@ -122,18 +131,16 @@ describe("useWorkspaceRestore", () => {
       await Promise.resolve();
     });
 
-    expect(connectWorkspace).toHaveBeenCalledTimes(2);
+    expect(connectWorkspace).toHaveBeenCalledTimes(1);
+    expect(connectWorkspace).toHaveBeenCalledWith(workspaceTwo);
     expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
     expect(listThreadsForWorkspaces).toHaveBeenCalledWith(
-      [
-        { ...workspaceOne, connected: true },
-        { ...workspaceTwo, connected: true },
-      ],
-      { maxPages: 6 },
+      [{ ...workspaceTwo, connected: true }],
+      { maxPages: 1, pageSize: 30 },
     );
   });
 
-  it("retries only workspaces whose history refresh failed", async () => {
+  it("retries only the startup workspace whose history refresh failed", async () => {
     vi.useFakeTimers({
       toFake: ["setTimeout", "clearTimeout"],
     });
@@ -153,7 +160,7 @@ describe("useWorkspaceRestore", () => {
           workspaces: WorkspaceInfo[],
         ) => Promise<{ failedWorkspaceIds: string[] } | void>
       >()
-      .mockResolvedValueOnce({ failedWorkspaceIds: ["ws-2"] })
+      .mockResolvedValueOnce({ failedWorkspaceIds: ["ws-1"] })
       .mockResolvedValueOnce({ failedWorkspaceIds: [] });
 
     renderHook(() =>
@@ -170,14 +177,12 @@ describe("useWorkspaceRestore", () => {
       await Promise.resolve();
     });
 
-    expect(connectWorkspace).toHaveBeenCalledTimes(2);
+    expect(connectWorkspace).toHaveBeenCalledTimes(1);
+    expect(connectWorkspace).toHaveBeenCalledWith(workspaceOne);
     expect(listThreadsForWorkspaces).toHaveBeenNthCalledWith(
       1,
-      [
-        { ...workspaceOne, connected: true },
-        { ...workspaceTwo, connected: true },
-      ],
-      { maxPages: 6 },
+      [{ ...workspaceOne, connected: true }],
+      { maxPages: 1, pageSize: 30 },
     );
 
     await act(async () => {
@@ -186,12 +191,12 @@ describe("useWorkspaceRestore", () => {
       await Promise.resolve();
     });
 
-    expect(connectWorkspace).toHaveBeenCalledTimes(3);
-    expect(connectWorkspace).toHaveBeenLastCalledWith(workspaceTwo);
+    expect(connectWorkspace).toHaveBeenCalledTimes(2);
+    expect(connectWorkspace).toHaveBeenLastCalledWith(workspaceOne);
     expect(listThreadsForWorkspaces).toHaveBeenNthCalledWith(
       2,
-      [{ ...workspaceTwo, connected: true }],
-      { maxPages: 6 },
+      [{ ...workspaceOne, connected: true }],
+      { maxPages: 1, pageSize: 30 },
     );
   });
 
@@ -249,7 +254,7 @@ describe("useWorkspaceRestore", () => {
     expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
     expect(listThreadsForWorkspaces).toHaveBeenCalledWith(
       [{ ...workspace, connected: true }],
-      { maxPages: 6 },
+      { maxPages: 1, pageSize: 30 },
     );
   });
 });

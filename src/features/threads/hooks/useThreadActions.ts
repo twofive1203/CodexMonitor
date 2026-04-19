@@ -43,7 +43,7 @@ import {
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
 const THREAD_LIST_TARGET_COUNT = 20;
-const THREAD_LIST_PAGE_SIZE = 100;
+const THREAD_LIST_PAGE_SIZE_DEFAULT = 100;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
 const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
@@ -564,6 +564,7 @@ export function useThreadActions({
         preserveState?: boolean;
         sortKey?: ThreadListSortKey;
         maxPages?: number;
+        pageSize?: number;
       },
     ): Promise<ThreadListRefreshResult> => {
       const targets = workspaces.filter((workspace) => workspace.id);
@@ -576,6 +577,10 @@ export function useThreadActions({
       const preserveState = options?.preserveState ?? false;
       const requestedSortKey = options?.sortKey ?? threadSortKey;
       const maxPages = Math.max(1, options?.maxPages ?? THREAD_LIST_MAX_PAGES_DEFAULT);
+      const pageSize = Math.max(
+        1,
+        Math.min(options?.pageSize ?? THREAD_LIST_PAGE_SIZE_DEFAULT, THREAD_LIST_PAGE_SIZE_DEFAULT),
+      );
       if (!preserveState) {
         historyTargets.forEach((workspace) => {
           dispatch({
@@ -599,6 +604,7 @@ export function useThreadActions({
           workspaceIds: historyTargets.map((workspace) => workspace.id),
           preserveState,
           maxPages,
+          pageSize,
         },
       });
 
@@ -659,7 +665,7 @@ export function useThreadActions({
             (await listThreadsService(
               requester.id,
               cursor,
-              THREAD_LIST_PAGE_SIZE,
+              pageSize,
               requestedSortKey,
             )) as Record<string, unknown>;
           onDebug?.({
@@ -933,6 +939,7 @@ export function useThreadActions({
         preserveState?: boolean;
         sortKey?: ThreadListSortKey;
         maxPages?: number;
+        pageSize?: number;
       },
     ): Promise<ThreadListRefreshResult> => {
       return listThreadsForWorkspaces([workspace], options);
@@ -991,7 +998,7 @@ export function useThreadActions({
             (await listThreadsService(
               workspace.id,
               cursor,
-              THREAD_LIST_PAGE_SIZE,
+              THREAD_LIST_PAGE_SIZE_DEFAULT,
               requestedSortKey,
             )) as Record<string, unknown>;
           onDebug?.({
