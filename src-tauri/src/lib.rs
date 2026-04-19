@@ -61,6 +61,17 @@ async fn stop_managed_daemons_for_exit(app_handle: tauri::AppHandle) {
     let _ = tailscale::tailscale_daemon_stop(state).await;
 }
 
+/// 恢复主窗口并尝试聚焦到前台。
+/// `app_handle`：当前 Tauri 应用句柄，用于查找并操作主窗口。
+#[cfg(desktop)]
+fn restore_main_window(app_handle: &tauri::AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 #[tauri::command]
 fn is_mobile_runtime() -> bool {
     cfg!(any(target_os = "ios", target_os = "android"))
@@ -101,6 +112,13 @@ pub fn run() {
 
     #[cfg(not(desktop))]
     let builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(
+        |app_handle, _argv, _cwd| {
+            restore_main_window(app_handle);
+        },
+    ));
 
     let builder = builder
         .on_window_event(|window, event| {
@@ -340,10 +358,7 @@ pub fn run() {
 
         #[cfg(target_os = "macos")]
         if let RunEvent::Reopen { .. } = event {
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            restore_main_window(app_handle);
         }
     });
 }
