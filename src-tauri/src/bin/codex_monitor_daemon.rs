@@ -102,6 +102,9 @@ const DEFAULT_LISTEN_ADDR: &str = DEFAULT_REMOTE_BACKEND_HOST;
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
 const DAEMON_NAME: &str = "codex-monitor-daemon";
 const WEB_SESSION_TTL_SECS: u64 = 60 * 60 * 12;
+const WEB_LOGIN_RATE_WINDOW_SECS: u64 = 10 * 60;
+const WEB_LOGIN_MAX_FAILURES: u32 = 8;
+const WEB_LOGIN_BLOCK_SECS: u64 = 5 * 60;
 
 fn spawn_with_client(
     event_sink: DaemonEventSink,
@@ -174,6 +177,7 @@ struct DaemonState {
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
     web_sessions: Mutex<HashMap<String, WebSessionRecord>>,
+    web_login_attempts: Mutex<HashMap<String, WebLoginAttemptRecord>>,
     daemon_binary_path: Option<String>,
 }
 
@@ -186,6 +190,13 @@ struct WorkspaceFileResponse {
 #[derive(Clone)]
 struct WebSessionRecord {
     expires_at: SystemTime,
+}
+
+#[derive(Clone)]
+struct WebLoginAttemptRecord {
+    failed_attempts: u32,
+    window_started_at: SystemTime,
+    blocked_until: Option<SystemTime>,
 }
 
 impl DaemonState {
@@ -208,6 +219,7 @@ impl DaemonState {
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
             web_sessions: Mutex::new(HashMap::new()),
+            web_login_attempts: Mutex::new(HashMap::new()),
             daemon_binary_path,
         }
     }
@@ -283,6 +295,104 @@ impl DaemonState {
     async fn invalidate_web_session(&self, session_id: &str) {
         let mut sessions = self.web_sessions.lock().await;
         sessions.remove(session_id);
+    }
+
+    /// 校验指定客户端是否仍可尝试 Web 登录。
+    ///
+    /// `client_key`：按远端地址或反代头解析出的登录来源标识。
+    async fn check_web_login_rate_limit(&self, client_key: &str) -> Result<(), u64> {
+        let mut attempts = self.web_login_attempts.lock().await;
+        let now = SystemTime::now();
+        attempts.retain(|_, record| {
+            let window_active = now
+                .duration_since(record.window_started_at)
+                .map(|elapsed| elapsed < Duration::from_secs(WEB_LOGIN_RATE_WINDOW_SECS))
+                .unwrap_or(true);
+            let block_active = record.blocked_until.is_some_and(|until| until > now);
+            window_active || block_active
+        });
+
+        let Some(record) = attempts.get(client_key) else {
+            return Ok(());
+        };
+        let Some(blocked_until) = record.blocked_until else {
+            return Ok(());
+        };
+        if blocked_until <= now {
+            return Ok(());
+        }
+        let retry_after = blocked_until
+            .duration_since(now)
+            .unwrap_or_else(|_| Duration::from_secs(1))
+            .as_secs()
+            .max(1);
+        Err(retry_after)
+    }
+
+    /// 记录一次 Web 登录失败并在超过阈值后短暂封禁来源。
+    ///
+    /// `client_key`：按远端地址或反代头解析出的登录来源标识。
+    async fn record_web_login_failure(&self, client_key: &str) {
+        let mut attempts = self.web_login_attempts.lock().await;
+        let now = SystemTime::now();
+        let record =
+            attempts
+                .entry(client_key.to_string())
+                .or_insert_with(|| WebLoginAttemptRecord {
+                    failed_attempts: 0,
+                    window_started_at: now,
+                    blocked_until: None,
+                });
+
+        let window_expired = now
+            .duration_since(record.window_started_at)
+            .map(|elapsed| elapsed >= Duration::from_secs(WEB_LOGIN_RATE_WINDOW_SECS))
+            .unwrap_or(false);
+        if window_expired {
+            record.failed_attempts = 0;
+            record.window_started_at = now;
+            record.blocked_until = None;
+        }
+
+        record.failed_attempts = record.failed_attempts.saturating_add(1);
+        if record.failed_attempts >= WEB_LOGIN_MAX_FAILURES {
+            record.blocked_until = now.checked_add(Duration::from_secs(WEB_LOGIN_BLOCK_SECS));
+        }
+    }
+
+    /// 清理指定来源的 Web 登录失败记录。
+    ///
+    /// `client_key`：按远端地址或反代头解析出的登录来源标识。
+    async fn clear_web_login_failures(&self, client_key: &str) {
+        let mut attempts = self.web_login_attempts.lock().await;
+        attempts.remove(client_key);
+    }
+
+    /// 生成适合 Web runtime 下发的设置副本。
+    ///
+    /// `settings`：完整应用设置，返回值会移除远程访问令牌等敏感字段。
+    fn sanitize_web_app_settings(mut settings: AppSettings) -> AppSettings {
+        settings.remote_backend_token = None;
+        for backend in &mut settings.remote_backends {
+            backend.token = None;
+        }
+        settings
+    }
+
+    /// 合并 Web runtime 提交的设置，保留服务端已有敏感字段。
+    ///
+    /// `settings`：浏览器提交的设置对象，返回值可安全持久化。
+    async fn merge_web_app_settings_update(&self, mut settings: AppSettings) -> AppSettings {
+        let current = self.app_settings.lock().await;
+        settings.remote_backend_token = current.remote_backend_token.clone();
+        for backend in &mut settings.remote_backends {
+            backend.token = current
+                .remote_backends
+                .iter()
+                .find(|entry| entry.id == backend.id)
+                .and_then(|entry| entry.token.clone());
+        }
+        settings
     }
 
     async fn sync_workspaces_from_storage(&self) {
@@ -1843,6 +1953,7 @@ mod tests {
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
             web_sessions: Mutex::new(HashMap::new()),
+            web_login_attempts: Mutex::new(HashMap::new()),
             daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
         }
     }

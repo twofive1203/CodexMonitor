@@ -237,17 +237,36 @@ pub(super) async fn try_handle(
                 .await,
             )
         }
-        "get_app_settings" => Some(serialize_value(state.get_app_settings().await)),
+        "get_app_settings" => {
+            let settings = state.get_app_settings().await;
+            let settings = if client_version.starts_with("web-") {
+                DaemonState::sanitize_web_app_settings(settings)
+            } else {
+                settings
+            };
+            Some(serialize_value(settings))
+        }
         "update_app_settings" => {
             let settings_value = match params {
                 Value::Object(map) => map.get("settings").cloned().unwrap_or(Value::Null),
                 _ => Value::Null,
             };
-            let settings: AppSettings = match serde_json::from_value(settings_value) {
+            let mut settings: AppSettings = match serde_json::from_value(settings_value) {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err.to_string())),
             };
-            Some(serialize_result(state.update_app_settings(settings)).await)
+            if client_version.starts_with("web-") {
+                settings = state.merge_web_app_settings_update(settings).await;
+            }
+            let result = state.update_app_settings(settings).await;
+            if client_version.starts_with("web-") {
+                return Some(
+                    result
+                        .map(DaemonState::sanitize_web_app_settings)
+                        .and_then(serialize_value),
+                );
+            }
+            Some(result.and_then(serialize_value))
         }
         "apply_worktree_changes" => {
             let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);

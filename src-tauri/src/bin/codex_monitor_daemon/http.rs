@@ -72,7 +72,10 @@ pub(super) async fn serve(
         static_dir,
     };
     let app: Router = routes::build_router(context);
-    axum::serve(listener, app)
-        .await
-        .map_err(|error| format!("failed to serve web listener: {error}"))
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .map_err(|error| format!("failed to serve web listener: {error}"))
 }

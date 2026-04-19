@@ -1,5 +1,5 @@
 use super::super::*;
-use super::auth::require_session;
+use super::auth::{require_session, require_trusted_origin};
 use super::HttpServerContext;
 use crate::rpc::build_event_notification;
 use axum::{
@@ -159,6 +159,9 @@ pub(super) async fn events(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Response {
+    if let Err(response) = require_trusted_origin(&context, &headers).await {
+        return response;
+    }
     if let Err(response) = require_session(&context, &headers).await {
         return response;
     }
@@ -176,6 +179,9 @@ pub(super) async fn terminal(
     Query(query): Query<TerminalSocketQuery>,
     ws: WebSocketUpgrade,
 ) -> Response {
+    if let Err(response) = require_trusted_origin(&context, &headers).await {
+        return response;
+    }
     if let Err(response) = require_session(&context, &headers).await {
         return response;
     }
