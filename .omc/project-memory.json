@@ -1,0 +1,264 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776513719586,
+  "projectRoot": "D:\\workspace\\aiwork\\CodexMonitor",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "19.1.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.1.0",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "7.0.4",
+        "category": "build"
+      },
+      {
+        "name": "vitest",
+        "version": "3.2.4",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "sync:material-icons": "node scripts/sync-material-icons.mjs",
+      "postinstall": "npm run sync:material-icons",
+      "predev": "npm run sync:material-icons",
+      "dev": "vite",
+      "prebuild": "npm run sync:material-icons",
+      "build": "tsc && vite build",
+      "build:daemon": "cargo build --manifest-path src-tauri/Cargo.toml --bin codex_monitor_daemon",
+      "build:daemon:release": "cargo build --manifest-path src-tauri/Cargo.toml --bin codex_monitor_daemon --release",
+      "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
+      "doctor": "sh scripts/doctor.sh",
+      "doctor:strict": "sh scripts/doctor.sh --strict",
+      "doctor:win": "node scripts/doctor.mjs --strict",
+      "lint": "eslint . --ext .ts,.tsx",
+      "lint:ds": "eslint . --ext .ts,.tsx",
+      "codemod:modal-shell": "node scripts/codemods/modal-shell-codemod.mjs",
+      "codemod:panel-shell": "node scripts/codemods/panel-shell-codemod.mjs",
+      "codemod:toast-shell": "node scripts/codemods/toast-shell-codemod.mjs",
+      "codemod:ds:dry": "npm run codemod:modal-shell -- --dry-run && npm run codemod:panel-shell -- --dry-run && npm run codemod:toast-shell -- --dry-run",
+      "codemod:ds": "npm run codemod:modal-shell && npm run codemod:panel-shell && npm run codemod:toast-shell",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "typecheck": "tsc --noEmit",
+      "preview": "vite preview",
+      "tauri": "tauri",
+      "pretauri:dev": "npm run sync:material-icons && npm run build:daemon",
+      "tauri:dev": "npm run doctor:strict && tauri dev",
+      "pretauri:build": "npm run sync:material-icons && npm run build:daemon:release",
+      "tauri:build": "npm run doctor:strict && tauri build",
+      "pretauri:dev:win": "npm run sync:material-icons && npm run build:daemon",
+      "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
+      "pretauri:build:win": "npm run sync:material-icons && npm run build:daemon:release",
+      "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json",
+      "pretauri:build:win:local": "npm run sync:material-icons && npm run build:daemon:release",
+      "tauri:build:win:local": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.local.conf.json"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "feature-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "public",
+      "scripts",
+      "src",
+      "tests"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 4,
+      "lastAccessed": 1776513719561,
+      "keyFiles": [
+        "app-icon.png",
+        "index.html",
+        "tauri.svg",
+        "vite.svg"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 15,
+      "lastAccessed": 1776513719562,
+      "keyFiles": [
+        "app-server-events.md",
+        "changelog.html",
+        "claude-code-support-task-list.md",
+        "claude-followup-task-list.md",
+        "claude-manual-acceptance-matrix.md"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 3,
+      "lastAccessed": 1776513719571,
+      "keyFiles": [
+        "app-icon.png",
+        "tauri.svg",
+        "vite.svg"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 7,
+      "lastAccessed": 1776513719572,
+      "keyFiles": [
+        "build_run_ios.sh",
+        "build_run_ios_device.sh",
+        "doctor.mjs",
+        "doctor.sh",
+        "macos-fix-openssl.sh"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 6,
+      "lastAccessed": 1776513719573,
+      "keyFiles": [
+        "App.tsx",
+        "lucide-icons.d.ts",
+        "main.test.tsx",
+        "main.tsx",
+        "types.ts"
+      ]
+    },
+    "src-tauri": {
+      "path": "src-tauri",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1776513719574,
+      "keyFiles": [
+        "build.rs",
+        "Cargo.lock",
+        "Cargo.toml",
+        "Entitlements.plist",
+        "Info.plist"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1776513719574,
+      "keyFiles": [
+        "claude_sdk_sidecar.test.mjs"
+      ]
+    },
+    "dist\\assets": {
+      "path": "dist\\assets",
+      "purpose": "Static assets",
+      "fileCount": 314,
+      "lastAccessed": 1776513719575,
+      "keyFiles": [
+        "abap-BdImnpbu.js",
+        "AboutView-CM_tafm4.js",
+        "actionscript-3-CfeIJUat.js"
+      ]
+    },
+    "docs\\assets": {
+      "path": "docs\\assets",
+      "purpose": "Static assets",
+      "fileCount": 9,
+      "lastAccessed": 1776513719576,
+      "keyFiles": [
+        "app-icon.png",
+        "feature1.png",
+        "feature2.png"
+      ]
+    },
+    "public\\assets": {
+      "path": "public\\assets",
+      "purpose": "Static assets",
+      "fileCount": 0,
+      "lastAccessed": 1776513719576,
+      "keyFiles": []
+    },
+    "src\\assets": {
+      "path": "src\\assets",
+      "purpose": "Static assets",
+      "fileCount": 2,
+      "lastAccessed": 1776513719577,
+      "keyFiles": [
+        "error-notification.mp3",
+        "success-notification.mp3"
+      ]
+    },
+    "src\\services": {
+      "path": "src\\services",
+      "purpose": "Business logic services",
+      "fileCount": 8,
+      "lastAccessed": 1776513719578,
+      "keyFiles": [
+        "dragDrop.test.ts",
+        "dragDrop.ts",
+        "events.test.ts"
+      ]
+    },
+    "src\\test": {
+      "path": "src\\test",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1776513719578,
+      "keyFiles": [
+        "vitest.setup.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/features/app/components/MainApp.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1776585823489,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}
