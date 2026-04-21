@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { RefObject } from "react";
+import type { RefCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -41,7 +41,7 @@ type TerminalAppearance = {
 export type TerminalSessionState = {
   status: TerminalStatus;
   message: string;
-  containerRef: RefObject<HTMLDivElement | null>;
+  containerRef: RefCallback<HTMLDivElement>;
   hasSession: boolean;
   readyKey: string | null;
   cleanupTerminalSession: (workspaceId: string, terminalId: string) => void;
@@ -133,7 +133,7 @@ export function useTerminalSession({
   onDebug,
   onSessionExit,
 }: UseTerminalSessionOptions): TerminalSessionState {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputDisposableRef = useRef<{ dispose: () => void } | null>(null);
@@ -149,6 +149,9 @@ export function useTerminalSession({
   const [hasSession, setHasSession] = useState(false);
   const [readyKey, setReadyKey] = useState<string | null>(null);
   const [sessionResetCounter, setSessionResetCounter] = useState(0);
+  const containerRef = useCallback<RefCallback<HTMLDivElement>>((node) => {
+    setContainerElement(node);
+  }, []);
   const cleanupTerminalSession = useCallback((workspaceId: string, terminalId: string) => {
     const key = `${workspaceId}:${terminalId}`;
     outputBuffersRef.current.delete(key);
@@ -256,7 +259,7 @@ export function useTerminalSession({
   }, [cleanupTerminalSession, onDebug, onSessionExit]);
 
   useEffect(() => {
-    if (!isVisible) {
+    if (!isVisible || !containerElement) {
       inputDisposableRef.current?.dispose();
       inputDisposableRef.current = null;
       if (terminalRef.current) {
@@ -268,8 +271,8 @@ export function useTerminalSession({
       return;
     }
 
-    if (!terminalRef.current && containerRef.current) {
-      const appearance = getTerminalAppearance(containerRef.current);
+    if (!terminalRef.current) {
+      const appearance = getTerminalAppearance(containerElement);
       const terminal = new Terminal({
         cursorBlink: true,
         fontSize: 12,
@@ -280,7 +283,7 @@ export function useTerminalSession({
       });
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
-      terminal.open(containerRef.current);
+      terminal.open(containerElement);
       fitAddon.fit();
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
@@ -304,7 +307,7 @@ export function useTerminalSession({
         });
       });
     }
-  }, [isVisible, onDebug]);
+  }, [containerElement, isVisible, onDebug]);
 
   useEffect(() => {
     return () => {
@@ -331,7 +334,7 @@ export function useTerminalSession({
       setReadyKey(null);
       return;
     }
-    if (!terminalRef.current || !fitAddonRef.current) {
+    if (!containerElement || !terminalRef.current || !fitAddonRef.current) {
       setStatus("idle");
       setMessage("正在准备终端...");
       setHasSession(false);
@@ -371,6 +374,7 @@ export function useTerminalSession({
   }, [
     activeTerminalId,
     activeWorkspace,
+    containerElement,
     isVisible,
     onDebug,
     refreshTerminal,
@@ -387,16 +391,17 @@ export function useTerminalSession({
   }, [focusRequestVersion, focusTerminalIfRequested, isVisible]);
 
   useEffect(() => {
-    if (!isVisible || !activeKey || !terminalRef.current || !fitAddonRef.current) {
+    if (!isVisible || !activeKey || !containerElement || !terminalRef.current || !fitAddonRef.current) {
       return;
     }
     fitAddonRef.current.fit();
     refreshTerminal();
-  }, [activeKey, isVisible, refreshTerminal]);
+  }, [activeKey, containerElement, isVisible, refreshTerminal]);
 
   useEffect(() => {
     if (
       !isVisible ||
+      !containerElement ||
       !terminalRef.current ||
       !activeWorkspace ||
       !activeTerminalId ||
@@ -431,15 +436,13 @@ export function useTerminalSession({
       resize();
     });
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
+    observer.observe(containerElement);
     resize();
 
     return () => {
       observer.disconnect();
     };
-  }, [activeTerminalId, activeWorkspace, hasSession, isVisible, onDebug]);
+  }, [activeTerminalId, activeWorkspace, containerElement, hasSession, isVisible, onDebug]);
 
   return {
     status,

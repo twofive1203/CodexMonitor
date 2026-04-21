@@ -143,6 +143,7 @@ type UseMainAppLayoutSurfacesArgs = {
   handleSelectOpenAppId: MainHeaderProps["onSelectOpenAppId"];
   handleCopyThread: MainHeaderProps["onCopyThread"];
   handleToggleTerminalWithFocus: MainHeaderProps["onToggleTerminal"];
+  openTerminalPanel: () => void;
   launchScriptState: {
     launchScript: string | null;
     editorOpen: boolean;
@@ -321,6 +322,7 @@ export function useMainAppLayoutSurfaces({
   handleSelectOpenAppId,
   handleCopyThread,
   handleToggleTerminalWithFocus,
+  openTerminalPanel,
   launchScriptState,
   launchScriptsState,
   models,
@@ -754,7 +756,13 @@ export function useMainAppLayoutSurfaces({
       },
       tabletNavProps: {
         activeTab: tabletTab,
-        onSelect: setActiveTab,
+        onSelect: (tab) => {
+          if (tab === "log" && runtimeCapabilities.terminal) {
+            openTerminalPanel();
+          }
+          setActiveTab(tab);
+        },
+        terminalTabLabel: runtimeCapabilities.terminal ? "终端" : "日志",
       },
       tabBarProps: {
         activeTab,
@@ -765,8 +773,12 @@ export function useMainAppLayoutSurfaces({
             threadNavigation.selectHome();
             return;
           }
+          if (tab === "log" && runtimeCapabilities.terminal) {
+            openTerminalPanel();
+          }
           setActiveTab(tab);
         },
+        terminalTabLabel: runtimeCapabilities.terminal ? "终端" : "日志",
       },
     },
     git: {

@@ -21,7 +21,7 @@ const baseWorkspace: WorkspaceInfo = {
 const terminalState: TerminalSessionState = {
   status: "ready",
   message: "",
-  containerRef: { current: null },
+  containerRef: vi.fn(),
   hasSession: false,
   readyKey: null,
   cleanupTerminalSession: vi.fn(),

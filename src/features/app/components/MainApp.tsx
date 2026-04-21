@@ -1730,6 +1730,7 @@ export default function MainApp() {
     handleSelectOpenAppId,
     handleCopyThread,
     handleToggleTerminalWithFocus,
+    openTerminalPanel: openTerminal,
     launchScriptState,
     launchScriptsState,
     models,
@@ -1836,10 +1837,18 @@ export default function MainApp() {
     debugPanelNode,
     debugPanelFullNode,
     terminalDockNode,
+    terminalFullNode,
     compactEmptyCodexNode,
     compactEmptyGitNode,
+    compactEmptyTerminalNode,
     compactGitBackNode,
   } = useMainAppLayoutNodes(layoutSurfaces);
+  const compactLogNode =
+    runtimeCapabilities.terminal
+      ? activeWorkspace
+        ? terminalFullNode
+        : compactEmptyTerminalNode
+      : debugPanelFullNode;
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
   const compactThreadConnectionState: "live" | "polling" | "disconnected" =
@@ -1895,8 +1904,8 @@ export default function MainApp() {
       gitDiffViewerNode,
       planPanelNode,
       debugPanelNode,
-      debugPanelFullNode,
       terminalDockNode,
+      compactLogNode,
       compactEmptyCodexNode,
       compactEmptyGitNode,
       compactGitBackNode,
