@@ -8,9 +8,16 @@ import type {
   ThreadListSortKey,
   WorkspaceInfo,
 } from "@/types";
-import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
+import {
+  CHAT_SCROLLBACK_DEFAULT,
+  getNextChatHistoryScrollbackItems,
+} from "@utils/chatScrollback";
 import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
-import { initialState, threadReducer } from "./useThreadsReducer";
+import {
+  getThreadMaxItemsPerThread,
+  initialState,
+  threadReducer,
+} from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
 import { useThreadLinking } from "./useThreadLinking";
 import { useThreadEventHandlers } from "./useThreadEventHandlers";
@@ -70,6 +77,17 @@ type UseThreadsOptions = {
 
 function buildWorkspaceThreadKey(workspaceId: string, threadId: string) {
   return `${workspaceId}:${threadId}`;
+}
+
+/**
+ * 判断当前线程是否已经触达前端可见历史上限。
+ *
+ * @param itemCount 当前线程已展示的条目数量。
+ * @param maxItemsPerThread 当前线程生效的历史条数上限。
+ * @returns 若当前条目数已达到上限则返回 `true`。
+ */
+function hasReachedThreadHistoryLimit(itemCount: number, maxItemsPerThread: number | null) {
+  return maxItemsPerThread !== null && itemCount >= maxItemsPerThread;
 }
 
 const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
@@ -150,6 +168,29 @@ export function useThreads({
     itemsByThread: state.itemsByThread,
     threadsByWorkspace: state.threadsByWorkspace,
   });
+  const activeThreadHistoryLimit = activeThreadId
+    ? getThreadMaxItemsPerThread(state, activeThreadId)
+    : null;
+  const activeThreadNextHistoryLimit = getNextChatHistoryScrollbackItems(
+    activeThreadHistoryLimit,
+  );
+  const activeThreadHasLoadMoreHistoryAction = Boolean(
+    activeThreadId &&
+      activeItems.length > 0 &&
+      hasReachedThreadHistoryLimit(activeItems.length, activeThreadHistoryLimit),
+  );
+  const activeThreadCanLoadMoreHistory = Boolean(
+    activeThreadId &&
+      activeItems.length > 0 &&
+      activeThreadHistoryLimit !== null &&
+      (
+        activeThreadHasLoadMoreHistoryAction ||
+        Boolean(
+          state.threadResumeLoadingById[activeThreadId] &&
+            activeItems.length < activeThreadHistoryLimit,
+        )
+      ),
+  );
 
   const getCurrentRateLimits = useCallback(
     (workspaceId: string) => rateLimitsByWorkspaceRef.current[workspaceId] ?? null,
@@ -859,11 +900,44 @@ export function useThreads({
     [archiveThread, unpinThread],
   );
 
+  /**
+   * 提升当前会话的前端历史上限，并重新同步更早记录。
+   */
+  const loadMoreHistoryForActiveThread = useCallback(async () => {
+    if (
+      !activeWorkspaceId ||
+      !activeThreadId ||
+      !activeThreadHasLoadMoreHistoryAction
+    ) {
+      return null;
+    }
+    if (state.threadResumeLoadingById[activeThreadId]) {
+      return null;
+    }
+    dispatch({
+      type: "setThreadMaxItemsPerThread",
+      threadId: activeThreadId,
+      maxItemsPerThread: activeThreadNextHistoryLimit,
+    });
+    return refreshThread(activeWorkspaceId, activeThreadId);
+  }, [
+    activeThreadHasLoadMoreHistoryAction,
+    activeThreadId,
+    activeThreadNextHistoryLimit,
+    activeWorkspaceId,
+    dispatch,
+    refreshThread,
+    state.threadResumeLoadingById,
+  ]);
+
   return {
     activeThreadId,
     setActiveThreadId,
     hasLocalThreadSnapshot,
     activeItems,
+    activeThreadHistoryLimit,
+    activeThreadNextHistoryLimit,
+    activeThreadCanLoadMoreHistory,
     approvals: state.approvals,
     userInputRequests: state.userInputRequests,
     threadsByWorkspace: state.threadsByWorkspace,
@@ -897,6 +971,7 @@ export function useThreads({
     listThreadsForWorkspaces,
     listThreadsForWorkspace,
     refreshThread,
+    loadMoreHistoryForActiveThread,
     resetWorkspaceThreads,
     loadOlderThreadsForWorkspace,
     sendUserMessage,

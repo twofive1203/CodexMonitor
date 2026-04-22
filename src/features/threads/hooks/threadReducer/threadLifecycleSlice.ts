@@ -131,6 +131,8 @@ export function reduceThreadLifecycle(
       const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
       const { [action.threadId]: _____, ...restPlans } = state.planByThread;
       const { [action.threadId]: ______, ...restParents } = state.threadParentById;
+      const { [action.threadId]: _______, ...restThreadMaxItems } =
+        state.maxItemsPerThreadByThread;
       return {
         ...state,
         threadsByWorkspace: {
@@ -138,6 +140,7 @@ export function reduceThreadLifecycle(
           [action.workspaceId]: filtered,
         },
         itemsByThread: restItems,
+        maxItemsPerThreadByThread: restThreadMaxItems,
         threadStatusById: restStatus,
         activeTurnIdByThread: restTurns,
         turnDiffByThread: restDiffs,

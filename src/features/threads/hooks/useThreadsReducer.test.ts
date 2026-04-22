@@ -744,4 +744,46 @@ describe("threadReducer", () => {
     expect(trimmed.itemsByThread["thread-1"]?.[0]?.id).toBe("msg-2");
   });
 
+  it("keeps a thread-specific history limit when the global limit is reduced", () => {
+    const items: ConversationItem[] = Array.from({ length: 5 }, (_, index) => ({
+      id: `msg-override-${index}`,
+      kind: "message",
+      role: "assistant",
+      text: `message ${index}`,
+    }));
+
+    let state: ThreadState = {
+      ...initialState,
+      maxItemsPerThread: 4,
+    };
+
+    state = threadReducer(state, {
+      type: "setThreadMaxItemsPerThread",
+      threadId: "thread-override",
+      maxItemsPerThread: 5,
+    });
+    state = threadReducer(state, {
+      type: "setThreadItems",
+      threadId: "thread-override",
+      items,
+    });
+    state = threadReducer(state, {
+      type: "setThreadItems",
+      threadId: "thread-global",
+      items,
+    });
+
+    expect(state.itemsByThread["thread-override"]).toHaveLength(5);
+    expect(state.itemsByThread["thread-global"]).toHaveLength(4);
+
+    const next = threadReducer(state, {
+      type: "setMaxItemsPerThread",
+      maxItemsPerThread: 3,
+    });
+
+    expect(next.itemsByThread["thread-override"]).toHaveLength(5);
+    expect(next.itemsByThread["thread-global"]).toHaveLength(3);
+    expect(next.maxItemsPerThreadByThread["thread-override"]).toBe(5);
+  });
+
 });

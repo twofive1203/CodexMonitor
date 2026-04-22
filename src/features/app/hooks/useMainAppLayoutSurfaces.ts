@@ -64,6 +64,9 @@ type UseMainAppLayoutSurfacesArgs = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: LayoutNodesOptions["primary"]["messagesProps"]["items"];
+  activeThreadCanLoadMoreHistory: LayoutNodesOptions["primary"]["messagesProps"]["canLoadMoreHistory"];
+  activeThreadHistoryLimit: LayoutNodesOptions["primary"]["messagesProps"]["historyLimit"];
+  activeThreadNextHistoryLimit: LayoutNodesOptions["primary"]["messagesProps"]["nextHistoryLimit"];
   userInputRequests: SidebarProps["userInputRequests"];
   approvals: LayoutNodesOptions["primary"]["approvalToastsProps"]["approvals"];
   activeRateLimits: SidebarProps["accountRateLimits"];
@@ -79,6 +82,7 @@ type UseMainAppLayoutSurfacesArgs = {
   onUserInputSubmit: LayoutNodesOptions["primary"]["messagesProps"]["onUserInputSubmit"];
   onPlanAccept: LayoutNodesOptions["primary"]["messagesProps"]["onPlanAccept"];
   onPlanSubmitChanges: LayoutNodesOptions["primary"]["messagesProps"]["onPlanSubmitChanges"];
+  onLoadMoreHistory: LayoutNodesOptions["primary"]["messagesProps"]["onLoadMoreHistory"];
   activePlan: LayoutNodesOptions["secondary"]["planPanelProps"]["plan"];
   activeTokenUsage: ComposerProps["contextUsage"];
   latestAgentRuns: LayoutNodesOptions["primary"]["homeProps"]["latestAgentRuns"];
@@ -269,6 +273,9 @@ export function useMainAppLayoutSurfaces({
   activeWorkspaceId,
   activeThreadId,
   activeItems,
+  activeThreadCanLoadMoreHistory,
+  activeThreadHistoryLimit,
+  activeThreadNextHistoryLimit,
   userInputRequests,
   approvals,
   activeRateLimits,
@@ -284,6 +291,7 @@ export function useMainAppLayoutSurfaces({
   onUserInputSubmit,
   onPlanAccept,
   onPlanSubmitChanges,
+  onLoadMoreHistory,
   activePlan,
   activeTokenUsage,
   latestAgentRuns,
@@ -531,6 +539,9 @@ export function useMainAppLayoutSurfaces({
         items: activeItems,
         threadId: activeThreadId ?? null,
         workspaceId: activeWorkspace?.id ?? null,
+        canLoadMoreHistory: activeThreadCanLoadMoreHistory,
+        historyLimit: activeThreadHistoryLimit,
+        nextHistoryLimit: activeThreadNextHistoryLimit,
         workspacePath: activeWorkspace?.path ?? null,
         openTargets: appSettings.openAppTargets,
         selectedOpenAppId: appSettings.selectedOpenAppId,
@@ -541,6 +552,7 @@ export function useMainAppLayoutSurfaces({
         onPlanAccept,
         onPlanSubmitChanges,
         onOpenThreadLink: handleOpenThreadLink,
+        onLoadMoreHistory,
         onQuoteMessage: composerWorkspaceState.canInsertComposerText
           ? composerWorkspaceState.handleInsertComposerText
           : undefined,

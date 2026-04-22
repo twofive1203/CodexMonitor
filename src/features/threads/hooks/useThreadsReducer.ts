@@ -28,6 +28,7 @@ export type ThreadState = {
   activeThreadIdByWorkspace: Record<string, string | null>;
   itemsByThread: Record<string, ConversationItem[]>;
   maxItemsPerThread: number | null;
+  maxItemsPerThreadByThread: Record<string, number | null>;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   hiddenThreadIdsByWorkspace: Record<string, Record<string, true>>;
   threadParentById: Record<string, string>;
@@ -51,6 +52,11 @@ export type ThreadState = {
 export type ThreadAction =
   | { type: "setActiveThreadId"; workspaceId: string; threadId: string | null }
   | { type: "setMaxItemsPerThread"; maxItemsPerThread: number | null }
+  | {
+      type: "setThreadMaxItemsPerThread";
+      threadId: string;
+      maxItemsPerThread: number | null;
+    }
   | { type: "ensureThread"; workspaceId: string; threadId: string }
   | { type: "hideThread"; workspaceId: string; threadId: string }
   | { type: "removeThread"; workspaceId: string; threadId: string }
@@ -183,6 +189,7 @@ export const initialState: ThreadState = {
   activeThreadIdByWorkspace: {},
   itemsByThread: emptyItems,
   maxItemsPerThread: CHAT_SCROLLBACK_DEFAULT,
+  maxItemsPerThreadByThread: {},
   threadsByWorkspace: {},
   hiddenThreadIdsByWorkspace: {},
   threadParentById: {},
@@ -202,6 +209,22 @@ export const initialState: ThreadState = {
   planByThread: {},
   lastAgentMessageByThread: {},
 };
+
+/**
+ * 读取指定线程当前生效的历史条数上限。
+ *
+ * @param state 线程状态快照，仅需包含全局和按线程配置。
+ * @param threadId 目标线程 ID。
+ * @returns 线程最终生效的历史条数上限，`null` 表示不限条数。
+ */
+export function getThreadMaxItemsPerThread(
+  state: Pick<ThreadState, "maxItemsPerThread" | "maxItemsPerThreadByThread">,
+  threadId: string,
+) {
+  return Object.prototype.hasOwnProperty.call(state.maxItemsPerThreadByThread, threadId)
+    ? state.maxItemsPerThreadByThread[threadId] ?? null
+    : state.maxItemsPerThread;
+}
 
 type ThreadSliceReducer = (state: ThreadState, action: ThreadAction) => ThreadState;
 

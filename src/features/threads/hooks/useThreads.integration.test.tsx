@@ -527,10 +527,10 @@ describe("useThreads UX integration", () => {
       expect(result.current.activeItems).toHaveLength(totalItems);
     });
 
-    rerender({ scrollbackItems: 200 });
+    rerender({ scrollbackItems: 50 });
 
     await waitFor(() => {
-      expect(result.current.activeItems).toHaveLength(200);
+      expect(result.current.activeItems).toHaveLength(50);
     });
   });
 
@@ -564,6 +564,79 @@ describe("useThreads UX integration", () => {
       explanation: "Plan note",
       steps: [{ step: "Do it", status: "inProgress" }],
     });
+  });
+
+  it("loads more history for the active thread by raising the per-thread limit", async () => {
+    const totalItems = 120;
+    const items = Array.from({ length: totalItems }, (_, index) =>
+      index % 2 === 0
+        ? {
+            type: "userMessage",
+            id: `load-more-user-${index}`,
+            content: [{ type: "text", text: `User ${index}` }],
+          }
+        : {
+            type: "agentMessage",
+            id: `load-more-assistant-${index}`,
+            text: `Assistant ${index}`,
+          },
+    );
+
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-load-more",
+          preview: "Remote preview",
+          updated_at: 9999,
+          turns: [
+            {
+              items,
+            },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        chatHistoryScrollbackItems: 50,
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-load-more");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-load-more",
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toHaveLength(50);
+    });
+
+    expect(result.current.activeThreadHistoryLimit).toBe(50);
+    expect(result.current.activeThreadNextHistoryLimit).toBe(200);
+    expect(result.current.activeThreadCanLoadMoreHistory).toBe(true);
+
+    await act(async () => {
+      await result.current.loadMoreHistoryForActiveThread();
+    });
+
+    expect(vi.mocked(resumeThread)).toHaveBeenCalledTimes(2);
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toHaveLength(totalItems);
+    });
+
+    expect(result.current.activeThreadHistoryLimit).toBe(200);
+    expect(result.current.activeThreadNextHistoryLimit).toBe(500);
+    expect(result.current.activeThreadCanLoadMoreHistory).toBe(false);
   });
 
   it("stores turn diff updates from app-server events", () => {

@@ -1,6 +1,10 @@
 import type { ConversationItem } from "@/types";
 import { normalizeItem, prepareThreadItems, upsertItem } from "@utils/threadItems";
-import type { ThreadAction, ThreadState } from "../useThreadsReducer";
+import {
+  getThreadMaxItemsPerThread,
+  type ThreadAction,
+  type ThreadState,
+} from "../useThreadsReducer";
 import {
   addSummaryBoundary,
   dropLatestLocalReviewStart,
@@ -13,6 +17,24 @@ import {
   mergeStreamingText,
   prefersUpdatedSort,
 } from "./common";
+
+/**
+ * 按线程当前生效的历史上限整理消息条目。
+ *
+ * @param state 线程状态快照。
+ * @param threadId 目标线程 ID。
+ * @param items 待整理的线程条目列表。
+ * @returns 经过标准化和裁剪后的线程条目列表。
+ */
+function prepareItemsForThread(
+  state: ThreadState,
+  threadId: string,
+  items: ConversationItem[],
+) {
+  return prepareThreadItems(items, {
+    maxItemsPerThread: getThreadMaxItemsPerThread(state, threadId),
+  });
+}
 
 export function reduceThreadItems(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
@@ -28,7 +50,11 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([...list, message], { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(
+            state,
+            action.threadId,
+            [...list, message],
+          ),
         },
       };
     }
@@ -49,7 +75,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           text: action.delta,
         });
       }
-      const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });
+      const updatedItems = prepareItemsForThread(state, action.threadId, list);
       const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
         workspaceId: action.workspaceId,
         threadId: action.threadId,
@@ -84,7 +110,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           text: action.text,
         });
       }
-      const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });
+      const updatedItems = prepareItemsForThread(state, action.threadId, list);
       const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
         workspaceId: action.workspaceId,
         threadId: action.threadId,
@@ -127,7 +153,11 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         }
       }
       const nextItem = ensureUniqueReviewId(list, item);
-      const updatedItems = prepareThreadItems(upsertItem(list, nextItem), { maxItemsPerThread: state.maxItemsPerThread });
+      const updatedItems = prepareItemsForThread(
+        state,
+        action.threadId,
+        upsertItem(list, nextItem),
+      );
       let nextThreadsByWorkspace = state.threadsByWorkspace;
       if (isUserMessage) {
         const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
@@ -176,7 +206,11 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(action.items, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(
+            state,
+            action.threadId,
+            action.items,
+          ),
         },
       };
     case "appendReasoningSummary": {
@@ -206,7 +240,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(state, action.threadId, next),
         },
       };
     }
@@ -234,7 +268,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(state, action.threadId, next),
         },
       };
     }
@@ -265,7 +299,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(state, action.threadId, next),
         },
       };
     }
@@ -302,7 +336,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(state, action.threadId, next),
         },
       };
     }
@@ -323,7 +357,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
+          [action.threadId]: prepareItemsForThread(state, action.threadId, next),
         },
       };
     }
