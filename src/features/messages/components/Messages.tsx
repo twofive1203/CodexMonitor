@@ -27,6 +27,9 @@ type MessagesProps = {
   items: ConversationItem[];
   threadId: string | null;
   workspaceId?: string | null;
+  canLoadMoreHistory?: boolean;
+  historyLimit?: number | null;
+  nextHistoryLimit?: number | null;
   isThinking: boolean;
   isLoadingMessages?: boolean;
   processingStartedAt?: number | null;
@@ -47,6 +50,7 @@ type MessagesProps = {
   onPlanSubmitChanges?: (changes: string) => void;
   onOpenThreadLink?: (threadId: string, workspaceId?: string | null) => void;
   onQuoteMessage?: (text: string) => void;
+  onLoadMoreHistory?: () => void;
 };
 
 /**
@@ -107,10 +111,23 @@ function hasExpandedSelectionWithin(container: HTMLDivElement | null) {
 
 const SELECTING_TEXT_CLASS_NAME = "is-selecting-text";
 
+/**
+ * 生成历史扩容按钮文案。
+ *
+ * @param nextHistoryLimit 下一档历史条数上限，`null` 表示下一次将加载全部历史。
+ * @returns 按钮展示文案。
+ */
+function getLoadMoreHistoryLabel(nextHistoryLimit: number | null) {
+  return nextHistoryLimit === null ? "加载全部历史" : "加载更多历史";
+}
+
 export const Messages = memo(function Messages({
   items,
   threadId,
   workspaceId = null,
+  canLoadMoreHistory = false,
+  historyLimit = null,
+  nextHistoryLimit = null,
   isThinking,
   isLoadingMessages = false,
   processingStartedAt = null,
@@ -128,6 +145,7 @@ export const Messages = memo(function Messages({
   onPlanSubmitChanges,
   onOpenThreadLink,
   onQuoteMessage,
+  onLoadMoreHistory,
 }: MessagesProps) {
   const activeUserInputRequestId =
     threadId && userInputRequests.length
@@ -201,6 +219,12 @@ export const Messages = memo(function Messages({
         }}
       />
     ) : null;
+  const showLoadMoreHistory =
+    Boolean(threadId) &&
+    canLoadMoreHistory &&
+    Boolean(onLoadMoreHistory) &&
+    historyLimit !== null;
+  const loadMoreHistoryLabel = getLoadMoreHistoryLabel(nextHistoryLimit);
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -341,6 +365,21 @@ export const Messages = memo(function Messages({
       onScroll={updateAutoScroll}
     >
       <div className="messages-inner">
+        {showLoadMoreHistory && (
+          <div className="messages-history-banner" role="note">
+            <div className="messages-history-meta">
+              {`当前仅显示最近 ${historyLimit} 条记录，可继续同步更早历史。`}
+            </div>
+            <button
+              type="button"
+              className="messages-history-button"
+              onClick={onLoadMoreHistory}
+              disabled={isLoadingMessages}
+            >
+              {isLoadingMessages ? "正在加载历史..." : loadMoreHistoryLabel}
+            </button>
+          </div>
+        )}
         {groupedItems.map((entry) => {
           if (entry.kind === "toolGroup") {
             const { group } = entry;

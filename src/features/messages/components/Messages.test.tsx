@@ -291,6 +291,40 @@ describe("Messages", () => {
     expect(messagesNode.classList.contains("is-selecting-text")).toBe(false);
   });
 
+  it("shows a load more history action and triggers the callback", () => {
+    const onLoadMoreHistory = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-history-1",
+        kind: "message",
+        role: "assistant",
+        text: "Recent history",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        canLoadMoreHistory
+        historyLimit={50}
+        nextHistoryLimit={200}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onLoadMoreHistory={onLoadMoreHistory}
+      />,
+    );
+
+    expect(
+      screen.getByText("当前仅显示最近 50 条记录，可继续同步更早历史。"),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "加载更多历史" }));
+    expect(onLoadMoreHistory).toHaveBeenCalledTimes(1);
+  });
+
   it("opens linked review thread when clicking thread link", () => {
     const onOpenThreadLink = vi.fn();
     const items: ConversationItem[] = [
