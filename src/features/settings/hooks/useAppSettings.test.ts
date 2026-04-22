@@ -57,6 +57,25 @@ describe("useAppSettings", () => {
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
   });
 
+  it("replaces legacy stored scrollback default with the new default and persists it", async () => {
+    getAppSettingsMock.mockResolvedValue(
+      ({
+        chatHistoryScrollbackItems: 200,
+      } as unknown) as AppSettings,
+    );
+
+    const { result } = renderHook(() => useAppSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.settings.chatHistoryScrollbackItems).toBe(50);
+    expect(updateAppSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatHistoryScrollbackItems: 50,
+      }),
+    );
+  });
+
   it("keeps defaults when getAppSettings fails", async () => {
     getAppSettingsMock.mockRejectedValue(new Error("boom"));
 

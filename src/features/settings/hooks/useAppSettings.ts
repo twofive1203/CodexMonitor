@@ -30,6 +30,7 @@ const DEFAULT_REMOTE_BACKEND_NAME = "主远程配置";
 const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
 const DEFAULT_WEB_ACCESS_LISTEN_ADDR = "127.0.0.1";
 const DEFAULT_WEB_ACCESS_PORT = 4733;
+const LEGACY_CHAT_SCROLLBACK_DEFAULT = 200;
 
 type RemoteBackendTarget = AppSettings["remoteBackends"][number];
 
@@ -333,6 +334,36 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   };
 }
 
+/**
+ * 规范化从存储层读取的设置，并将历史默认回溯条数收敛到新的默认值。
+ *
+ * `settings`：已与当前默认值合并后的设置快照。
+ * 返回值：规范化后的设置，以及是否命中了旧默认值替换。
+ */
+function normalizeLoadedAppSettings(settings: AppSettings): {
+  normalized: AppSettings;
+  didReplaceLegacyChatScrollbackDefault: boolean;
+} {
+  const normalized = normalizeAppSettings(settings);
+  const didReplaceLegacyChatScrollbackDefault =
+    settings.chatHistoryScrollbackItems === LEGACY_CHAT_SCROLLBACK_DEFAULT;
+
+  if (!didReplaceLegacyChatScrollbackDefault) {
+    return {
+      normalized,
+      didReplaceLegacyChatScrollbackDefault: false,
+    };
+  }
+
+  return {
+    normalized: {
+      ...normalized,
+      chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
+    },
+    didReplaceLegacyChatScrollbackDefault: true,
+  };
+}
+
 export function useAppSettings() {
   const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
@@ -343,13 +374,18 @@ export function useAppSettings() {
     void (async () => {
       try {
         const response = await getAppSettings();
+        const { normalized, didReplaceLegacyChatScrollbackDefault } =
+          normalizeLoadedAppSettings({
+            ...defaultSettings,
+            ...response,
+          });
         if (active) {
-          setSettings(
-            normalizeAppSettings({
-              ...defaultSettings,
-              ...response,
-            }),
-          );
+          setSettings(normalized);
+        }
+        if (didReplaceLegacyChatScrollbackDefault) {
+          void updateAppSettings(normalized).catch(() => {
+            // 保持内存中的新默认值，持久化失败时静默回退即可。
+          });
         }
       } catch {
         // Defaults stay in place if loading settings fails.

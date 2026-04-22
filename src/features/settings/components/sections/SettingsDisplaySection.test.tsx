@@ -69,7 +69,7 @@ describe("SettingsDisplaySection", () => {
             theme: "system",
             usageShowRemaining: false,
             showMessageFilePath: true,
-            chatHistoryScrollbackItems: 200,
+            chatHistoryScrollbackItems: 50,
             threadTitleAutogenerationEnabled: false,
             uiFontFamily: "",
             codeFontFamily: "",
@@ -181,7 +181,7 @@ describe("SettingsDisplaySection", () => {
             theme: "system",
             usageShowRemaining: false,
             showMessageFilePath: true,
-            chatHistoryScrollbackItems: 200,
+            chatHistoryScrollbackItems: 50,
             threadTitleAutogenerationEnabled: false,
             uiFontFamily: "",
             codeFontFamily: "",
@@ -231,7 +231,7 @@ describe("SettingsDisplaySection", () => {
             theme: "system",
             usageShowRemaining: false,
             showMessageFilePath: true,
-            chatHistoryScrollbackItems: 200,
+            chatHistoryScrollbackItems: 50,
             threadTitleAutogenerationEnabled: false,
             uiFontFamily: "",
             codeFontFamily: "",
@@ -291,7 +291,7 @@ describe("SettingsDisplaySection", () => {
             theme: "system",
             usageShowRemaining: false,
             showMessageFilePath: true,
-            chatHistoryScrollbackItems: 200,
+            chatHistoryScrollbackItems: 50,
             threadTitleAutogenerationEnabled: false,
             uiFontFamily: "",
             codeFontFamily: "",
@@ -337,7 +337,7 @@ describe("SettingsDisplaySection", () => {
 
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ chatHistoryScrollbackItems: 200 }),
+      expect.objectContaining({ chatHistoryScrollbackItems: 50 }),
     );
   });
 
