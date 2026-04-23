@@ -165,6 +165,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "claude_commands_list"
             | "collaboration_mode_list"
             | "connect_workspace"
+            | "reload_workspace_session"
             | "experimental_feature_list"
             | "set_workspace_runtime_codex_args"
             | "file_read"

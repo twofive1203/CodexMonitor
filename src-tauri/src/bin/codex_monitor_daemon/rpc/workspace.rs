@@ -128,6 +128,19 @@ pub(super) async fn try_handle(
                 serialize_ok(state.connect_workspace(request.id, client_version.to_string())).await,
             )
         }
+        "reload_workspace_session" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::ReloadWorkspaceSessionRequest);
+            Some(
+                serialize_ok(
+                    state.reload_workspace_session(
+                        request.workspace_id,
+                        client_version.to_string(),
+                    ),
+                )
+                .await,
+            )
+        }
         "set_workspace_runtime_codex_args" => {
             let request =
                 parse_request_or_err!(params, workspace_rpc::SetWorkspaceRuntimeCodexArgsRequest);

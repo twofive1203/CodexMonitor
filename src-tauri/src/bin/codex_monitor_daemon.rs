@@ -814,6 +814,41 @@ impl DaemonState {
         .await
     }
 
+    /// 重载指定工作区的运行时会话。
+    ///
+    /// `workspace_id`：目标工作区 ID。
+    /// `client_version`：发起请求的客户端版本号。
+    async fn reload_workspace_session(
+        &self,
+        workspace_id: String,
+        client_version: String,
+    ) -> Result<(), String> {
+        let event_sink = self.event_sink.clone();
+        let claude_sdk_dir = shared::claude_sdk_core::claude_sdk_dir(&self.data_dir);
+        let (claude_permission_mode, claude_use_sdk_sidecar) =
+            self.current_claude_launch_settings().await;
+        workspaces_core::reload_workspace_session_core(
+            workspace_id,
+            &self.workspaces,
+            &self.sessions,
+            &self.app_settings,
+            move |entry, default_bin, codex_args, codex_home| {
+                spawn_with_client(
+                    event_sink.clone(),
+                    client_version.clone(),
+                    entry,
+                    default_bin,
+                    codex_args,
+                    codex_home,
+                    Some(claude_sdk_dir.clone()),
+                    claude_permission_mode.clone(),
+                    claude_use_sdk_sidecar,
+                )
+            },
+        )
+        .await
+    }
+
     async fn set_workspace_runtime_codex_args(
         &self,
         workspace_id: String,

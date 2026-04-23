@@ -116,6 +116,75 @@ where
     Ok(())
 }
 
+/// 重载指定工作区的运行时会话。
+///
+/// `workspace_id`：目标工作区 ID。
+/// `workspaces`：工作区存储。
+/// `sessions`：provider 维度的会话池。
+/// `app_settings`：当前应用设置快照。
+/// `spawn_session`：用于创建新运行时会话的回调。
+pub(crate) async fn reload_workspace_session_core<F, Fut>(
+    workspace_id: String,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    app_settings: &Mutex<AppSettings>,
+    spawn_session: F,
+) -> Result<(), String>
+where
+    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+{
+    let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
+    {
+        let settings = app_settings.lock().await;
+        ensure_provider_enabled(&entry.provider, &settings)?;
+    }
+    if !provider_supports_live_runtime(&entry.provider) {
+        return Err(provider_not_ready_error(&entry.provider));
+    }
+
+    let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let session_key = build_provider_session_key(&entry.provider, &entry.id);
+    let current_session = {
+        let sessions = sessions.lock().await;
+        sessions.get(&session_key).cloned()
+    }
+    .ok_or_else(|| "workspace not connected".to_string())?;
+    let runtime_config = {
+        let settings = app_settings.lock().await;
+        resolve_provider_runtime_config(&entry, parent_entry.as_ref(), &settings)
+    };
+    let new_session = spawn_session(
+        entry.clone(),
+        runtime_config.default_bin,
+        runtime_config.runtime_args,
+        runtime_config.runtime_home,
+    )
+    .await?;
+    new_session
+        .register_workspace_with_path(&entry.id, Some(&entry.path))
+        .await;
+    sessions
+        .lock()
+        .await
+        .insert(session_key, Arc::clone(&new_session));
+
+    current_session.unregister_workspace(&entry.id).await;
+    let still_referenced = {
+        let sessions = sessions.lock().await;
+        sessions
+            .values()
+            .any(|candidate| Arc::ptr_eq(candidate, &current_session))
+    };
+    if still_referenced {
+        return Ok(());
+    }
+
+    let mut child = current_session.child.lock().await;
+    kill_child_process_tree(&mut child).await;
+    Ok(())
+}
+
 pub(super) async fn kill_session_by_id(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     provider: &AgentProvider,
@@ -431,6 +500,98 @@ mod tests {
                 result.expect_err("claude connect should be rejected"),
                 "Claude Provider 当前属于实验功能，请先在设置 -> 功能 中开启。"
             );
+        });
+    }
+
+    #[test]
+    fn reload_workspace_session_replaces_only_target_workspace_binding() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let first = make_workspace_entry_with_provider("ws-codex-1", AgentProvider::Codex);
+            let second = make_workspace_entry_with_provider("ws-codex-2", AgentProvider::Codex);
+            let workspaces = Mutex::new(HashMap::from([
+                (first.id.clone(), first.clone()),
+                (second.id.clone(), second.clone()),
+            ]));
+            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+            let app_settings = Mutex::new(AppSettings::default());
+            let original_spawn_calls = Arc::new(AtomicUsize::new(0));
+            let original_spawn_calls_ref = original_spawn_calls.clone();
+            let first_for_spawn = first.clone();
+
+            connect_workspace_core(
+                first.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| {
+                    let original_spawn_calls_ref = original_spawn_calls_ref.clone();
+                    let first_for_spawn = first_for_spawn.clone();
+                    async move {
+                        original_spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
+                        Ok(make_session(first_for_spawn))
+                    }
+                },
+            )
+            .await
+            .expect("first workspace should connect");
+
+            connect_workspace_core(
+                second.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| async move {
+                    Err("shared codex session should be reused".to_string())
+                },
+            )
+            .await
+            .expect("second workspace should reuse session");
+
+            let original_session = {
+                let sessions_guard = sessions.lock().await;
+                sessions_guard
+                    .get(&build_provider_session_key(&first.provider, &first.id))
+                    .cloned()
+                    .expect("original session should exist")
+            };
+
+            let reload_spawn_calls = Arc::new(AtomicUsize::new(0));
+            let reload_spawn_calls_ref = reload_spawn_calls.clone();
+            let reloaded_entry = first.clone();
+            reload_workspace_session_core(
+                first.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| {
+                    let reload_spawn_calls_ref = reload_spawn_calls_ref.clone();
+                    let reloaded_entry = reloaded_entry.clone();
+                    async move {
+                        reload_spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
+                        Ok(make_session(reloaded_entry))
+                    }
+                },
+            )
+            .await
+            .expect("reload should respawn target workspace");
+
+            let sessions_guard = sessions.lock().await;
+            let first_session = sessions_guard
+                .get(&build_provider_session_key(&first.provider, &first.id))
+                .expect("reloaded first session should exist");
+            let second_session = sessions_guard
+                .get(&build_provider_session_key(&second.provider, &second.id))
+                .expect("second session should still exist");
+
+            assert_eq!(original_spawn_calls.load(Ordering::SeqCst), 1);
+            assert_eq!(reload_spawn_calls.load(Ordering::SeqCst), 1);
+            assert!(!Arc::ptr_eq(first_session, &original_session));
+            assert!(Arc::ptr_eq(second_session, &original_session));
+            assert!(!Arc::ptr_eq(first_session, second_session));
+            drop(sessions_guard);
+
+            kill_session_by_id(&sessions, &first.provider, &first.id).await;
+            kill_session_by_id(&sessions, &second.provider, &second.id).await;
         });
     }
 }

@@ -627,6 +627,41 @@ pub(crate) async fn connect_workspace(
     .await
 }
 
+/// 重载指定工作区的运行时会话。
+///
+/// `workspace_id`：目标工作区 ID。
+/// `state`：应用共享状态。
+/// `app`：Tauri 应用句柄。
+#[tauri::command]
+pub(crate) async fn reload_workspace_session(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::ReloadWorkspaceSessionRequest { workspace_id };
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "reload_workspace_session",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
+        return Ok(());
+    }
+
+    workspaces_core::reload_workspace_session_core(
+        workspace_id,
+        &state.workspaces,
+        &state.sessions,
+        &state.app_settings,
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        },
+    )
+    .await
+}
+
 #[tauri::command]
 pub(crate) async fn list_workspace_files(
     workspace_id: String,
