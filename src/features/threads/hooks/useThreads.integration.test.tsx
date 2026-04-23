@@ -639,6 +639,88 @@ describe("useThreads UX integration", () => {
     expect(result.current.activeThreadCanLoadMoreHistory).toBe(false);
   });
 
+  it("re-resumes a thread after its inactive snapshot is unloaded", async () => {
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => {
+      if (threadId === "thread-a") {
+        return {
+          result: {
+            thread: {
+              id: "thread-a",
+              preview: "A",
+              updated_at: 100,
+              turns: [
+                {
+                  items: [
+                    {
+                      type: "agentMessage",
+                      id: "assistant-a",
+                      text: "Thread A",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        } as Awaited<ReturnType<typeof resumeThread>>;
+      }
+      return {
+        result: {
+          thread: {
+            id: "thread-b",
+            preview: "B",
+            updated_at: 200,
+            turns: [
+              {
+                items: [
+                  {
+                    type: "agentMessage",
+                    id: "assistant-b",
+                    text: "Thread B",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      } as Awaited<ReturnType<typeof resumeThread>>;
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-a");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-a");
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-b");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-b");
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-a");
+    });
+
+    await waitFor(() => {
+      expect(
+        vi
+          .mocked(resumeThread)
+          .mock.calls.filter(([, threadId]) => threadId === "thread-a"),
+      ).toHaveLength(2);
+    });
+  });
+
   it("stores turn diff updates from app-server events", () => {
     const { result } = renderHook(() =>
       useThreads({

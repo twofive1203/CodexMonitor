@@ -81,6 +81,7 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
+import { reloadWorkspaceSession } from "@services/tauri";
 import { getRuntimeCapabilities } from "@services/runtime/client";
 
 const SettingsView = lazy(() =>
@@ -1453,9 +1454,12 @@ export default function MainApp() {
       selectWorkspace,
       setActiveThreadId,
       connectWorkspace,
+      reloadWorkspaceSession,
       isCompact,
       setActiveTab,
       workspacesById,
+      activeWorkspaceId,
+      activeThreadId,
       updateWorkspaceSettings,
       resetWorkspaceThreads,
       removeThread,

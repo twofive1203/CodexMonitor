@@ -34,9 +34,12 @@ describe("useSidebarLayoutActions", () => {
       selectWorkspace: vi.fn(),
       setActiveThreadId: vi.fn(),
       connectWorkspace: vi.fn(async () => {}),
+      reloadWorkspaceSession: vi.fn(async () => {}),
       isCompact: false,
       setActiveTab: vi.fn(),
       workspacesById: new Map([[workspace.id, workspace]]),
+      activeWorkspaceId: null,
+      activeThreadId: null,
       updateWorkspaceSettings: vi.fn(async () => workspace),
       resetWorkspaceThreads: vi.fn(),
       removeThread: vi.fn(),
@@ -92,9 +95,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace,
         setActiveThreadId,
         connectWorkspace: vi.fn(async () => {}),
+        reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
         workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings: vi.fn(async () => workspace),
         resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
@@ -138,9 +144,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace,
+        reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
         workspacesById: new Map([[unconnectedWorkspace.id, unconnectedWorkspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings: vi.fn(async () => unconnectedWorkspace),
         resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
@@ -181,9 +190,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
         workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings: vi.fn(async () => workspace),
         resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
@@ -226,9 +238,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace,
+        reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: true,
         setActiveTab,
         workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings: vi.fn(async () => workspace),
         resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
@@ -251,9 +266,10 @@ describe("useSidebarLayoutActions", () => {
     expect(setActiveTab).toHaveBeenCalledWith("codex");
   });
 
-  it("runs claude history reload actions", () => {
+  it("runs claude history reload actions", async () => {
     const listThreadsForWorkspace = vi.fn(async () => {});
     const loadOlderThreadsForWorkspace = vi.fn(async () => {});
+    const reloadWorkspaceSession = vi.fn(async () => {});
     const { result } = renderHook(() =>
       useSidebarLayoutActions({
         openSettings: vi.fn(),
@@ -265,9 +281,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        reloadWorkspaceSession,
         isCompact: false,
         setActiveTab: vi.fn(),
         workspacesById: new Map([[claudeWorkspace.id, claudeWorkspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings: vi.fn(async () => claudeWorkspace),
         resetWorkspaceThreads: vi.fn(),
         removeThread: vi.fn(),
@@ -282,15 +301,68 @@ describe("useSidebarLayoutActions", () => {
       }),
     );
 
-    act(() => {
-      result.current.onReloadWorkspaceThreads("ws-claude");
+    await act(async () => {
+      await result.current.onReloadWorkspaceThreads("ws-claude");
       result.current.onLoadOlderThreads("ws-claude");
     });
 
+    expect(reloadWorkspaceSession).toHaveBeenCalledTimes(1);
+    expect(reloadWorkspaceSession).toHaveBeenCalledWith("ws-claude");
     expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
-    expect(listThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith({
+      ...claudeWorkspace,
+      connected: true,
+    });
     expect(loadOlderThreadsForWorkspace).toHaveBeenCalledTimes(1);
     expect(loadOlderThreadsForWorkspace).toHaveBeenCalledWith(claudeWorkspace);
+  });
+
+  it("refreshes the active thread after reloading its workspace session", async () => {
+    const reloadWorkspaceSession = vi.fn(async () => {});
+    const listThreadsForWorkspace = vi.fn(async () => {});
+    const refreshThread = vi.fn(async () => {});
+
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId: vi.fn(),
+        connectWorkspace: vi.fn(async () => {}),
+        reloadWorkspaceSession,
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: workspace.id,
+        activeThreadId: "thread-1",
+        updateWorkspaceSettings: vi.fn(async () => workspace),
+        resetWorkspaceThreads: vi.fn(),
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread,
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace: vi.fn(async () => {}),
+        listThreadsForWorkspace,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.onReloadWorkspaceThreads(workspace.id);
+    });
+
+    expect(reloadWorkspaceSession).toHaveBeenCalledWith(workspace.id);
+    expect(listThreadsForWorkspace).toHaveBeenCalledWith({
+      ...workspace,
+      connected: true,
+    });
+    expect(refreshThread).toHaveBeenCalledWith(workspace.id, "thread-1");
   });
 
   it("reloads workspace history after provider changes", async () => {
@@ -313,9 +385,12 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
         workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: null,
+        activeThreadId: null,
         updateWorkspaceSettings,
         resetWorkspaceThreads,
         removeThread: vi.fn(),

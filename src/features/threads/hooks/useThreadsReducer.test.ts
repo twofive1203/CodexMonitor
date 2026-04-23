@@ -786,4 +786,43 @@ describe("threadReducer", () => {
     expect(next.maxItemsPerThreadByThread["thread-override"]).toBe(5);
   });
 
+  it("unloads thread snapshots without removing the thread summary", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 100 }],
+      },
+      itemsByThread: {
+        "thread-1": [
+          {
+            id: "msg-1",
+            kind: "message",
+            role: "assistant",
+            text: "hello",
+          },
+        ],
+      },
+      activeTurnIdByThread: { "thread-1": "turn-1" },
+      turnDiffByThread: { "thread-1": "diff --git a/a.ts b/a.ts" },
+      planByThread: {
+        "thread-1": {
+          turnId: "turn-1",
+          explanation: "plan",
+          steps: [],
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "unloadThreadSnapshot",
+      threadId: "thread-1",
+    });
+
+    expect(next.threadsByWorkspace["ws-1"]?.[0]?.id).toBe("thread-1");
+    expect(next.itemsByThread["thread-1"]).toBeUndefined();
+    expect(next.activeTurnIdByThread["thread-1"]).toBeUndefined();
+    expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+    expect(next.planByThread["thread-1"]).toBeUndefined();
+  });
+
 });

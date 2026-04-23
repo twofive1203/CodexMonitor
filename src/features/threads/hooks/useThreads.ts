@@ -241,6 +241,23 @@ export function useThreads({
     loadedThreadsRef.current[threadId] = isLoaded;
   }, []);
 
+  /**
+   * 释放线程的本地重型快照，保留线程摘要以便后续重新同步。
+   *
+   * @param threadId 需要释放快照的线程 ID。
+   */
+  const unloadThreadSnapshot = useCallback(
+    (threadId: string) => {
+      if (!threadId) {
+        return;
+      }
+      delete loadedThreadsRef.current[threadId];
+      delete replaceOnResumeRef.current[threadId];
+      dispatch({ type: "unloadThreadSnapshot", threadId });
+    },
+    [dispatch],
+  );
+
   const renameThread = useCallback(
     (workspaceId: string, threadId: string, newName: string) => {
       saveCustomName(workspaceId, threadId, newName);
@@ -899,6 +916,30 @@ export function useThreads({
     },
     [archiveThread, unpinThread],
   );
+
+  useEffect(() => {
+    const retainedThreadIds = new Set<string>();
+    if (activeThreadId) {
+      retainedThreadIds.add(activeThreadId);
+    }
+    Object.entries(state.threadStatusById).forEach(([threadId, status]) => {
+      if (status.isProcessing || state.threadResumeLoadingById[threadId]) {
+        retainedThreadIds.add(threadId);
+      }
+    });
+    Object.keys(state.itemsByThread).forEach((threadId) => {
+      if (retainedThreadIds.has(threadId)) {
+        return;
+      }
+      unloadThreadSnapshot(threadId);
+    });
+  }, [
+    activeThreadId,
+    state.itemsByThread,
+    state.threadResumeLoadingById,
+    state.threadStatusById,
+    unloadThreadSnapshot,
+  ]);
 
   /**
    * 提升当前会话的前端历史上限，并重新同步更早记录。

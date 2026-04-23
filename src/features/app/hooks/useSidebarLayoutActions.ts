@@ -23,9 +23,12 @@ type UseSidebarLayoutActionsOptions = {
   selectWorkspace: (workspaceId: string) => void;
   setActiveThreadId: (threadId: string | null, workspaceId?: string) => void;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
+  reloadWorkspaceSession: (workspaceId: string) => Promise<void>;
   isCompact: boolean;
   setActiveTab: (tab: AppTab) => void;
   workspacesById: Map<string, WorkspaceInfo>;
+  activeWorkspaceId: string | null;
+  activeThreadId: string | null;
   updateWorkspaceSettings: (
     workspaceId: string,
     patch: Partial<WorkspaceSettings>,
@@ -53,9 +56,12 @@ export function useSidebarLayoutActions({
   selectWorkspace,
   setActiveThreadId,
   connectWorkspace,
+  reloadWorkspaceSession,
   isCompact,
   setActiveTab,
   workspacesById,
+  activeWorkspaceId,
+  activeThreadId,
   updateWorkspaceSettings,
   resetWorkspaceThreads,
   removeThread,
@@ -250,7 +256,7 @@ export function useSidebarLayoutActions({
   );
 
   const onReloadWorkspaceThreads = useCallback(
-    (workspaceId: string) => {
+    async (workspaceId: string) => {
       const workspace = workspacesById.get(workspaceId);
       if (
         !workspace ||
@@ -258,9 +264,22 @@ export function useSidebarLayoutActions({
       ) {
         return;
       }
-      void listThreadsForWorkspace(workspace);
+      await reloadWorkspaceSession(workspaceId);
+      resetWorkspaceThreads(workspaceId);
+      await Promise.resolve(listThreadsForWorkspace({ ...workspace, connected: true }));
+      if (activeWorkspaceId === workspaceId && activeThreadId) {
+        await Promise.resolve(refreshThread(workspaceId, activeThreadId));
+      }
     },
-    [listThreadsForWorkspace, workspacesById],
+    [
+      activeThreadId,
+      activeWorkspaceId,
+      listThreadsForWorkspace,
+      refreshThread,
+      reloadWorkspaceSession,
+      resetWorkspaceThreads,
+      workspacesById,
+    ],
   );
 
   return {

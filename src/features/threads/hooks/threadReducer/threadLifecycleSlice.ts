@@ -152,6 +152,40 @@ export function reduceThreadLifecycle(
         },
       };
     }
+    case "unloadThreadSnapshot": {
+      const hasItems = Object.prototype.hasOwnProperty.call(
+        state.itemsByThread,
+        action.threadId,
+      );
+      const hasTurn = Object.prototype.hasOwnProperty.call(
+        state.activeTurnIdByThread,
+        action.threadId,
+      );
+      const hasDiff = Object.prototype.hasOwnProperty.call(
+        state.turnDiffByThread,
+        action.threadId,
+      );
+      const hasPlan = Object.prototype.hasOwnProperty.call(
+        state.planByThread,
+        action.threadId,
+      );
+      if (!hasItems && !hasTurn && !hasDiff && !hasPlan) {
+        return state;
+      }
+
+      const { [action.threadId]: _items, ...restItems } = state.itemsByThread;
+      const { [action.threadId]: _turn, ...restTurns } = state.activeTurnIdByThread;
+      const { [action.threadId]: _diff, ...restDiffs } = state.turnDiffByThread;
+      const { [action.threadId]: _plan, ...restPlans } = state.planByThread;
+
+      return {
+        ...state,
+        itemsByThread: restItems,
+        activeTurnIdByThread: restTurns,
+        turnDiffByThread: restDiffs,
+        planByThread: restPlans,
+      };
+    }
     case "setThreadParent": {
       if (!action.parentId || action.parentId === action.threadId) {
         return state;
