@@ -22,6 +22,7 @@ import {
   readThread,
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
+  reloadWorkspaceSession,
   listWorkspaces,
   openWorkspaceIn,
   readAgentMd,
@@ -829,6 +830,17 @@ describe("tauri invoke wrappers", () => {
       accessMode: null,
       images: null,
       appMentions: [{ name: "Calendar", path: "app://connector_calendar" }],
+    });
+  });
+
+  it("invokes reload_workspace_session with the target workspace id", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce(undefined);
+
+    await reloadWorkspaceSession("ws-9");
+
+    expect(invokeMock).toHaveBeenCalledWith("reload_workspace_session", {
+      workspaceId: "ws-9",
     });
   });
 
