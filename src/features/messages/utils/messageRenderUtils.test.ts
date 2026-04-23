@@ -94,4 +94,14 @@ describe("messageRenderUtils", () => {
     );
     expect(label).toBe("进行中 • 1:05");
   });
+
+  it("formats compact inprogress status in Chinese", () => {
+    const label = formatToolStatusLabel(
+      makeToolItem({
+        toolType: "commandExecution",
+        status: "INPROGRESS",
+      }),
+    );
+    expect(label).toBe("进行中");
+  });
 });

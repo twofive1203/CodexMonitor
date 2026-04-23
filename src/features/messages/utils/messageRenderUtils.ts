@@ -470,6 +470,12 @@ export function toolStatusTone(
   return "processing";
 }
 
+/**
+ * 格式化工具状态文案，统一输出中文状态与耗时信息。
+ *
+ * @param item 工具消息项，包含状态与执行耗时等字段。
+ * @returns 状态标签文本；无可展示内容时返回空字符串。
+ */
 export function formatToolStatusLabel(
   item: Extract<ConversationItem, { kind: "tool" }>,
 ) {
@@ -477,6 +483,7 @@ export function formatToolStatusLabel(
   const status = (item.status ?? "").trim().toLowerCase();
   if (status) {
     const normalizedStatus = status.replace(/[_-]+/g, " ");
+    const compactStatus = normalizedStatus.replace(/\s+/g, "");
     const translatedStatus =
       normalizedStatus === "failed"
         ? "失败"
@@ -488,7 +495,8 @@ export function formatToolStatusLabel(
               normalizedStatus === "running" ||
               normalizedStatus === "started" ||
               normalizedStatus === "in progress" ||
-              normalizedStatus === "pending"
+              normalizedStatus === "pending" ||
+              compactStatus === "inprogress"
             ? "进行中"
             : normalizedStatus;
     parts.push(translatedStatus);
