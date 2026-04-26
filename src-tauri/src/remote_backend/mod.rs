@@ -267,15 +267,53 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 fn resolve_transport_config(
     settings: &crate::types::AppSettings,
 ) -> Result<RemoteTransportConfig, String> {
-    let host = if settings.remote_backend_host.trim().is_empty() {
+    let configured_host = if settings.remote_backend_host.trim().is_empty() {
         DEFAULT_REMOTE_HOST.to_string()
     } else {
         settings.remote_backend_host.clone()
+    };
+    let host = if should_use_managed_local_daemon(settings) {
+        managed_local_daemon_host(&configured_host)
+    } else {
+        configured_host
     };
     Ok(RemoteTransportConfig::Tcp {
         host,
         auth_token: settings.remote_backend_token.clone(),
     })
+}
+
+/// 判断桌面端是否应使用本机托管守护进程地址。
+///
+/// `settings`：当前应用设置，用于判断 Web 访问与后端模式。
+fn should_use_managed_local_daemon(settings: &crate::types::AppSettings) -> bool {
+    cfg!(desktop)
+        && matches!(settings.backend_mode, BackendMode::Remote)
+        && settings.web_access_enabled
+}
+
+/// 将公开远程地址转换为本机守护进程连接地址。
+///
+/// `remote_host`：设置中保存的远程后端地址，端口会被复用到本机回环地址。
+fn managed_local_daemon_host(remote_host: &str) -> String {
+    let port = parse_port_from_remote_host(remote_host).unwrap_or(4732);
+    format!("127.0.0.1:{port}")
+}
+
+/// 从远程地址中解析端口。
+///
+/// `remote_host`：远程后端地址，支持 `host:port` 与标准 socket 地址。
+fn parse_port_from_remote_host(remote_host: &str) -> Option<u16> {
+    if remote_host.trim().is_empty() {
+        return None;
+    }
+    if let Ok(addr) = remote_host.trim().parse::<std::net::SocketAddr>() {
+        return Some(addr.port());
+    }
+    remote_host
+        .trim()
+        .rsplit_once(':')
+        .and_then(|(_, port)| port.parse::<u16>().ok())
 }
 
 #[cfg(test)]
@@ -293,10 +331,24 @@ mod tests {
         settings.remote_backend_host = "tcp.example:4732".to_string();
 
         let config = resolve_transport_config(&settings).expect("transport config");
-        let RemoteTransportConfig::Tcp { host, .. } = config else {
-            panic!("expected tcp transport config");
-        };
+        let RemoteTransportConfig::Tcp { host, .. } = config;
         assert_eq!(host, "tcp.example:4732");
+    }
+
+    #[test]
+    fn resolve_tcp_transport_uses_local_daemon_when_web_access_is_enabled() {
+        let mut settings = AppSettings::default();
+        settings.backend_mode = crate::types::BackendMode::Remote;
+        settings.web_access_enabled = true;
+        settings.remote_backend_host = "100.87.184.33:4720".to_string();
+
+        let config = resolve_transport_config(&settings).expect("transport config");
+        let RemoteTransportConfig::Tcp { host, .. } = config;
+        if cfg!(desktop) {
+            assert_eq!(host, "127.0.0.1:4720");
+        } else {
+            assert_eq!(host, "100.87.184.33:4720");
+        }
     }
 
     #[test]
