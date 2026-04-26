@@ -18,6 +18,7 @@ type WorkspaceCardProps = {
   onShowWorkspaceMenu: (event: MouseEvent, workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
+  onDisconnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleAddMenu: (anchor: {
     workspaceId: string;
     top: number;
@@ -39,6 +40,7 @@ export function WorkspaceCard({
   onShowWorkspaceMenu,
   onToggleWorkspaceCollapse,
   onConnectWorkspace,
+  onDisconnectWorkspace,
   onToggleAddMenu,
   children,
 }: WorkspaceCardProps) {
@@ -115,7 +117,18 @@ export function WorkspaceCard({
           >
             +
           </button>
-          {!workspace.connected && (
+          {workspace.connected ? (
+            <span
+              className="connect"
+              title={`关闭 ${providerLabel} 共享运行时连接`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDisconnectWorkspace(workspace);
+              }}
+            >
+              关闭连接
+            </span>
+          ) : (
             <span
               className="connect"
               title={`连接项目上下文到共享 ${providerLabel} 运行时`}

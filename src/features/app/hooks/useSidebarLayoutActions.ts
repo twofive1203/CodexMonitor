@@ -23,6 +23,7 @@ type UseSidebarLayoutActionsOptions = {
   selectWorkspace: (workspaceId: string) => void;
   setActiveThreadId: (threadId: string | null, workspaceId?: string) => void;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
+  disconnectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   reloadWorkspaceSession: (workspaceId: string) => Promise<void>;
   isCompact: boolean;
   setActiveTab: (tab: AppTab) => void;
@@ -56,6 +57,7 @@ export function useSidebarLayoutActions({
   selectWorkspace,
   setActiveThreadId,
   connectWorkspace,
+  disconnectWorkspace,
   reloadWorkspaceSession,
   isCompact,
   setActiveTab,
@@ -148,6 +150,23 @@ export function useSidebarLayoutActions({
       }
     },
     [connectWorkspace, ensureFullWorkspaceHistory, isCompact, setActiveTab],
+  );
+
+  const onDisconnectWorkspace = useCallback(
+    async (workspace: WorkspaceInfo) => {
+      await disconnectWorkspace(workspace);
+      delete fullHistoryLoadedByWorkspaceRef.current[workspace.id];
+      resetWorkspaceThreads(workspace.id);
+      if (activeWorkspaceId === workspace.id) {
+        setActiveThreadId(null, workspace.id);
+      }
+    },
+    [
+      activeWorkspaceId,
+      disconnectWorkspace,
+      resetWorkspaceThreads,
+      setActiveThreadId,
+    ],
   );
 
   const onToggleWorkspaceCollapse = useCallback(
@@ -287,6 +306,7 @@ export function useSidebarLayoutActions({
     onSelectHome,
     onSelectWorkspace,
     onConnectWorkspace,
+    onDisconnectWorkspace,
     onToggleWorkspaceCollapse,
     onSelectThread,
     onDeleteThread,

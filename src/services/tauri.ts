@@ -545,6 +545,10 @@ export async function connectWorkspace(id: string): Promise<void> {
   return invoke("connect_workspace", { id });
 }
 
+export async function disconnectWorkspace(id: string): Promise<void> {
+  return invoke("disconnect_workspace", { id });
+}
+
 export async function reloadWorkspaceSession(workspaceId: string): Promise<void> {
   return invoke("reload_workspace_session", { workspaceId });
 }

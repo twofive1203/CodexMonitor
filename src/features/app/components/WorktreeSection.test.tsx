@@ -40,6 +40,7 @@ describe("WorktreeSection", () => {
         pinnedThreadsVersion={0}
         onSelectWorkspace={vi.fn()}
         onConnectWorkspace={vi.fn()}
+        onDisconnectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={vi.fn()}
         onSelectThread={vi.fn()}
         onShowThreadMenu={vi.fn()}

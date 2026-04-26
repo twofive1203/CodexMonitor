@@ -66,6 +66,7 @@ export type UseWorkspacesResult = {
     },
   ) => Promise<WorkspaceInfo | null>;
   connectWorkspace: (entry: WorkspaceInfo) => Promise<void>;
+  disconnectWorkspace: (entry: WorkspaceInfo) => Promise<void>;
   markWorkspaceConnected: (id: string) => void;
   updateWorkspaceSettings: (
     workspaceId: string,
@@ -98,6 +99,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
     addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     connectWorkspace,
+    disconnectWorkspace,
     filterWorkspacePaths,
     markWorkspaceConnected,
     refreshWorkspaces,
@@ -196,6 +198,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
+    disconnectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
     createWorkspaceGroup,

@@ -508,6 +508,7 @@ export function useMainAppLayoutSurfaces({
         onSelectHome: sidebarHandlers.onSelectHome,
         onSelectWorkspace: sidebarHandlers.onSelectWorkspace,
         onConnectWorkspace: sidebarHandlers.onConnectWorkspace,
+        onDisconnectWorkspace: sidebarHandlers.onDisconnectWorkspace,
         onAddAgent: handleAddAgent,
         onAddWorktreeAgent: handleAddWorktreeAgent,
         onAddCloneAgent: handleAddCloneAgent,

@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useLiquidGlassEffect } from "./useLiquidGlassEffect";
 import { isGlassSupported, setLiquidGlassEffect } from "tauri-plugin-liquid-glass-api";
-import { Effect, EffectState, getCurrentWindow } from "@tauri-apps/api/window";
+import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 
 vi.mock("tauri-plugin-liquid-glass-api", () => ({
   isGlassSupported: vi.fn(),
@@ -74,17 +74,14 @@ describe("useLiquidGlassEffect", () => {
     });
   });
 
-  it("applies Acrylic effect on Windows when liquid glass is unsupported", async () => {
+  it("clears effects on Windows when liquid glass is unsupported", async () => {
     vi.mocked(isGlassSupported).mockResolvedValue(false);
     setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 
     renderHook(() => useLiquidGlassEffect({ reduceTransparency: false }));
 
     await waitFor(() => {
-      expect(mockSetEffects).toHaveBeenCalledWith({
-        effects: [Effect.Acrylic],
-        state: EffectState.Active,
-      });
+      expect(mockSetEffects).toHaveBeenCalledWith({ effects: [] });
       expect(setLiquidGlassEffect).not.toHaveBeenCalled();
     });
   });

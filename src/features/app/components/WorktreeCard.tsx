@@ -14,6 +14,7 @@ type WorktreeCardProps = {
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
+  onDisconnectWorkspace: (workspace: WorkspaceInfo) => void;
   children?: React.ReactNode;
 };
 
@@ -25,6 +26,7 @@ export function WorktreeCard({
   onShowWorktreeMenu,
   onToggleWorkspaceCollapse,
   onConnectWorkspace,
+  onDisconnectWorkspace,
   children,
 }: WorktreeCardProps) {
   const worktreeCollapsed = worktree.settings.sidebarCollapsed;
@@ -95,7 +97,18 @@ export function WorktreeCard({
               >
                 <span className="worktree-toggle-icon">›</span>
               </button>
-              {!worktree.connected && (
+              {worktree.connected ? (
+                <span
+                  className="connect"
+                  title={`关闭 ${providerLabel} 共享运行时连接`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDisconnectWorkspace(worktree);
+                  }}
+                >
+                  关闭连接
+                </span>
+              ) : (
                 <span
                   className="connect"
                   title={`连接项目上下文到共享 ${providerLabel} 运行时`}

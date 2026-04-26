@@ -41,6 +41,7 @@ type WorktreeSectionProps = {
   pinnedThreadsVersion: number;
   onSelectWorkspace: (id: string) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
+  onDisconnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
@@ -79,6 +80,7 @@ export function WorktreeSection({
   pinnedThreadsVersion,
   onSelectWorkspace,
   onConnectWorkspace,
+  onDisconnectWorkspace,
   onToggleWorkspaceCollapse,
   onSelectThread,
   onShowThreadMenu,
@@ -152,6 +154,7 @@ export function WorktreeSection({
               onShowWorktreeMenu={onShowWorktreeMenu}
               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
               onConnectWorkspace={onConnectWorkspace}
+              onDisconnectWorkspace={onDisconnectWorkspace}
             >
               {showWorktreeThreadList && (
                 <ThreadList

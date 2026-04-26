@@ -12,6 +12,7 @@ import {
   addWorkspace as addWorkspaceService,
   addWorkspaceFromGitUrl as addWorkspaceFromGitUrlService,
   connectWorkspace as connectWorkspaceService,
+  disconnectWorkspace as disconnectWorkspaceService,
   isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
   removeWorkspace as removeWorkspaceService,
@@ -370,6 +371,38 @@ export function useWorkspaceCrud({
     [onDebug, setWorkspaces],
   );
 
+  const disconnectWorkspace = useCallback(
+    async (entry: WorkspaceInfo) => {
+      onDebug?.({
+        id: `${Date.now()}-client-disconnect-workspace`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "workspace/disconnect",
+        payload: { workspaceId: entry.id, path: entry.path },
+      });
+      try {
+        await disconnectWorkspaceService(entry.id);
+        setWorkspaces((prev) =>
+          prev.map((workspace) =>
+            workspace.id === entry.id
+              ? { ...workspace, connected: false }
+              : workspace,
+          ),
+        );
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-disconnect-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/disconnect error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+    [onDebug, setWorkspaces],
+  );
+
   const markWorkspaceConnected = useCallback(
     (id: string) => {
       setWorkspaces((prev) =>
@@ -497,6 +530,7 @@ export function useWorkspaceCrud({
     addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     connectWorkspace,
+    disconnectWorkspace,
     filterWorkspacePaths,
     markWorkspaceConnected,
     refreshWorkspaces,

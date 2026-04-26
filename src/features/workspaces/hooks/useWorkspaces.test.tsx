@@ -6,6 +6,7 @@ import {
   addWorkspace,
   addWorkspaceFromGitUrl,
   connectWorkspace as connectWorkspaceService,
+  disconnectWorkspace as disconnectWorkspaceService,
   isWorkspacePathDir,
   listWorkspaces,
   renameWorktree,
@@ -23,6 +24,7 @@ vi.mock("../../../services/tauri", () => ({
   addWorkspaceFromGitUrl: vi.fn(),
   addWorktree: vi.fn(),
   connectWorkspace: vi.fn(),
+  disconnectWorkspace: vi.fn(),
   isWorkspacePathDir: vi.fn(),
   pickWorkspacePaths: vi.fn(),
   removeWorkspace: vi.fn(),
@@ -286,6 +288,31 @@ describe("useWorkspaces.connectWorkspace", () => {
       result.current.workspaces.find((entry) => entry.id === workspaceOne.id)
         ?.connected,
     ).toBe(true);
+  });
+});
+
+describe("useWorkspaces.disconnectWorkspace", () => {
+  it("marks workspace as disconnected after a successful disconnect", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const disconnectWorkspaceMock = vi.mocked(disconnectWorkspaceService);
+    listWorkspacesMock.mockResolvedValue([workspaceOne]);
+    disconnectWorkspaceMock.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.disconnectWorkspace(workspaceOne);
+    });
+
+    expect(disconnectWorkspaceMock).toHaveBeenCalledWith(workspaceOne.id);
+    expect(
+      result.current.workspaces.find((entry) => entry.id === workspaceOne.id)
+        ?.connected,
+    ).toBe(false);
   });
 });
 

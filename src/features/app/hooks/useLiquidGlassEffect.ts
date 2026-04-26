@@ -12,6 +12,15 @@ type Params = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+/**
+ * 判断当前 WebView 是否运行在 Windows。
+ *
+ * @param userAgent 浏览器 user agent 字符串。
+ */
+function isWindowsUserAgent(userAgent: string) {
+  return userAgent.includes("Windows");
+}
+
 export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
   const supportedRef = useRef<boolean | null>(null);
 
@@ -49,17 +58,13 @@ export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
         }
 
         const userAgent = navigator.userAgent ?? "";
-        const isMac = userAgent.includes("Macintosh");
-        const isLinux = userAgent.includes("Linux");
-        const isWindows = userAgent.includes("Windows");
-
-        if (isWindows) {
-          await window.setEffects({
-            effects: [Effect.Acrylic],
-            state: EffectState.Active,
-          });
+        if (isWindowsUserAgent(userAgent)) {
+          // Windows WebView2 在透明窗口叠加 Acrylic 时容易出现内存持续上涨。
+          await window.setEffects({ effects: [] });
           return;
         }
+        const isMac = userAgent.includes("Macintosh");
+        const isLinux = userAgent.includes("Linux");
 
         if (!isMac && !isLinux) {
           return;
@@ -87,6 +92,8 @@ export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
 
     return () => {
       cancelled = true;
+      void setLiquidGlassEffect({ enabled: false }).catch(() => {});
+      void getCurrentWindow().setEffects({ effects: [] }).catch(() => {});
     };
   }, [onDebug, reduceTransparency]);
 }

@@ -34,6 +34,7 @@ describe("useSidebarLayoutActions", () => {
       selectWorkspace: vi.fn(),
       setActiveThreadId: vi.fn(),
       connectWorkspace: vi.fn(async () => {}),
+      disconnectWorkspace: vi.fn(async () => {}),
       reloadWorkspaceSession: vi.fn(async () => {}),
       isCompact: false,
       setActiveTab: vi.fn(),
@@ -95,6 +96,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace,
         setActiveThreadId,
         connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
@@ -144,6 +146,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace,
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
@@ -190,6 +193,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),
@@ -238,6 +242,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace,
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: true,
         setActiveTab,
@@ -266,6 +271,52 @@ describe("useSidebarLayoutActions", () => {
     expect(setActiveTab).toHaveBeenCalledWith("codex");
   });
 
+  it("disconnects workspace and clears active thread state", async () => {
+    const disconnectWorkspace = vi.fn(async () => {});
+    const resetWorkspaceThreads = vi.fn();
+    const setActiveThreadId = vi.fn();
+
+    const { result } = renderHook(() =>
+      useSidebarLayoutActions({
+        openSettings: vi.fn(),
+        resetPullRequestSelection: vi.fn(),
+        clearDraftState: vi.fn(),
+        clearDraftStateIfDifferentWorkspace: vi.fn(),
+        selectHome: vi.fn(),
+        exitDiffView: vi.fn(),
+        selectWorkspace: vi.fn(),
+        setActiveThreadId,
+        connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace,
+        reloadWorkspaceSession: vi.fn(async () => {}),
+        isCompact: false,
+        setActiveTab: vi.fn(),
+        workspacesById: new Map([[workspace.id, workspace]]),
+        activeWorkspaceId: workspace.id,
+        activeThreadId: "thread-1",
+        updateWorkspaceSettings: vi.fn(async () => workspace),
+        resetWorkspaceThreads,
+        removeThread: vi.fn(),
+        clearDraftForThread: vi.fn(),
+        removeImagesForThread: vi.fn(),
+        refreshThread: vi.fn(async () => {}),
+        handleRenameThread: vi.fn(),
+        removeWorkspace: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {}),
+        loadOlderThreadsForWorkspace: vi.fn(async () => {}),
+        listThreadsForWorkspace: vi.fn(async () => {}),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.onDisconnectWorkspace(workspace);
+    });
+
+    expect(disconnectWorkspace).toHaveBeenCalledWith(workspace);
+    expect(resetWorkspaceThreads).toHaveBeenCalledWith(workspace.id);
+    expect(setActiveThreadId).toHaveBeenCalledWith(null, workspace.id);
+  });
+
   it("runs claude history reload actions", async () => {
     const listThreadsForWorkspace = vi.fn(async () => {});
     const loadOlderThreadsForWorkspace = vi.fn(async () => {});
@@ -281,6 +332,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession,
         isCompact: false,
         setActiveTab: vi.fn(),
@@ -333,6 +385,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession,
         isCompact: false,
         setActiveTab: vi.fn(),
@@ -385,6 +438,7 @@ describe("useSidebarLayoutActions", () => {
         selectWorkspace: vi.fn(),
         setActiveThreadId: vi.fn(),
         connectWorkspace: vi.fn(async () => {}),
+        disconnectWorkspace: vi.fn(async () => {}),
         reloadWorkspaceSession: vi.fn(async () => {}),
         isCompact: false,
         setActiveTab: vi.fn(),

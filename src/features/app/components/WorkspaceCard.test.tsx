@@ -23,6 +23,7 @@ const baseProps: ComponentProps<typeof WorkspaceCard> = {
   onShowWorkspaceMenu: vi.fn(),
   onToggleWorkspaceCollapse: vi.fn(),
   onConnectWorkspace: vi.fn(),
+  onDisconnectWorkspace: vi.fn(),
   onToggleAddMenu: vi.fn(),
 };
 
@@ -47,5 +48,21 @@ describe("WorkspaceCard", () => {
 
     fireEvent.click(connectButton);
     expect(baseProps.onConnectWorkspace).toHaveBeenCalledWith(baseProps.workspace);
+  });
+
+  it("shows disconnect action for connected workspaces", () => {
+    render(
+      <WorkspaceCard
+        {...baseProps}
+        workspace={{ ...baseProps.workspace, connected: true }}
+      />,
+    );
+
+    const disconnectButton = screen.getByTitle("关闭 Claude 共享运行时连接");
+    fireEvent.click(disconnectButton);
+    expect(baseProps.onDisconnectWorkspace).toHaveBeenCalledWith({
+      ...baseProps.workspace,
+      connected: true,
+    });
   });
 });

@@ -45,6 +45,7 @@ const baseProps = {
   onSelectHome: vi.fn(),
   onSelectWorkspace: vi.fn(),
   onConnectWorkspace: vi.fn(),
+  onDisconnectWorkspace: vi.fn(),
   onAddAgent: vi.fn(),
   onAddWorktreeAgent: vi.fn(),
   onAddCloneAgent: vi.fn(),
