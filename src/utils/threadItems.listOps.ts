@@ -1,6 +1,21 @@
 import type { ConversationItem } from "../types";
 import { normalizeThreadTimestamp } from "./threadItems.shared";
 
+/**
+ * 判断文件变更工具项是否已经携带结构化 diff。
+ *
+ * @param item 工具消息项。
+ * @returns 若 `changes` 中已存在差异文本则返回 true。
+ */
+function hasStructuredFileChangeDiff(
+  item: Extract<ConversationItem, { kind: "tool" }>,
+) {
+  return (
+    item.toolType === "fileChange" &&
+    (item.changes?.some((change) => Boolean(change.diff)) ?? false)
+  );
+}
+
 function mergeUserInputQuestions(
   existing: Extract<ConversationItem, { kind: "userInput" }>["questions"],
   incoming: Extract<ConversationItem, { kind: "userInput" }>["questions"],
@@ -84,13 +99,18 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
     const incomingOutput = item.output ?? "";
     const hasIncomingOutput = incomingOutput.trim().length > 0;
     const hasIncomingChanges = (item.changes?.length ?? 0) > 0;
+    const shouldClearExistingFileChangeOutput = hasStructuredFileChangeDiff(item);
     next[index] = {
       ...existing,
       ...item,
       title: item.title?.trim() ? item.title : existing.title,
       detail: item.detail?.trim() ? item.detail : existing.detail,
       status: item.status?.trim() ? item.status : existing.status,
-      output: hasIncomingOutput ? incomingOutput : existingOutput,
+      output: shouldClearExistingFileChangeOutput
+        ? incomingOutput
+        : hasIncomingOutput
+          ? incomingOutput
+          : existingOutput,
       changes: hasIncomingChanges ? item.changes : existing.changes,
       durationMs:
         typeof item.durationMs === "number" ? item.durationMs : existing.durationMs,
@@ -176,10 +196,15 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
     const localOutput = local.output ?? "";
     const hasRemoteOutput = remoteOutput.trim().length > 0;
     const remoteStatus = remote.status?.trim();
+    const shouldClearLocalFileChangeOutput = hasStructuredFileChangeDiff(remote);
     return {
       ...remote,
       status: remoteStatus ? remote.status : local.status,
-      output: hasRemoteOutput ? remoteOutput : localOutput,
+      output: shouldClearLocalFileChangeOutput
+        ? remoteOutput
+        : hasRemoteOutput
+          ? remoteOutput
+          : localOutput,
       changes: remote.changes ?? local.changes,
       collabSender: remote.collabSender ?? local.collabSender,
       collabReceiver: remote.collabReceiver ?? local.collabReceiver,

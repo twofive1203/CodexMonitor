@@ -128,10 +128,10 @@ export function buildConversationItem(
       })
       .filter(Boolean);
     const paths = formattedChanges.join(", ");
-    const diffOutput = normalizedChanges
-      .map((change) => change.diff ?? "")
-      .filter(Boolean)
-      .join("\n\n");
+    const hasStructuredDiff = normalizedChanges.some((change) => Boolean(change.diff));
+    const fallbackOutput = asString(
+      item.aggregatedOutput ?? item.output ?? item.result ?? "",
+    );
     return {
       id,
       kind: "tool",
@@ -139,7 +139,7 @@ export function buildConversationItem(
       title: "文件变更",
       detail: paths || "待处理变更",
       status: asString(item.status ?? ""),
-      output: diffOutput,
+      output: hasStructuredDiff ? "" : fallbackOutput,
       changes: normalizedChanges,
     };
   }

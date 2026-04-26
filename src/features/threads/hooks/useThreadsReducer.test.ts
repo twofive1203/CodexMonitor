@@ -542,6 +542,18 @@ describe("threadReducer", () => {
     );
   });
 
+  it("truncates oversized turn diff updates", () => {
+    const oversizedDiff = "d".repeat(120_000);
+    const next = threadReducer(initialState, {
+      type: "setThreadTurnDiff",
+      threadId: "thread-1",
+      diff: oversizedDiff,
+    });
+
+    expect(next.turnDiffByThread["thread-1"]?.endsWith("...")).toBe(true);
+    expect((next.turnDiffByThread["thread-1"] ?? "").length).toBe(100_000);
+  });
+
   it("clears turn diff state when a thread is removed", () => {
     const base: ThreadState = {
       ...initialState,

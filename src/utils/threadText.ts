@@ -26,6 +26,23 @@ function formatUserInput(item: Extract<ConversationItem, { kind: "userInput" }>)
   return ["输入已回答：", ...lines].join("\n");
 }
 
+/**
+ * 解析工具项在转录文本中应输出的正文，避免依赖运行时重复缓存的 diff 字段。
+ *
+ * @param item 工具消息项。
+ * @returns 适合写入转录文本的输出内容。
+ */
+function resolveToolTranscriptOutput(item: Extract<ConversationItem, { kind: "tool" }>) {
+  if (item.toolType !== "fileChange") {
+    return item.output ?? "";
+  }
+  const structuredDiff = (item.changes ?? [])
+    .map((change) => change.diff ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+  return structuredDiff || item.output || "";
+}
+
 function formatTool(item: Extract<ConversationItem, { kind: "tool" }>) {
   const parts = [`工具：${item.title}`];
   if (item.detail) {
@@ -34,8 +51,9 @@ function formatTool(item: Extract<ConversationItem, { kind: "tool" }>) {
   if (item.status) {
     parts.push(`状态：${item.status}`);
   }
-  if (item.output) {
-    parts.push(item.output);
+  const transcriptOutput = resolveToolTranscriptOutput(item);
+  if (transcriptOutput) {
+    parts.push(transcriptOutput);
   }
   if (item.changes && item.changes.length > 0) {
     parts.push(

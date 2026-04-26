@@ -884,6 +884,31 @@
   color: var(--text-stronger);
 }
 
+.message-diff-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message-diff-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.message-diff-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.message-diff-toggle {
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 8px;
+}
+
 .tool-inline-output {
   background: var(--surface-command);
   border-radius: 8px;

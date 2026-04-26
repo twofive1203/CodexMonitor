@@ -17,6 +17,10 @@
   background: var(--surface-messages);
 }
 
+.app.is-windows .main {
+  background: var(--surface-messages);
+}
+
 .main-header {
   width: 100%;
   display: flex;

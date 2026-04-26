@@ -2,20 +2,63 @@ import { useCallback, useRef, useState } from "react";
 import type { DebugEntry } from "../../../types";
 
 const MAX_DEBUG_ENTRIES = 200;
+const MAX_DEBUG_STRING_CHARS = 4000;
+const MAX_DEBUG_ARRAY_ITEMS = 8;
+const MAX_DEBUG_OBJECT_KEYS = 24;
+const MAX_DEBUG_DEPTH = 4;
 
-function summarizePayload(payload: unknown): unknown {
+/**
+ * 截断调试日志中的长文本，避免大响应长期驻留在 WebView 内存。
+ *
+ * @param value 原始文本。
+ */
+function trimDebugString(value: string) {
+  if (value.length <= MAX_DEBUG_STRING_CHARS) {
+    return value;
+  }
+  return `${value.slice(0, MAX_DEBUG_STRING_CHARS)}... [已截断 ${value.length - MAX_DEBUG_STRING_CHARS} 字符]`;
+}
+
+/**
+ * 递归摘要调试 payload，并断开对原始大对象的引用。
+ *
+ * @param payload 需要写入调试面板的原始 payload。
+ * @param depth 当前递归深度。
+ * @param seen 已访问对象集合，用于处理循环引用。
+ */
+function summarizePayload(
+  payload: unknown,
+  depth = 0,
+  seen: WeakSet<object> = new WeakSet(),
+): unknown {
+  if (typeof payload === "string") {
+    return trimDebugString(payload);
+  }
   if (Array.isArray(payload)) {
-    return { _type: "array", count: payload.length, sample: payload.slice(0, 5) };
+    return {
+      _type: "array",
+      count: payload.length,
+      sample: payload
+        .slice(0, MAX_DEBUG_ARRAY_ITEMS)
+        .map((entry) => summarizePayload(entry, depth + 1, seen)),
+    };
   }
   if (payload && typeof payload === "object") {
+    if (seen.has(payload)) {
+      return "[Circular]";
+    }
+    seen.add(payload);
     const obj = payload as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    if (depth >= MAX_DEBUG_DEPTH) {
+      return { _type: "object", keys: keys.slice(0, MAX_DEBUG_OBJECT_KEYS) };
+    }
     const summarized: Record<string, unknown> = {};
-    for (const key of Object.keys(obj)) {
-      if (Array.isArray(obj[key])) {
-        summarized[key] = { _type: "array", count: (obj[key] as unknown[]).length };
-      } else {
-        summarized[key] = obj[key];
-      }
+    for (const key of keys.slice(0, MAX_DEBUG_OBJECT_KEYS)) {
+      summarized[key] = summarizePayload(obj[key], depth + 1, seen);
+    }
+    if (keys.length > MAX_DEBUG_OBJECT_KEYS) {
+      summarized._truncatedKeys = keys.length - MAX_DEBUG_OBJECT_KEYS;
     }
     return summarized;
   }

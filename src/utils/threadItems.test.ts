@@ -453,8 +453,9 @@ describe("threadItems", () => {
     if (item && item.kind === "tool") {
       expect(item.title).toBe("文件变更");
       expect(item.detail).toBe("A foo.txt");
-      expect(item.output).toContain("diff --git a/foo.txt b/foo.txt");
+      expect(item.output).toBe("");
       expect(item.changes?.[0]?.path).toBe("foo.txt");
+      expect(item.changes?.[0]?.diff).toContain("diff --git a/foo.txt b/foo.txt");
     }
   });
 
@@ -609,6 +610,78 @@ describe("threadItems", () => {
     if (next[0].kind === "tool") {
       expect(next[0].output).toBe(existing.output);
       expect(next[0].status).toBe("completed");
+    }
+  });
+
+  it("clears streamed file change output when structured diffs arrive", () => {
+    const existing: ConversationItem = {
+      id: "file-change-1",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "文件变更",
+      detail: "M src/foo.ts",
+      status: "in_progress",
+      output: "diff --git a/src/foo.ts b/src/foo.ts",
+    };
+    const completed: ConversationItem = {
+      id: "file-change-1",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "文件变更",
+      detail: "M src/foo.ts",
+      status: "completed",
+      output: "",
+      changes: [
+        {
+          path: "src/foo.ts",
+          kind: "modify",
+          diff: "diff --git a/src/foo.ts b/src/foo.ts",
+        },
+      ],
+    };
+
+    const next = upsertItem([existing], completed);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("tool");
+    if (next[0].kind === "tool") {
+      expect(next[0].output).toBe("");
+      expect(next[0].changes?.[0]?.diff).toContain("diff --git a/src/foo.ts");
+    }
+  });
+
+  it("drops local file change output when remote history already has structured diffs", () => {
+    const remote: ConversationItem = {
+      id: "file-change-2",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "文件变更",
+      detail: "M src/foo.ts",
+      status: "completed",
+      output: "",
+      changes: [
+        {
+          path: "src/foo.ts",
+          kind: "modify",
+          diff: "diff --git a/src/foo.ts b/src/foo.ts",
+        },
+      ],
+    };
+    const local: ConversationItem = {
+      id: "file-change-2",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "文件变更",
+      detail: "M src/foo.ts",
+      status: "completed",
+      output: "diff --git a/src/foo.ts b/src/foo.ts",
+    };
+
+    const merged = mergeThreadItems([remote], [local]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].kind).toBe("tool");
+    if (merged[0].kind === "tool") {
+      expect(merged[0].output).toBe("");
+      expect(merged[0].changes?.[0]?.diff).toContain("diff --git a/src/foo.ts");
     }
   });
 

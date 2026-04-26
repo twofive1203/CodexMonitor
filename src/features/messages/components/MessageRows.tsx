@@ -248,6 +248,68 @@ const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps
   );
 });
 
+type DeferredDiffBlockProps = {
+  diff: string;
+  displayPath: string;
+};
+
+/**
+ * 将大文本体积格式化为便于阅读的近似值，便于在折叠态提示差异规模。
+ *
+ * @param charCount 差异文本的字符数量。
+ * @returns 近似大小文案。
+ */
+function formatApproxTextSize(charCount: number) {
+  if (charCount >= 1024 * 1024) {
+    const sizeMb = charCount / (1024 * 1024);
+    return `${sizeMb >= 10 ? sizeMb.toFixed(0) : sizeMb.toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(charCount / 1024))} KB`;
+}
+
+/**
+ * 按需挂载差异渲染组件，避免消息区默认解析和高亮完整 diff。
+ *
+ * @param diff 原始差异文本。
+ * @param displayPath 差异展示时使用的路径标题。
+ * @returns 折叠态摘要或展开后的差异视图。
+ */
+const DeferredDiffBlock = memo(function DeferredDiffBlock({
+  diff,
+  displayPath,
+}: DeferredDiffBlockProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasDiff = diff.trim().length > 0;
+  const sizeLabel = useMemo(() => formatApproxTextSize(diff.length), [diff.length]);
+
+  if (!hasDiff) {
+    return <div className="diff-viewer-placeholder">无法显示差异。</div>;
+  }
+
+  return (
+    <div className="message-diff-panel">
+      <div className="message-diff-toolbar">
+        <span className="message-diff-summary">
+          默认折叠差异，避免长期占用内存，约 {sizeLabel}
+        </span>
+        <button
+          type="button"
+          className="ghost message-diff-toggle"
+          onClick={() => setIsExpanded((previous) => !previous)}
+          aria-expanded={isExpanded}
+        >
+          {isExpanded ? "收起差异" : "展开差异"}
+        </button>
+      </div>
+      {isExpanded ? (
+        <div className="diff-viewer-output">
+          <PierreDiffBlock diff={diff} displayPath={displayPath} />
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
 function toolIconForSummary(
   item: Extract<ConversationItem, { kind: "tool" }>,
   summary: ToolSummary,
@@ -602,9 +664,7 @@ export const DiffRow = memo(function DiffRow({ item }: DiffRowProps) {
         <span className="diff-title">{item.title}</span>
         {item.status && <span className="item-status">{item.status}</span>}
       </div>
-      <div className="diff-viewer-output">
-        <PierreDiffBlock diff={item.diff} displayPath={item.title} />
-      </div>
+      <DeferredDiffBlock diff={item.diff} displayPath={item.title} />
     </div>
   );
 });
@@ -848,9 +908,7 @@ export const ToolRow = memo(function ToolRow({
                   </span>
                 </div>
                 {change.diff && (
-                  <div className="diff-viewer-output">
-                    <PierreDiffBlock diff={change.diff} displayPath={change.path} />
-                  </div>
+                  <DeferredDiffBlock diff={change.diff} displayPath={change.path} />
                 )}
               </div>
             ))}

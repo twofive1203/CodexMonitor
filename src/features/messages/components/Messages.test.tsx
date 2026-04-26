@@ -14,8 +14,9 @@ const useFileLinkOpenerMock = vi.fn(
 );
 const openFileLinkMock = vi.fn();
 const showFileLinkMenuMock = vi.fn();
-const { exportMarkdownFileMock } = vi.hoisted(() => ({
+const { exportMarkdownFileMock, pierreDiffBlockMock } = vi.hoisted(() => ({
   exportMarkdownFileMock: vi.fn(),
+  pierreDiffBlockMock: vi.fn(),
 }));
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
@@ -36,6 +37,17 @@ vi.mock("@services/tauri", async () => {
   };
 });
 
+vi.mock("../../git/components/PierreDiffBlock", () => ({
+  PierreDiffBlock: (props: { diff: string; displayPath: string }) => {
+    pierreDiffBlockMock(props);
+    return (
+      <div data-testid="pierre-diff-block">
+        {props.displayPath}
+      </div>
+    );
+  },
+}));
+
 describe("Messages", () => {
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
@@ -52,6 +64,7 @@ describe("Messages", () => {
     openFileLinkMock.mockReset();
     showFileLinkMenuMock.mockReset();
     exportMarkdownFileMock.mockReset();
+    pierreDiffBlockMock.mockReset();
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -323,6 +336,74 @@ describe("Messages", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "加载更多历史" }));
     expect(onLoadMoreHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("defers diff row rendering until the user expands it", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "diff-1",
+        kind: "diff",
+        title: "src/foo.ts",
+        diff: "diff --git a/src/foo.ts b/src/foo.ts",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(pierreDiffBlockMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "展开差异" }));
+    expect(pierreDiffBlockMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("pierre-diff-block").textContent).toContain("src/foo.ts");
+  });
+
+  it("keeps file change diffs collapsed until the user opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "tool-file-change-1",
+        kind: "tool",
+        toolType: "fileChange",
+        title: "文件变更",
+        detail: "M src/foo.ts",
+        status: "completed",
+        output: "",
+        changes: [
+          {
+            path: "src/foo.ts",
+            kind: "modify",
+            diff: "diff --git a/src/foo.ts b/src/foo.ts",
+          },
+        ],
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const summaryButton = screen.getByText("foo.ts").closest("button");
+    expect(summaryButton).toBeTruthy();
+    fireEvent.click(summaryButton as HTMLElement);
+    expect(pierreDiffBlockMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "展开差异" }));
+    expect(pierreDiffBlockMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("pierre-diff-block").textContent).toContain("src/foo.ts");
   });
 
   it("opens linked review thread when clicking thread link", () => {

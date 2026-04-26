@@ -1,5 +1,20 @@
 import type { ThreadAction, ThreadState } from "../useThreadsReducer";
 
+const MAX_TURN_DIFF_CHARS = 100_000;
+
+/**
+ * 限制线程级 diff 缓存长度，避免单条更新长期占用过多前端内存。
+ *
+ * @param diff 原始线程级差异文本。
+ * @returns 截断后的差异文本。
+ */
+function trimTurnDiff(diff: string) {
+  if (diff.length <= MAX_TURN_DIFF_CHARS) {
+    return diff;
+  }
+  return `${diff.slice(0, MAX_TURN_DIFF_CHARS - 3)}...`;
+}
+
 export function reduceThreadSnapshots(
   state: ThreadState,
   action: ThreadAction,
@@ -47,7 +62,7 @@ export function reduceThreadSnapshots(
         ...state,
         turnDiffByThread: {
           ...state.turnDiffByThread,
-          [action.threadId]: action.diff,
+          [action.threadId]: trimTurnDiff(action.diff),
         },
       };
     case "setThreadPlan":
