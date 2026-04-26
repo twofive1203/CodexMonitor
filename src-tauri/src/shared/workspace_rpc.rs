@@ -72,6 +72,11 @@ pub(crate) struct IdRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct DisconnectWorkspaceRequest {
+    pub(crate) id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReloadWorkspaceSessionRequest {
     pub(crate) workspace_id: String,

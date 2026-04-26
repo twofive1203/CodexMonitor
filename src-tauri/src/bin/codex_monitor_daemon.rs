@@ -814,6 +814,13 @@ impl DaemonState {
         .await
     }
 
+    /// 断开指定工作区与共享运行时的连接。
+    ///
+    /// `id`：目标工作区 ID。
+    async fn disconnect_workspace(&self, id: String) -> Result<(), String> {
+        workspaces_core::disconnect_workspace_core(id, &self.workspaces, &self.sessions).await
+    }
+
     /// 重载指定工作区的运行时会话。
     ///
     /// `workspace_id`：目标工作区 ID。

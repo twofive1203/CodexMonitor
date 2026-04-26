@@ -627,6 +627,32 @@ pub(crate) async fn connect_workspace(
     .await
 }
 
+/// 断开指定工作区的共享运行时连接。
+///
+/// `id`：工作区 ID。
+/// `state`：应用共享状态。
+/// `app`：Tauri 应用句柄。
+#[tauri::command]
+pub(crate) async fn disconnect_workspace(
+    id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::DisconnectWorkspaceRequest { id };
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "disconnect_workspace",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
+        return Ok(());
+    }
+
+    workspaces_core::disconnect_workspace_core(id, &state.workspaces, &state.sessions).await
+}
+
 /// 重载指定工作区的运行时会话。
 ///
 /// `workspace_id`：目标工作区 ID。

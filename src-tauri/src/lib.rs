@@ -256,6 +256,7 @@ pub fn run() {
             codex::collaboration_mode_list,
             codex::claude_commands_list,
             workspaces::connect_workspace,
+            workspaces::disconnect_workspace,
             workspaces::reload_workspace_session,
             git::get_git_status,
             git::init_git_repo,

@@ -116,6 +116,27 @@ where
     Ok(())
 }
 
+/// 断开指定工作区与共享运行时的连接。
+///
+/// `workspace_id`：目标工作区 ID。
+/// `workspaces`：工作区存储，用于解析 provider。
+/// `sessions`：provider 维度的会话池。
+pub(crate) async fn disconnect_workspace_core(
+    workspace_id: String,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+) -> Result<(), String> {
+    let entry = {
+        let workspaces = workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or_else(|| "workspace not found".to_string())?
+    };
+    kill_session_by_id(sessions, &entry.provider, &entry.id).await;
+    Ok(())
+}
+
 /// 重载指定工作区的运行时会话。
 ///
 /// `workspace_id`：目标工作区 ID。
@@ -591,6 +612,59 @@ mod tests {
             drop(sessions_guard);
 
             kill_session_by_id(&sessions, &first.provider, &first.id).await;
+            kill_session_by_id(&sessions, &second.provider, &second.id).await;
+        });
+    }
+
+    #[test]
+    fn disconnect_workspace_removes_target_binding_and_keeps_shared_session_for_others() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let first = make_workspace_entry_with_provider("ws-codex-1", AgentProvider::Codex);
+            let second = make_workspace_entry_with_provider("ws-codex-2", AgentProvider::Codex);
+            let workspaces = Mutex::new(HashMap::from([
+                (first.id.clone(), first.clone()),
+                (second.id.clone(), second.clone()),
+            ]));
+            let sessions = Mutex::new(HashMap::<String, Arc<WorkspaceSession>>::new());
+            let app_settings = Mutex::new(AppSettings::default());
+            let first_for_spawn = first.clone();
+
+            connect_workspace_core(
+                first.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| {
+                    let first_for_spawn = first_for_spawn.clone();
+                    async move { Ok(make_session(first_for_spawn)) }
+                },
+            )
+            .await
+            .expect("first workspace should connect");
+
+            connect_workspace_core(
+                second.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |_entry, _default_bin, _codex_args, _codex_home| async move {
+                    Err("shared codex session should be reused".to_string())
+                },
+            )
+            .await
+            .expect("second workspace should reuse session");
+
+            disconnect_workspace_core(first.id.clone(), &workspaces, &sessions)
+                .await
+                .expect("disconnect should succeed");
+
+            let sessions_guard = sessions.lock().await;
+            assert!(!sessions_guard
+                .contains_key(&build_provider_session_key(&first.provider, &first.id)));
+            assert!(sessions_guard
+                .contains_key(&build_provider_session_key(&second.provider, &second.id)));
+            drop(sessions_guard);
+
             kill_session_by_id(&sessions, &second.provider, &second.id).await;
         });
     }

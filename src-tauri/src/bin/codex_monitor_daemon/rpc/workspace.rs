@@ -128,15 +128,17 @@ pub(super) async fn try_handle(
                 serialize_ok(state.connect_workspace(request.id, client_version.to_string())).await,
             )
         }
+        "disconnect_workspace" => {
+            let request = parse_request_or_err!(params, workspace_rpc::DisconnectWorkspaceRequest);
+            Some(serialize_ok(state.disconnect_workspace(request.id)).await)
+        }
         "reload_workspace_session" => {
             let request =
                 parse_request_or_err!(params, workspace_rpc::ReloadWorkspaceSessionRequest);
             Some(
                 serialize_ok(
-                    state.reload_workspace_session(
-                        request.workspace_id,
-                        client_version.to_string(),
-                    ),
+                    state
+                        .reload_workspace_session(request.workspace_id, client_version.to_string()),
                 )
                 .await,
             )
