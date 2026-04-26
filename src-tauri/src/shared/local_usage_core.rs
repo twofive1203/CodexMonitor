@@ -573,7 +573,11 @@ fn make_all_day_keys(sessions_roots: &[PathBuf]) -> Vec<String> {
     let span_days = (end_day - first_day).num_days().max(0);
 
     (0..=span_days)
-        .map(|offset| (first_day + Duration::days(offset)).format("%Y-%m-%d").to_string())
+        .map(|offset| {
+            (first_day + Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        })
         .collect()
 }
 
@@ -915,8 +919,8 @@ mod tests {
         write_session_file(&root_a, &day_key, &[line_a]);
         write_session_file(&root_b, &day_key, &[line_b]);
 
-        let snapshot = scan_local_usage(UsageWindow::Recent(2), None, &[root_a, root_b])
-            .expect("scan usage");
+        let snapshot =
+            scan_local_usage(UsageWindow::Recent(2), None, &[root_a, root_b]).expect("scan usage");
         let day = snapshot
             .days
             .iter()
