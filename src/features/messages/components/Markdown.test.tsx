@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Markdown } from "./Markdown";
 
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
+}));
+
 describe("Markdown file-like href behavior", () => {
   afterEach(() => {
+    vi.mocked(openUrl).mockReset();
     cleanup();
   });
 
@@ -571,6 +577,50 @@ describe("Markdown file-like href behavior", () => {
     expect(container.querySelector(".markdown-table")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeTruthy();
     expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
+  it("opens an external link on a normal click", () => {
+    render(
+      <Markdown
+        value="Open [example](https://example.com/path)"
+        className="markdown"
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByText("example"), {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.click(screen.getByText("example"), {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+    });
+
+    expect(openUrl).toHaveBeenCalledWith("https://example.com/path");
+  });
+
+  it("does not open an external link after dragging to select link text", () => {
+    render(
+      <Markdown
+        value="Open [example](https://example.com/path)"
+        className="markdown"
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByText("example"), {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.click(screen.getByText("example"), {
+      button: 0,
+      clientX: 42,
+      clientY: 10,
+    });
+
+    expect(openUrl).not.toHaveBeenCalled();
   });
 
 });

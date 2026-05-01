@@ -52,6 +52,7 @@ export function useMessagesViewState({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
+  const autoScrollSuspendedRef = useRef(false);
   const copyTimeoutRef = useRef<number | null>(null);
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
 
@@ -78,7 +79,19 @@ export function useMessagesViewState({
     autoScrollRef.current = isNearBottom(containerRef.current);
   }, [isNearBottom]);
 
+  /**
+   * 设置消息区自动滚动是否临时挂起，避免用户划选文本时新增流式内容改变滚动位置。
+   *
+   * @param isSuspended 为 true 时暂停自动滚动，为 false 时恢复原有自动滚动判断。
+   */
+  const setAutoScrollSuspended = useCallback((isSuspended: boolean) => {
+    autoScrollSuspendedRef.current = isSuspended;
+  }, []);
+
   const requestAutoScroll = useCallback(() => {
+    if (autoScrollSuspendedRef.current) {
+      return;
+    }
     const container = containerRef.current;
     const shouldScroll =
       autoScrollRef.current || (container ? isNearBottom(container) : true);
@@ -97,6 +110,9 @@ export function useMessagesViewState({
   }, [threadId]);
 
   useLayoutEffect(() => {
+    if (autoScrollSuspendedRef.current) {
+      return;
+    }
     const container = containerRef.current;
     const shouldScroll =
       autoScrollRef.current || (container ? isNearBottom(container) : true);
@@ -291,6 +307,7 @@ export function useMessagesViewState({
     containerRef,
     updateAutoScroll,
     requestAutoScroll,
+    setAutoScrollSuspended,
     expandedItems,
     toggleExpanded,
     collapsedToolGroups,

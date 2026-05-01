@@ -44,11 +44,14 @@ type PreProps = {
   };
   children?: ReactNode;
   copyUseModifier: boolean;
+  linkDragGuard: LinkDragGuard;
 };
 
 type LinkBlockProps = {
   urls: string[];
 };
+
+type LinkDragGuard = ReturnType<typeof useLinkDragGuard>;
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -189,6 +192,42 @@ function stripTrailingMemoryCitation(value: string) {
   return value.replace(/\n*<oai-mem-citation>[\s\S]*?<\/oai-mem-citation>\s*$/i, "").trim();
 }
 
+/**
+ * 记录链接按下位置，用于区分普通点击和拖动划选文本。
+ *
+ * @returns 链接鼠标按下处理器，以及判断点击是否应被视为拖动的函数。
+ */
+function useLinkDragGuard() {
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleMouseDown = (event: MouseEvent<Element>) => {
+    if (event.button !== 0) {
+      pointerStartRef.current = null;
+      return;
+    }
+    pointerStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  };
+
+  const isDragClick = (event: MouseEvent<Element>) => {
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    if (!start) {
+      return false;
+    }
+    const movementX = Math.abs(event.clientX - start.x);
+    const movementY = Math.abs(event.clientY - start.y);
+    return movementX > 3 || movementY > 3;
+  };
+
+  return {
+    handleMouseDown,
+    isDragClick,
+  };
+}
+
 export function isStandaloneMarkdownTable(value: string) {
   const stripped = stripTrailingMemoryCitation(value);
   if (!stripped) {
@@ -296,16 +335,20 @@ function normalizeListIndentation(value: string) {
   return normalized.join("\n");
 }
 
-function LinkBlock({ urls }: LinkBlockProps) {
+function LinkBlock({ urls, linkDragGuard }: LinkBlockProps & { linkDragGuard: LinkDragGuard }) {
   return (
     <div className="markdown-linkblock">
       {urls.map((url, index) => (
         <a
           key={`${url}-${index}`}
           href={url}
+          onMouseDown={linkDragGuard.handleMouseDown}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (linkDragGuard.isDragClick(event)) {
+              return;
+            }
             void openUrl(url);
           }}
         >
@@ -323,6 +366,7 @@ function FileReferenceLink({
   workspacePath,
   onClick,
   onContextMenu,
+  linkDragGuard,
 }: {
   href: string;
   rawPath: ParsedFileLocation;
@@ -330,6 +374,7 @@ function FileReferenceLink({
   workspacePath?: string | null;
   onClick: (event: React.MouseEvent, path: ParsedFileLocation) => void;
   onContextMenu: (event: React.MouseEvent, path: ParsedFileLocation) => void;
+  linkDragGuard: LinkDragGuard;
 }) {
   const { fullPath, fileName, lineLabel, parentPath } = describeFileTarget(rawPath, workspacePath);
   return (
@@ -337,6 +382,7 @@ function FileReferenceLink({
       href={href}
       className="message-file-link"
       title={fullPath}
+      onMouseDown={linkDragGuard.handleMouseDown}
       onClick={(event) => onClick(event, rawPath)}
       onContextMenu={(event) => onContextMenu(event, rawPath)}
     >
@@ -406,14 +452,14 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   );
 }
 
-function PreBlock({ node, children, copyUseModifier }: PreProps) {
+function PreBlock({ node, children, copyUseModifier, linkDragGuard }: PreProps) {
   const { className, value } = extractCodeFromPre(node);
   if (!className && !value && children) {
     return <pre>{children}</pre>;
   }
   const urlLines = extractUrlLines(value);
   if (urlLines) {
-    return <LinkBlock urls={urlLines} />;
+    return <LinkBlock urls={urlLines} linkDragGuard={linkDragGuard} />;
   }
   const isSingleLine = !value.includes("\n");
   if (isSingleLine) {
@@ -448,6 +494,7 @@ export function Markdown({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MarkdownProps) {
+  const linkDragGuard = useLinkDragGuard();
   const normalizedValue = codeBlock
     ? value
     : normalizeStructuredReviewTables(normalizeListIndentation(value));
@@ -457,11 +504,15 @@ export function Markdown({
   const handleFileLinkClick = (event: React.MouseEvent, path: ParsedFileLocation) => {
     event.preventDefault();
     event.stopPropagation();
+    if (linkDragGuard.isDragClick(event)) {
+      return;
+    }
     onOpenFileLink?.(path);
   };
   const handleLocalLinkClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    linkDragGuard.isDragClick(event);
   };
   const handleFileLinkContextMenu = (
     event: React.MouseEvent,
@@ -501,9 +552,13 @@ export function Markdown({
         return (
           <a
             href={href}
+            onMouseDown={linkDragGuard.handleMouseDown}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
+              if (linkDragGuard.isDragClick(event)) {
+                return;
+              }
               onOpenThreadLink?.(threadId);
             }}
           >
@@ -517,9 +572,11 @@ export function Markdown({
           return (
             <a
               href={href}
+              onMouseDown={linkDragGuard.handleMouseDown}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                linkDragGuard.isDragClick(event);
               }}
             >
               {children}
@@ -534,6 +591,7 @@ export function Markdown({
             workspacePath={workspacePath}
             onClick={handleFileLinkClick}
             onContextMenu={handleFileLinkContextMenu}
+            linkDragGuard={linkDragGuard}
           />
         );
       }
@@ -549,6 +607,7 @@ export function Markdown({
           <a
             href={href ?? toFileLink(hrefFilePath)}
             title={formattedHrefFilePath}
+            onMouseDown={linkDragGuard.handleMouseDown}
             onClick={clickHandler}
             onContextMenu={contextMenuHandler}
           >
@@ -563,10 +622,14 @@ export function Markdown({
 
       if (!isExternal) {
         if (url.startsWith("#")) {
-          return <a href={href}>{children}</a>;
+          return <a href={href} onMouseDown={linkDragGuard.handleMouseDown}>{children}</a>;
         }
         return (
-          <a href={href} onClick={handleLocalLinkClick}>
+          <a
+            href={href}
+            onMouseDown={linkDragGuard.handleMouseDown}
+            onClick={handleLocalLinkClick}
+          >
             {children}
           </a>
         );
@@ -575,9 +638,13 @@ export function Markdown({
       return (
         <a
           href={href}
+          onMouseDown={linkDragGuard.handleMouseDown}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (linkDragGuard.isDragClick(event)) {
+              return;
+            }
             void openUrl(url);
           }}
         >
@@ -603,6 +670,7 @@ export function Markdown({
           workspacePath={workspacePath}
           onClick={handleFileLinkClick}
           onContextMenu={handleFileLinkContextMenu}
+          linkDragGuard={linkDragGuard}
         />
       );
     },
@@ -610,7 +678,11 @@ export function Markdown({
 
   if (codeBlockStyle === "message") {
     components.pre = ({ node, children }) => (
-      <PreBlock node={node as PreProps["node"]} copyUseModifier={codeBlockCopyUseModifier}>
+      <PreBlock
+        node={node as PreProps["node"]}
+        copyUseModifier={codeBlockCopyUseModifier}
+        linkDragGuard={linkDragGuard}
+      >
         {children}
       </PreBlock>
     );

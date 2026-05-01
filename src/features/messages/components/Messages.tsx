@@ -54,12 +54,12 @@ type MessagesProps = {
 };
 
 /**
- * 判断当前事件目标是否属于交互控件，避免在点击按钮或链接时误进入选词保护模式。
+ * 判断当前事件目标是否属于非文本类交互控件，避免点击按钮或表单控件时误进入选词保护模式。
  *
  * @param target 当前鼠标事件目标。
- * @returns 若目标属于按钮、链接或表单控件则返回 true。
+ * @returns 若目标属于按钮或表单控件则返回 true。
  */
-function isInteractiveSelectionTarget(target: EventTarget | null) {
+function isNonTextSelectionTarget(target: EventTarget | null) {
   const element =
     target instanceof Element
       ? target
@@ -73,14 +73,12 @@ function isInteractiveSelectionTarget(target: EventTarget | null) {
     element.closest(
       [
         "button",
-        "a",
         "input",
         "textarea",
         "select",
         "option",
         "summary",
         '[role="button"]',
-        '[role="link"]',
       ].join(","),
     ),
   );
@@ -190,6 +188,7 @@ export const Messages = memo(function Messages({
     copiedMessageId,
     handleCopyMessage,
     handleQuoteMessage,
+    setAutoScrollSuspended,
     reasoningMetaById,
     latestReasoningLabel,
     groupedItems,
@@ -237,13 +236,15 @@ export const Messages = memo(function Messages({
       const shouldProtectSelection =
         isPointerSelectingText || hasExpandedSelectionWithin(container);
       container.classList.toggle(SELECTING_TEXT_CLASS_NAME, shouldProtectSelection);
+      setAutoScrollSuspended(shouldProtectSelection);
     };
 
     const handlePointerStart = (event: MouseEvent) => {
-      if (event.button !== 0 || isInteractiveSelectionTarget(event.target)) {
+      if (event.button !== 0 || isNonTextSelectionTarget(event.target)) {
         return;
       }
       isPointerSelectingText = true;
+      setAutoScrollSuspended(true);
       syncSelectionState();
     };
 
@@ -263,13 +264,14 @@ export const Messages = memo(function Messages({
 
     return () => {
       container.classList.remove(SELECTING_TEXT_CLASS_NAME);
+      setAutoScrollSuspended(false);
       container.removeEventListener("mousedown", handlePointerStart, true);
       document.removeEventListener("selectionchange", syncSelectionState);
       window.removeEventListener("mouseup", handlePointerRelease, true);
       window.removeEventListener("dragend", handlePointerRelease, true);
       window.removeEventListener("blur", handlePointerRelease);
     };
-  }, [containerRef]);
+  }, [containerRef, setAutoScrollSuspended]);
 
   const renderItem = (item: ConversationItem) => {
     if (item.kind === "message") {

@@ -304,6 +304,114 @@ describe("Messages", () => {
     expect(messagesNode.classList.contains("is-selecting-text")).toBe(false);
   });
 
+  it("enables selection-safe mode when dragging starts on a message link", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-selection-link-1",
+        kind: "message",
+        role: "assistant",
+        text: "Read [docs](https://example.com/docs) before continuing.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full");
+    const link = screen.getByText("docs");
+    if (!messagesNode) {
+      throw new Error("Expected messages node");
+    }
+
+    fireEvent.mouseDown(link, { button: 0 });
+
+    expect(messagesNode.classList.contains("is-selecting-text")).toBe(true);
+  });
+
+  it("does not auto-scroll while message text remains selected", () => {
+    const initialItems: ConversationItem[] = [
+      {
+        id: "msg-autoscroll-select-1",
+        kind: "message",
+        role: "assistant",
+        text: "Alpha beta gamma",
+      },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={initialItems}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full") as HTMLDivElement | null;
+    const textNode = screen.getByText("Alpha beta gamma").firstChild;
+    if (!(textNode instanceof Text) || !messagesNode) {
+      throw new Error("Expected message text node");
+    }
+
+    Object.defineProperty(messagesNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(messagesNode, "scrollHeight", {
+      configurable: true,
+      value: 600,
+    });
+    messagesNode.scrollTop = 400;
+
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 5);
+    const selection = window.getSelection();
+
+    act(() => {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+
+    Object.defineProperty(messagesNode, "scrollHeight", {
+      configurable: true,
+      value: 900,
+    });
+
+    rerender(
+      <Messages
+        items={[
+          ...initialItems,
+          {
+            id: "msg-autoscroll-select-2",
+            kind: "message",
+            role: "assistant",
+            text: "Streaming update",
+          },
+        ]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(messagesNode.scrollTop).toBe(400);
+    selection?.removeAllRanges();
+  });
+
   it("shows a load more history action and triggers the callback", () => {
     const onLoadMoreHistory = vi.fn();
     const items: ConversationItem[] = [
