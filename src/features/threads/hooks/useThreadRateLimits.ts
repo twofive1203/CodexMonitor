@@ -12,6 +12,17 @@ type UseThreadRateLimitsOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+/**
+ * 判断未知值是否为普通对象。
+ *
+ * @param value 需要检查的未知值。
+ */
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 export function useThreadRateLimits({
   activeWorkspaceId,
   activeWorkspaceConnected,
@@ -46,11 +57,13 @@ export function useThreadRateLimits({
           label: "account/rateLimits/read response",
           payload: response,
         });
-        const rateLimits =
-          (response?.result?.rateLimits as Record<string, unknown> | undefined) ??
-          (response?.result?.rate_limits as Record<string, unknown> | undefined) ??
-          (response?.rateLimits as Record<string, unknown> | undefined) ??
-          (response?.rate_limits as Record<string, unknown> | undefined);
+        const result = asRecord(response?.result);
+        const rateLimits = asRecord(
+          result?.rateLimits ??
+            result?.rate_limits ??
+            response?.rateLimits ??
+            response?.rate_limits,
+        );
         if (rateLimits) {
           const previousRateLimits =
             getCurrentRateLimitsRef.current?.(targetId) ?? null;

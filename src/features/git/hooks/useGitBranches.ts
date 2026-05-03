@@ -6,6 +6,7 @@ import {
   createGitBranch,
   listGitBranches,
 } from "../../../services/tauri";
+import { parseGitBranchesResponse } from "../utils/gitBranchesResponse";
 
 type UseGitBranchesOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -46,14 +47,7 @@ export function useGitBranches({ activeWorkspace, onDebug }: UseGitBranchesOptio
         label: "git/branches/list response",
         payload: response,
       });
-      const data = response?.branches ?? response?.result?.branches ?? response ?? [];
-      const normalized: BranchInfo[] = Array.isArray(data)
-        ? data.map((item: any) => ({
-            name: String(item?.name ?? ""),
-            lastCommit: Number(item?.lastCommit ?? item?.last_commit ?? 0),
-          }))
-        : [];
-      setBranches(normalized.filter((branch) => branch.name));
+      setBranches(parseGitBranchesResponse(response));
       lastFetchedWorkspaceId.current = workspaceId;
       setError(null);
     } catch (err) {

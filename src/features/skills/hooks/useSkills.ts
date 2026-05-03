@@ -3,6 +3,7 @@ import type { DebugEntry, SkillOption, WorkspaceInfo } from "../../../types";
 import { getSkillsList } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { isSkillsUpdateAvailableEvent } from "../../../utils/appServerEvents";
+import { parseSkillsListResponse } from "../utils/skillsListResponse";
 
 type UseSkillsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -41,19 +42,7 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
         label: "skills/list response",
         payload: response,
       });
-      const dataBuckets = response.result?.data ?? response.data ?? [];
-      const rawSkills =
-        response.result?.skills ??
-        response.skills ??
-        (Array.isArray(dataBuckets)
-          ? dataBuckets.flatMap((bucket: any) => bucket?.skills ?? [])
-          : []);
-      const data: SkillOption[] = rawSkills.map((item: any) => ({
-        name: String(item.name ?? ""),
-        path: String(item.path ?? ""),
-        description: item.description ? String(item.description) : undefined,
-      }));
-      setSkills(data);
+      setSkills(parseSkillsListResponse(response));
       lastFetchedWorkspaceId.current = workspaceId;
     } catch (error) {
       onDebug?.({

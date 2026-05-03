@@ -74,6 +74,15 @@ export type AppServerEvent = {
   message: Record<string, unknown>;
 };
 
+export type RpcRecord = Record<string, unknown>;
+
+export type RpcListEnvelope<TItem extends RpcRecord = RpcRecord> =
+  | TItem[]
+  | (RpcRecord & {
+      result?: unknown;
+      data?: unknown;
+    });
+
 export type TrayRecentThreadEntry = {
   workspaceId: string;
   workspaceLabel: string;
@@ -349,6 +358,8 @@ export type CodexFeature = {
   description: string | null;
   announcement: string | null;
 };
+
+export type ExperimentalFeatureListResponse = RpcListEnvelope;
 
 export type TcpDaemonState = "stopped" | "running" | "error";
 
@@ -633,11 +644,24 @@ export type RateLimitSnapshot = {
   planType: string | null;
 };
 
+export type AccountRateLimitsResponse = RpcRecord & {
+  result?: unknown;
+  rateLimits?: unknown;
+  rate_limits?: unknown;
+};
+
 export type AccountSnapshot = {
   type: "chatgpt" | "apikey" | "unknown";
   email: string | null;
   planType: string | null;
   requiresOpenaiAuth: boolean | null;
+};
+
+export type AccountInfoResponse = RpcRecord & {
+  result?: unknown;
+  account?: unknown;
+  requiresOpenaiAuth?: unknown;
+  requires_openai_auth?: unknown;
 };
 
 export type QueuedMessage = {
@@ -663,6 +687,8 @@ export type ModelOption = {
   isDefault: boolean;
 };
 
+export type ModelListResponse = RpcListEnvelope;
+
 export type CollaborationModeOption = {
   id: string;
   label: string;
@@ -673,11 +699,15 @@ export type CollaborationModeOption = {
   value: Record<string, unknown>;
 };
 
+export type CollaborationModeListResponse = RpcListEnvelope;
+
 export type SkillOption = {
   name: string;
   path: string;
   description?: string;
 };
+
+export type SkillsListResponse = RpcListEnvelope;
 
 export type ClaudeCommandOption = {
   name: string;
@@ -695,6 +725,8 @@ export type AppOption = {
   distributionChannel?: string | null;
 };
 
+export type AppsListResponse = RpcListEnvelope;
+
 export type CustomPromptOption = {
   name: string;
   path: string;
@@ -704,10 +736,19 @@ export type CustomPromptOption = {
   scope?: "workspace" | "global";
 };
 
+export type PromptsListResponse = RpcListEnvelope;
+export type PromptMutationResponse = RpcRecord | null;
+
 export type BranchInfo = {
   name: string;
   lastCommit: number;
 };
+
+export type GitBranchesResponse = RpcListEnvelope;
+
+export type ThreadRpcResponse = RpcRecord | null;
+export type ThreadListResponse = RpcRecord;
+export type McpServerStatusListResponse = RpcListEnvelope;
 
 export type DebugEntry = {
   id: string;

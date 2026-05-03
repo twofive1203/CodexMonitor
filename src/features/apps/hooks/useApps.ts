@@ -3,6 +3,7 @@ import type { AppOption, DebugEntry, WorkspaceInfo } from "../../../types";
 import { getAppsList } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { getAppServerParams, isAppListUpdatedEvent } from "../../../utils/appServerEvents";
+import { parseAppsListResponse } from "../utils/appsListResponse";
 
 type UseAppsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -10,39 +11,6 @@ type UseAppsOptions = {
   enabled: boolean;
   onDebug?: (entry: DebugEntry) => void;
 };
-
-function normalizeAppsResponse(response: any): AppOption[] {
-  const data =
-    response?.result?.data ??
-    response?.data ??
-    [];
-  if (!Array.isArray(data)) {
-    return [];
-  }
-  return data
-    .map((item: any) => ({
-      id: String(item?.id ?? ""),
-      name: String(item?.name ?? ""),
-      description: item?.description ? String(item.description) : undefined,
-      isAccessible: Boolean(item?.isAccessible ?? item?.is_accessible ?? false),
-      installUrl: item?.installUrl
-        ? String(item.installUrl)
-        : item?.install_url
-          ? String(item.install_url)
-          : null,
-      distributionChannel: item?.distributionChannel
-        ? String(item.distributionChannel)
-        : item?.distribution_channel
-          ? String(item.distribution_channel)
-          : null,
-    }))
-    .sort((a, b) => {
-      if (a.isAccessible !== b.isAccessible) {
-        return a.isAccessible ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    });
-}
 
 type AppsFetchTarget = {
   workspaceId: string;
@@ -105,7 +73,7 @@ export function useApps({
         100,
         target.threadId,
       );
-      const nextApps = normalizeAppsResponse(response);
+      const nextApps = parseAppsListResponse(response);
       appsByKey.current[targetKey] = nextApps;
       onDebug?.({
         id: `${Date.now()}-server-apps-list`,
@@ -243,7 +211,7 @@ export function useApps({
         payload: event,
       });
       const currentKey = buildFetchKey(workspaceId, threadIdRef.current);
-      const nextApps = normalizeAppsResponse({ data: params.data });
+      const nextApps = parseAppsListResponse({ data: params.data });
       appsByKey.current[currentKey] = nextApps;
       setApps(nextApps);
       visibleKey.current = currentKey;
