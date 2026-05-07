@@ -7,7 +7,7 @@ import {
 import { joinClassNames } from "../classNames";
 
 type PopoverSurfaceProps = ComponentPropsWithoutRef<"div"> & {
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 export const PopoverSurface = forwardRef<HTMLDivElement, PopoverSurfaceProps>(
@@ -17,7 +17,7 @@ export const PopoverSurface = forwardRef<HTMLDivElement, PopoverSurfaceProps>(
 );
 
 type PopoverMenuItemProps = Omit<ComponentPropsWithoutRef<"button">, "children"> & {
-  children: ReactNode;
+  children?: ReactNode;
   icon?: ReactNode;
   active?: boolean;
 };
