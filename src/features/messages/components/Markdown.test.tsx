@@ -93,6 +93,22 @@ describe("Markdown file-like href behavior", () => {
     expect(code?.textContent).toContain("const selected = value;");
   });
 
+  it("marks inline code with a dedicated class for selection-safe styling", () => {
+    const { container } = render(
+      <Markdown
+        value="Open `MainApp`, inspect `messageRenderer`, then run `npm run typecheck`."
+        className="markdown"
+      />,
+    );
+
+    const inlineCodes = container.querySelectorAll("p > code.markdown-inline-code");
+    expect(inlineCodes).toHaveLength(3);
+    expect(inlineCodes[0].textContent).toBe("MainApp");
+    expect(inlineCodes[1].textContent).toBe("messageRenderer");
+    expect(inlineCodes[2].textContent).toBe("npm run typecheck");
+    expect(container.querySelector(".message-file-link")).toBeNull();
+  });
+
   it("still intercepts explicit workspace file hrefs when a file opener is provided", () => {
     const onOpenFileLink = vi.fn();
     render(

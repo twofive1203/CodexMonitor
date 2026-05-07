@@ -659,7 +659,7 @@ export function Markdown({
       const text = String(children ?? "").trim();
       const fileTarget = parseInlineFileTarget(text);
       if (!fileTarget) {
-        return <code>{children}</code>;
+        return <code className="markdown-inline-code">{children}</code>;
       }
       const href = toFileLink(fileTarget);
       return (

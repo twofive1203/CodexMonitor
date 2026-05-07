@@ -1248,6 +1248,18 @@
   font-size: 0.97em;
 }
 
+.message .markdown .markdown-inline-code {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: baseline;
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: break-spaces;
+  overflow-wrap: normal;
+  word-break: normal;
+  word-wrap: normal;
+}
+
 .message .markdown .message-file-link {
   display: inline-flex;
   align-items: baseline;
