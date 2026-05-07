@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
 import { useComposerAutocomplete } from "./useComposerAutocomplete";
 import type {
@@ -41,6 +41,74 @@ type UseComposerAutocompleteStateArgs = {
 
 const MAX_FILE_SUGGESTIONS = 500;
 const FILE_TRIGGER_PREFIX = new RegExp("^(?:\\s|[\"'`]|\\(|\\[|\\{)$");
+const RECENT_AUTOCOMPLETE_STORAGE_KEY = "codexmonitor.composer.recentAutocomplete";
+const MAX_RECENT_AUTOCOMPLETE_ITEMS = 40;
+
+/**
+ * 读取最近使用的自动补全项 ID。
+ *
+ * 无入参；浏览器存储不可用时返回空列表。
+ */
+function readRecentAutocompleteIds(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(RECENT_AUTOCOMPLETE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 写入最近使用的自动补全项 ID。
+ * @param ids 最近使用 ID 列表，顺序越靠前优先级越高。
+ */
+function writeRecentAutocompleteIds(ids: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      RECENT_AUTOCOMPLETE_STORAGE_KEY,
+      JSON.stringify(ids.slice(0, MAX_RECENT_AUTOCOMPLETE_ITEMS)),
+    );
+  } catch {
+    // Storage failures should not block composer input.
+  }
+}
+
+/**
+ * 按最近使用顺序提升 prompts、skills、apps 的候选项。
+ * @param items 原始候选项。
+ * @param recentIds 最近使用 ID 列表。
+ */
+function sortAutocompleteItemsByRecent<TItem extends AutocompleteItem>(
+  items: TItem[],
+  recentIds: string[],
+): TItem[] {
+  if (recentIds.length === 0) {
+    return items;
+  }
+  const priorityById = new Map(recentIds.map((id, index) => [id, index]));
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      priority: priorityById.get(item.id) ?? Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return a.index - b.index;
+    })
+    .map((entry) => entry.item);
+}
 
 function isFileTriggerActive(text: string, cursor: number | null) {
   if (!text || cursor === null) {
@@ -126,9 +194,13 @@ export function useComposerAutocompleteState({
   setSelectionStart,
   onItemApplied,
 }: UseComposerAutocompleteStateArgs) {
+  const [recentAutocompleteIds, setRecentAutocompleteIds] = useState(
+    readRecentAutocompleteIds,
+  );
   const skillItems = useMemo<AutocompleteItem[]>(
-    () => [
-      ...skills.map((skill) => ({
+    () =>
+      sortAutocompleteItemsByRecent([
+        ...skills.map((skill) => ({
         id: `skill:${skill.name}`,
         label: skill.name,
         description: skill.description,
@@ -145,8 +217,8 @@ export function useComposerAutocompleteState({
           group: "Apps" as const,
           mentionPath: `app://${app.id}`,
         })),
-    ],
-    [apps, skills],
+      ], recentAutocompleteIds),
+    [apps, recentAutocompleteIds, skills],
   );
 
   const fileTriggerActive = useMemo(
@@ -175,7 +247,7 @@ export function useComposerAutocompleteState({
       if (provider === "claude") {
         return [];
       }
-      return prompts
+      return sortAutocompleteItemsByRecent(prompts
         .filter((prompt) => prompt.name)
         .map((prompt) => {
           const insert = buildPromptInsertText(prompt);
@@ -188,9 +260,9 @@ export function useComposerAutocompleteState({
             cursorOffset: insert.cursorOffset,
             group: "Prompts" as const,
           };
-        });
+        }), recentAutocompleteIds);
     },
-    [prompts, provider],
+    [prompts, provider, recentAutocompleteIds],
   );
 
   const slashCommandItems = useMemo<AutocompleteItem[]>(() => {
@@ -270,6 +342,16 @@ export function useComposerAutocompleteState({
       const actualInsert = triggerChar === "@"
         ? insert.replace(/^@+/, "")
         : insert;
+      if (item.group === "Prompts" || item.group === "Skills" || item.group === "Apps") {
+        setRecentAutocompleteIds((previous) => {
+          const next = [item.id, ...previous.filter((id) => id !== item.id)].slice(
+            0,
+            MAX_RECENT_AUTOCOMPLETE_ITEMS,
+          );
+          writeRecentAutocompleteIds(next);
+          return next;
+        });
+      }
       const needsSpace = promptRange
         ? false
         : after.length === 0
@@ -306,6 +388,7 @@ export function useComposerAutocompleteState({
       text,
       textareaRef,
       onItemApplied,
+      setRecentAutocompleteIds,
     ],
   );
 
