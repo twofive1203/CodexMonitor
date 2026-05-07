@@ -7,8 +7,12 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import Download from "lucide-react/dist/esm/icons/download";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
+import Upload from "lucide-react/dist/esm/icons/upload";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
@@ -570,6 +574,8 @@ export function GitDiffPanel({
   const canGenerateCommitMessage = hasAnyChanges;
   const showGenerateCommitMessage = mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
   const commitsBehind = logBehind;
+  const quickActionBusy =
+    fetchLoading || pullLoading || pushLoading || _syncLoading || commitLoading;
 
   const sidebarErrorCandidates = useMemo(() => {
     const options: Array<{
@@ -652,6 +658,70 @@ export function GitDiffPanel({
       headerClassName="git-panel-header"
       headerRight={
         <div className="git-panel-actions" role="group" aria-label="Git 面板">
+          <div className="git-panel-quick-actions" role="toolbar" aria-label="Git 常用动作">
+            <button
+              type="button"
+              className="ghost git-panel-quick-action ds-tooltip-trigger"
+              onClick={() => void onFetch?.()}
+              disabled={!onFetch || quickActionBusy}
+              aria-label="刷新 Git 状态"
+              title="刷新 Git 状态"
+              data-tooltip="刷新 Git 状态"
+              data-tooltip-placement="bottom"
+            >
+              <RefreshCw className={fetchLoading ? "spinning" : ""} size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ghost git-panel-quick-action ds-tooltip-trigger"
+              onClick={() => void onPull?.()}
+              disabled={!onPull || quickActionBusy}
+              aria-label="拉取远端提交"
+              title="拉取远端提交"
+              data-tooltip="拉取"
+              data-tooltip-placement="bottom"
+            >
+              <Download size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ghost git-panel-quick-action ds-tooltip-trigger"
+              onClick={() => void onPush?.()}
+              disabled={!onPush || quickActionBusy || commitsAhead === 0}
+              aria-label="推送本地提交"
+              title="推送本地提交"
+              data-tooltip="推送"
+              data-tooltip-placement="bottom"
+            >
+              <Upload size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ghost git-panel-quick-action ds-tooltip-trigger"
+              onClick={() => void _onSync?.()}
+              disabled={!_onSync || quickActionBusy}
+              aria-label="同步 Git"
+              title="同步 Git"
+              data-tooltip="同步"
+              data-tooltip-placement="bottom"
+            >
+              <RotateCcw className={_syncLoading ? "spinning" : ""} size={14} aria-hidden />
+            </button>
+            {onReviewUncommittedChanges && (
+              <button
+                type="button"
+                className="ghost git-panel-quick-action ds-tooltip-trigger"
+                onClick={() => void onReviewUncommittedChanges(workspaceId)}
+                disabled={quickActionBusy || !hasAnyChanges}
+                aria-label="审查未提交改动"
+                title="审查未提交改动"
+                data-tooltip="审查改动"
+                data-tooltip-placement="bottom"
+              >
+                <Search size={14} aria-hidden />
+              </button>
+            )}
+          </div>
           <div className="git-panel-select">
             <span className="git-panel-select-icon" aria-hidden>
               <ModeIcon />
@@ -741,6 +811,8 @@ export function GitDiffPanel({
           commitsBehind={commitsBehind}
           onPull={onPull}
           pullLoading={pullLoading}
+          onFetch={onFetch}
+          fetchLoading={fetchLoading}
           onPush={onPush}
           pushLoading={pushLoading}
           onSync={_onSync}

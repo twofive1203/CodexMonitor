@@ -36,6 +36,32 @@
   gap: 8px;
 }
 
+.git-panel-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--cm-border-default);
+  border-radius: 8px;
+  background: var(--cm-surface-panel);
+}
+
+.git-panel-quick-action {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.git-panel-quick-action:hover:not(:disabled),
+.git-panel-quick-action:focus-visible {
+  transform: none;
+  box-shadow: none;
+  background: var(--cm-surface-panel-hover);
+  color: var(--text-strong);
+}
+
 .git-panel-select-input {
   border: 1px solid var(--cm-border-default);
   background: var(--cm-surface-panel);
@@ -53,6 +79,20 @@
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.diff-empty-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diff-empty-action {
+  padding: 6px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .git-panel-select-input option {

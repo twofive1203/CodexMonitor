@@ -50,6 +50,8 @@ type GitDiffModeContentProps = {
   commitsBehind: number;
   onPull?: () => void | Promise<void>;
   pullLoading: boolean;
+  onFetch?: () => void | Promise<void>;
+  fetchLoading: boolean;
   onPush?: () => void | Promise<void>;
   pushLoading: boolean;
   onSync?: () => void | Promise<void>;
@@ -112,6 +114,8 @@ export function GitDiffModeContent({
   commitsBehind,
   onPull,
   pullLoading,
+  onFetch,
+  fetchLoading,
   onPush,
   pushLoading,
   onSync,
@@ -351,7 +355,19 @@ export function GitDiffModeContent({
         !stagedFiles.length &&
         !unstagedFiles.length &&
         commitsAhead === 0 &&
-        commitsBehind === 0 && <div className="diff-empty">No changes detected.</div>}
+        commitsBehind === 0 && (
+          <div className="diff-empty diff-empty-with-action">
+            <span>No changes detected.</span>
+            <button
+              type="button"
+              className="ghost diff-empty-action"
+              onClick={() => void onFetch?.()}
+              disabled={!onFetch || fetchLoading}
+            >
+              {fetchLoading ? "Refreshing..." : "Refresh Git status"}
+            </button>
+          </div>
+        )}
       {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
         <>
           {stagedFiles.length > 0 && (
