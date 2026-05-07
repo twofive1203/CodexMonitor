@@ -63,6 +63,7 @@ type UseMainAppLayoutSurfacesArgs = {
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
+  remoteThreadConnectionState: "live" | "polling" | "disconnected";
   activeItems: LayoutNodesOptions["primary"]["messagesProps"]["items"];
   activeThreadCanLoadMoreHistory: LayoutNodesOptions["primary"]["messagesProps"]["canLoadMoreHistory"];
   activeThreadHistoryLimit: LayoutNodesOptions["primary"]["messagesProps"]["historyLimit"];
@@ -272,6 +273,7 @@ export function useMainAppLayoutSurfaces({
   activeWorkspace,
   activeWorkspaceId,
   activeThreadId,
+  remoteThreadConnectionState,
   activeItems,
   activeThreadCanLoadMoreHistory,
   activeThreadHistoryLimit,
@@ -494,6 +496,7 @@ export function useMainAppLayoutSurfaces({
         onRefreshAllThreads,
         activeWorkspaceId,
         activeThreadId,
+        approvals,
         userInputRequests,
         accountRateLimits: sidebarRateLimits,
         usageShowRemaining: appSettings.usageShowRemaining,
@@ -735,6 +738,13 @@ export function useMainAppLayoutSurfaces({
             onSelectOpenAppId: handleSelectOpenAppId,
             branchName: gitState.gitStatus.branchName || "unknown",
             branches: gitState.branches,
+            remoteThreadConnectionState,
+            gitError: gitState.gitStatus.error ?? null,
+            accountInfo: activeSupportsLogin ? activeAccount : null,
+            accountSupported: activeSupportsLogin,
+            modelCount: models.length,
+            skillCount: activeSupportsSkills ? skills.length : 0,
+            appCount: activeSupportsApps ? apps.length : 0,
             onCheckoutBranch: gitState.handleCheckoutBranch,
             onCreateBranch: gitState.handleCreateBranch,
             canCopyThread: activeItems.length > 0,

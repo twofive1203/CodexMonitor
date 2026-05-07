@@ -3,7 +3,12 @@ import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
+import type {
+  AccountSnapshot,
+  BranchInfo,
+  OpenAppTarget,
+  WorkspaceInfo,
+} from "../../../types";
 import type { ReactNode } from "react";
 import {
   getAgentProviderLabel,
@@ -20,6 +25,7 @@ import {
 import { OpenAppMenu } from "./OpenAppMenu";
 import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
+import { WorkspaceHealthButton } from "./WorkspaceHealthButton";
 import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScripts";
 import { useMenuController } from "../hooks/useMenuController";
 
@@ -36,6 +42,13 @@ type MainHeaderProps = {
   onSelectOpenAppId: (id: string) => void;
   branchName: string;
   branches: BranchInfo[];
+  remoteThreadConnectionState?: "live" | "polling" | "disconnected";
+  gitError?: string | null;
+  accountInfo?: AccountSnapshot | null;
+  accountSupported?: boolean;
+  modelCount?: number;
+  skillCount?: number;
+  appCount?: number;
   onCheckoutBranch: (name: string) => Promise<void> | void;
   onCreateBranch: (name: string) => Promise<void> | void;
   canCopyThread?: boolean;
@@ -89,6 +102,13 @@ export function MainHeader({
   onSelectOpenAppId,
   branchName,
   branches,
+  remoteThreadConnectionState = "live",
+  gitError = null,
+  accountInfo = null,
+  accountSupported = false,
+  modelCount = 0,
+  skillCount = 0,
+  appCount = 0,
   onCheckoutBranch,
   onCreateBranch,
   canCopyThread = false,
@@ -489,6 +509,16 @@ export function MainHeader({
         </div>
       </div>
       <div className="main-header-actions">
+        <WorkspaceHealthButton
+          workspace={workspace}
+          remoteThreadConnectionState={remoteThreadConnectionState}
+          gitError={gitError}
+          accountInfo={accountInfo}
+          accountSupported={accountSupported}
+          modelCount={modelCount}
+          skillCount={skillCount}
+          appCount={appCount}
+        />
         {showWorkspaceTools &&
           onRunLaunchScript &&
           onOpenLaunchScriptEditor &&

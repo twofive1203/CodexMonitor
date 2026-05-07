@@ -1,8 +1,5 @@
 import { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import successSoundUrl from "@/assets/success-notification.mp3";
-import errorSoundUrl from "@/assets/error-notification.mp3";
 import { MainAppShell } from "@app/components/MainAppShell";
-import { useThreads } from "@threads/hooks/useThreads";
 import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
 import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
 import { isMissingRepo } from "@/features/git/utils/repoErrors";
@@ -16,9 +13,6 @@ import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
 import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
 import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
 import { useLayoutController } from "@app/hooks/useLayoutController";
-import { useUpdaterController } from "@app/hooks/useUpdaterController";
-import { useResponseRequiredNotificationsController } from "@app/hooks/useResponseRequiredNotificationsController";
-import { useErrorToasts } from "@/features/notifications/hooks/useErrorToasts";
 import { useComposerShortcuts } from "@/features/composer/hooks/useComposerShortcuts";
 import { useComposerMenuActions } from "@/features/composer/hooks/useComposerMenuActions";
 import { useComposerEditorState } from "@/features/composer/hooks/useComposerEditorState";
@@ -27,19 +21,13 @@ import { useMainAppGitState } from "@app/hooks/useMainAppGitState";
 import { useMainAppLayoutSurfaces } from "@app/hooks/useMainAppLayoutSurfaces";
 import { useMainAppLayoutNodes } from "@app/hooks/useMainAppLayoutNodes";
 import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorkspaceFromUrlPrompt";
-import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
 import { usePlanReadyActions } from "@app/hooks/usePlanReadyActions";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import { useInterruptShortcut } from "@app/hooks/useInterruptShortcut";
 import { useArchiveShortcut } from "@app/hooks/useArchiveShortcut";
 import { useCopyThread } from "@threads/hooks/useCopyThread";
-import { useTerminalController } from "@/features/terminal/hooks/useTerminalController";
-import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
-import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
-import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
 import { effectiveCommitMessageModelId } from "@/features/git/utils/commitMessageModelSelection";
-import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
 import { useMainAppModals } from "@app/hooks/useMainAppModals";
 import { useMainAppDisplayNodes } from "@app/hooks/useMainAppDisplayNodes";
 import { useMainAppPromptActions } from "@app/hooks/useMainAppPromptActions";
@@ -50,7 +38,6 @@ import { useMainAppThreadCodexState } from "@app/hooks/useMainAppThreadCodexStat
 import { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import { useMainAppWorkspaceActions } from "@app/hooks/useMainAppWorkspaceActions";
 import { useMainAppWorkspaceLifecycle } from "@app/hooks/useMainAppWorkspaceLifecycle";
-import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThreadRefresh";
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
@@ -60,29 +47,26 @@ import type {
 import { useOpenAppIcons } from "@app/hooks/useOpenAppIcons";
 import { useAccountSwitching } from "@app/hooks/useAccountSwitching";
 import { useNewAgentDraft } from "@app/hooks/useNewAgentDraft";
-import { useSystemNotificationThreadLinks } from "@app/hooks/useSystemNotificationThreadLinks";
 import { useThreadListSortKey } from "@app/hooks/useThreadListSortKey";
-import { useThreadListActions } from "@app/hooks/useThreadListActions";
-import { useRemoteThreadLiveConnection } from "@app/hooks/useRemoteThreadLiveConnection";
-import { useTrayRecentThreads } from "@app/hooks/useTrayRecentThreads";
 import { useTraySessionUsage } from "@app/hooks/useTraySessionUsage";
-import { useTauriEvent } from "@app/hooks/useTauriEvent";
 import { useAppBootstrapOrchestration } from "@app/bootstrap/useAppBootstrapOrchestration";
+import { useNotificationOrchestration } from "@app/orchestration/useNotificationOrchestration";
+import { useTerminalOrchestration } from "@app/orchestration/useTerminalOrchestration";
 import {
   useThreadCodexBootstrapOrchestration,
   useThreadCodexSyncOrchestration,
   useThreadSelectionHandlersOrchestration,
   useThreadUiOrchestration,
 } from "@app/orchestration/useThreadOrchestration";
+import { useThreadRuntimeOrchestration } from "@app/orchestration/useThreadRuntimeOrchestration";
 import {
   useWorkspaceInsightsOrchestration,
   useWorkspaceOrderingOrchestration,
 } from "@app/orchestration/useWorkspaceOrchestration";
+import { useWorkspaceRuntimeOrchestration } from "@app/orchestration/useWorkspaceRuntimeOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
-import { subscribeTrayOpenThread } from "@services/events";
 import { reloadWorkspaceSession } from "@services/tauri";
-import { getRuntimeCapabilities } from "@services/runtime/client";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -170,29 +154,19 @@ export default function MainApp() {
     deletingWorktreeIds,
     hasLoaded,
     refreshWorkspaces,
-  } = useWorkspaceController({
-    appSettings,
-    addDebugEntry,
-    queueSaveSettings,
-  });
-  const {
-    isMobileRuntime,
     showMobileSetupWizard,
     mobileSetupWizardProps,
     handleMobileConnectSuccess,
-  } = useMobileServerSetup({
+    runtimeCapabilities,
+    updaterEnabled,
+    workspacesById,
+    getWorkspaceName,
+  } = useWorkspaceRuntimeOrchestration({
     appSettings,
     appSettingsLoading,
+    addDebugEntry,
     queueSaveSettings,
-    refreshWorkspaces,
   });
-  const runtimeCapabilities = getRuntimeCapabilities();
-  const updaterEnabled = runtimeCapabilities.updater && !isMobileRuntime;
-
-  const workspacesById = useMemo(
-    () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
   const {
     threadCodexParamsVersion,
     getThreadCodexParams,
@@ -248,6 +222,7 @@ export default function MainApp() {
     closeTerminal: closeTerminalPanel,
   } = useLayoutController({
     activeWorkspaceId,
+    debugLogEnabled: appSettings.debugLogEnabled,
     setActiveTab,
     setDebugOpen,
     toggleDebugPanelShortcut: appSettings.toggleDebugPanelShortcut,
@@ -265,16 +240,6 @@ export default function MainApp() {
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const workspaceHomeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const getWorkspaceName = useCallback(
-    (workspaceId: string) => workspacesById.get(workspaceId)?.name,
-    [workspacesById],
-  );
-
-  const recordPendingThreadLinkRef = useRef<
-    (workspaceId: string, threadId: string) => void
-  >(() => {});
-
-  const { errorToasts, dismissErrorToast } = useErrorToasts();
   const queueGitStatusRefreshRef = useRef<() => void>(() => {});
   const handleThreadMessageActivity = useCallback(() => {
     queueGitStatusRefreshRef.current();
@@ -437,7 +402,6 @@ export default function MainApp() {
 
   const {
     setActiveThreadId,
-    hasLocalThreadSnapshot,
     activeThreadId,
     activeItems,
     activeThreadHistoryLimit,
@@ -509,8 +473,19 @@ export default function MainApp() {
     handleUserInputSubmit,
     refreshAccountInfo,
     refreshAccountRateLimits,
-  } = useThreads({
+    remoteThreadConnectionState,
+    mobileThreadRefreshLoading,
+    handleMobileThreadRefresh,
+    handleSetThreadListSortKey,
+    handleRefreshAllWorkspaceThreads,
+  } = useThreadRuntimeOrchestration({
     activeWorkspace,
+    backendMode: appSettings.backendMode,
+    workspaces,
+    refreshWorkspaces,
+    connectWorkspace,
+    threadListSortKey,
+    setThreadListSortKey,
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: addDebugEntry,
     model: resolvedModel,
@@ -528,30 +503,17 @@ export default function MainApp() {
       : appSettings.chatHistoryScrollbackItems,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
-    threadSortKey: threadListSortKey,
     onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
   });
-  const { connectionState: remoteThreadConnectionState, reconnectLive } =
-    useRemoteThreadLiveConnection({
-      backendMode: appSettings.backendMode,
-      activeWorkspace,
-      activeThreadId,
-      activeThreadHasLocalSnapshot: hasLocalThreadSnapshot(activeThreadId),
-      activeThreadIsProcessing: Boolean(
-        activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
-      ),
-      refreshThread,
-      reconnectWorkspace: connectWorkspace,
-    });
-
-  const { mobileThreadRefreshLoading, handleMobileThreadRefresh } =
-    useMainAppMobileThreadRefresh({
-      activeWorkspace,
-      activeThreadId,
-      startThreadForWorkspace,
-      refreshThread,
-      reconnectLive,
-    });
+  const openThreadLinkRef = useRef<
+    (threadId: string, workspaceId?: string | null) => void
+  >(() => {});
+  const handleOpenThreadLinkForNotification = useCallback(
+    (threadId: string, workspaceId?: string | null) => {
+      openThreadLinkRef.current(threadId, workspaceId);
+    },
+    [],
+  );
   const {
     updaterState,
     startUpdate,
@@ -560,21 +522,23 @@ export default function MainApp() {
     dismissPostUpdateNotice,
     handleTestNotificationSound,
     handleTestSystemNotification,
-  } = useUpdaterController({
-    enabled: updaterEnabled,
-    autoCheckOnMount:
-      !appSettingsLoading && appSettings.automaticAppUpdateChecksEnabled,
-    notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
-    systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
-    subagentSystemNotificationsEnabled:
-      appSettings.subagentSystemNotificationsEnabled,
+    errorToasts,
+    dismissErrorToast,
+  } = useNotificationOrchestration({
+    updaterEnabled,
+    appSettings,
+    appSettingsLoading,
     isSubagentThread,
     getWorkspaceName,
-    onThreadNotificationSent: (workspaceId, threadId) =>
-      recordPendingThreadLinkRef.current(workspaceId, threadId),
-    onDebug: addDebugEntry,
-    successSoundUrl,
-    errorSoundUrl,
+    approvals,
+    userInputRequests,
+    hasLoadedWorkspaces: hasLoaded,
+    workspacesById,
+    refreshWorkspaces,
+    connectWorkspace,
+    handleOpenThreadLink: handleOpenThreadLinkForNotification,
+    setActiveTab,
+    addDebugEntry,
   });
   const gitState = useMainAppGitState({
     activeWorkspace,
@@ -706,27 +670,6 @@ export default function MainApp() {
     selectedCodexArgsOverride,
   });
 
-  const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
-    useThreadListActions({
-      threadListSortKey,
-      setThreadListSortKey,
-      workspaces,
-      refreshWorkspaces,
-      listThreadsForWorkspaces,
-      resetWorkspaceThreads,
-    });
-
-  useResponseRequiredNotificationsController({
-    systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
-    subagentSystemNotificationsEnabled:
-      appSettings.subagentSystemNotificationsEnabled,
-    isSubagentThread,
-    approvals,
-    userInputRequests,
-    getWorkspaceName,
-    onDebug: addDebugEntry,
-  });
-
   const {
     activeAccount,
     accountSwitching,
@@ -753,12 +696,6 @@ export default function MainApp() {
     activeThreadId,
   });
   const { getThreadRows } = useThreadRows(threadParentById);
-
-  useTrayRecentThreads({
-    workspaces,
-    threadsByWorkspace,
-    isSubagentThread,
-  });
 
   useAutoExitEmptyDiff({
     centerMode,
@@ -814,85 +751,20 @@ export default function MainApp() {
     onNewTerminal,
     onCloseTerminal,
     terminalState,
-    ensureTerminalWithTitle,
-    restartTerminalSession,
-    requestTerminalFocus,
-  } = useTerminalController({
+    launchScriptState,
+    launchScriptsState,
+    handleWorktreeCreated,
+    handleToggleTerminalWithFocus,
+  } = useTerminalOrchestration({
     activeWorkspaceId,
     activeWorkspace,
     terminalOpen,
-    onCloseTerminalPanel: closeTerminalPanel,
-    onDebug: addDebugEntry,
-  });
-
-  const ensureLaunchTerminal = useCallback(
-    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", "启动"),
-    [ensureTerminalWithTitle],
-  );
-
-  const openTerminalWithFocus = useCallback(() => {
-    if (!activeWorkspaceId) {
-      return;
-    }
-    requestTerminalFocus();
-    openTerminal();
-  }, [activeWorkspaceId, openTerminal, requestTerminalFocus]);
-
-  const handleToggleTerminalWithFocus = useCallback(() => {
-    if (!activeWorkspaceId) {
-      return;
-    }
-    if (!terminalOpen) {
-      requestTerminalFocus();
-    }
-    handleToggleTerminal();
-  }, [
-    activeWorkspaceId,
-    handleToggleTerminal,
-    requestTerminalFocus,
-    terminalOpen,
-  ]);
-
-  const launchScriptState = useWorkspaceLaunchScript({
-    activeWorkspace,
-    updateWorkspaceSettings,
-    openTerminal: openTerminalWithFocus,
-    ensureLaunchTerminal,
-    restartLaunchSession: restartTerminalSession,
-    terminalState,
-    activeTerminalId,
-  });
-
-  const launchScriptsState = useWorkspaceLaunchScripts({
-    activeWorkspace,
-    updateWorkspaceSettings,
-    openTerminal: openTerminalWithFocus,
-    ensureLaunchTerminal: (workspaceId, entry, title) => {
-      const label = entry.label?.trim() || entry.icon;
-      return ensureTerminalWithTitle(
-        workspaceId,
-        `launch:${entry.id}`,
-        title || `启动：${label}`,
-      );
-    },
-    restartLaunchSession: restartTerminalSession,
-    terminalState,
-    activeTerminalId,
-  });
-
-  const worktreeSetupScriptState = useWorktreeSetupScript({
-    ensureTerminalWithTitle,
-    restartTerminalSession,
     openTerminal,
-    onDebug: addDebugEntry,
+    closeTerminalPanel,
+    handleToggleTerminal,
+    updateWorkspaceSettings,
+    addDebugEntry,
   });
-
-  const handleWorktreeCreated = useCallback(
-    async (worktree: WorkspaceInfo, _parentWorkspace?: WorkspaceInfo) => {
-      await worktreeSetupScriptState.maybeRunWorktreeSetupScript(worktree);
-    },
-    [worktreeSetupScriptState],
-  );
 
   const { exitDiffView, selectWorkspace, selectHome } = useWorkspaceSelection({
     workspaces,
@@ -1373,36 +1245,12 @@ export default function MainApp() {
     removeImagesForThread,
   });
 
-  const handleOpenThreadLinkFromExternal = useCallback(
-    (workspaceId: string, threadId: string) => {
-      setActiveTab("codex");
-      handleOpenThreadLink(threadId, workspaceId);
-    },
-    [handleOpenThreadLink, setActiveTab],
-  );
-
-  const { recordPendingThreadLink, openThreadLinkOrQueue } =
-    useSystemNotificationThreadLinks({
-      hasLoadedWorkspaces: hasLoaded,
-      workspacesById,
-      refreshWorkspaces,
-      connectWorkspace,
-      openThreadLink: handleOpenThreadLinkFromExternal,
-    });
-
-  useTauriEvent(
-    subscribeTrayOpenThread,
-    ({ workspaceId, threadId }: { workspaceId: string; threadId: string }) => {
-      openThreadLinkOrQueue(workspaceId, threadId);
-    },
-  );
-
   useEffect(() => {
-    recordPendingThreadLinkRef.current = recordPendingThreadLink;
+    openThreadLinkRef.current = handleOpenThreadLink;
     return () => {
-      recordPendingThreadLinkRef.current = () => {};
+      openThreadLinkRef.current = () => {};
     };
-  }, [recordPendingThreadLink]);
+  }, [handleOpenThreadLink]);
 
   const { handlePlanAccept, handlePlanSubmitChanges } = usePlanReadyActions({
     activeWorkspace,
@@ -1654,6 +1502,7 @@ export default function MainApp() {
     activeWorkspace,
     activeWorkspaceId,
     activeThreadId,
+    remoteThreadConnectionState,
     activeItems,
     activeThreadCanLoadMoreHistory,
     activeThreadHistoryLimit,

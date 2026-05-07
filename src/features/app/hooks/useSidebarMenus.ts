@@ -247,8 +247,11 @@ export function useSidebarMenus({
           },
           onContextMenu: (event: MouseEvent<HTMLDivElement>) =>
             event.preventDefault(),
-          children: browserContextMenu.items.map((item) =>
-            createElement(PopoverMenuItem, {
+        },
+        browserContextMenu.items.map((item) =>
+          createElement(
+            PopoverMenuItem,
+            {
               key: item.text,
               role: "menuitem",
               className: "sidebar-context-menu-item",
@@ -258,10 +261,10 @@ export function useSidebarMenus({
                 setBrowserContextMenu(null);
                 void item.action?.();
               },
-              children: item.text,
-            }),
+            },
+            item.text,
           ),
-        },
+        ),
       ),
       document.body,
     );
