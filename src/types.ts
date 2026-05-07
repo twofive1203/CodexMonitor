@@ -289,6 +289,7 @@ export type AppSettings = {
   toggleGitSidebarShortcut: string | null;
   branchSwitcherShortcut: string | null;
   toggleDebugPanelShortcut: string | null;
+  debugLogEnabled: boolean;
   toggleTerminalShortcut: string | null;
   cycleAgentNextShortcut: string | null;
   cycleAgentPrevShortcut: string | null;

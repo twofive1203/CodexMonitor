@@ -245,6 +245,20 @@ export function SettingsDisplaySection({
           }
         />
       </SettingsToggleRow>
+      <SettingsToggleRow
+        title="调试日志"
+        subtitle="用于排障，会在内存中保留调试事件；正常使用建议关闭。"
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.debugLogEnabled}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              debugLogEnabled: !appSettings.debugLogEnabled,
+            })
+          }
+        />
+      </SettingsToggleRow>
       <div className="settings-subsection-title">聊天</div>
       <div className="settings-subsection-subtitle">
         控制每个会话保留多少历史内容。

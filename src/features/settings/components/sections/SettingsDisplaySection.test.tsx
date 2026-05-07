@@ -59,6 +59,59 @@ describe("SettingsDisplaySection", () => {
       expect.objectContaining({ threadTitleAutogenerationEnabled: true }),
     );
   });
+
+  it("toggles debug log collection", () => {
+    const onUpdateAppSettings = vi.fn(async () => {});
+
+    render(
+      <SettingsDisplaySection
+        appSettings={
+          ({
+            theme: "system",
+            usageShowRemaining: false,
+            showMessageFilePath: true,
+            debugLogEnabled: false,
+            threadTitleAutogenerationEnabled: false,
+            uiFontFamily: "",
+            codeFontFamily: "",
+            codeFontSize: 11,
+            notificationSoundsEnabled: true,
+            systemNotificationsEnabled: true,
+          } as unknown) as AppSettings
+        }
+        reduceTransparency={false}
+        scaleShortcutTitle=""
+        scaleShortcutText=""
+        scaleDraft="100%"
+        uiFontDraft=""
+        codeFontDraft=""
+        codeFontSizeDraft={11}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onToggleTransparency={vi.fn()}
+        onSetScaleDraft={vi.fn() as any}
+        onCommitScale={vi.fn(async () => {})}
+        onResetScale={vi.fn(async () => {})}
+        onSetUiFontDraft={vi.fn() as any}
+        onCommitUiFont={vi.fn(async () => {})}
+        onSetCodeFontDraft={vi.fn() as any}
+        onCommitCodeFont={vi.fn(async () => {})}
+        onSetCodeFontSizeDraft={vi.fn() as any}
+        onCommitCodeFontSize={vi.fn(async () => {})}
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByText("调试日志").closest(".settings-toggle-row");
+    expect(row).toBeTruthy();
+    const button = within(row as HTMLElement).getByRole("button");
+
+    fireEvent.click(button);
+
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ debugLogEnabled: true }),
+    );
+  });
   it("toggles unlimited chat history", () => {
     const onUpdateAppSettings = vi.fn(async () => {});
 

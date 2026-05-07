@@ -10,7 +10,7 @@ export function useAppBootstrap() {
   useCodeCssVars(appSettingsState.appSettings);
 
   const dictationState = useDictationController(appSettingsState.appSettings);
-  const debugState = useDebugLog();
+  const debugState = useDebugLog(appSettingsState.appSettings.debugLogEnabled);
 
   const shouldReduceTransparency =
     appSettingsState.reduceTransparency || isMobilePlatform();

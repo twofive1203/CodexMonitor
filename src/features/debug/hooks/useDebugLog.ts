@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DebugEntry } from "../../../types";
 
 const MAX_DEBUG_ENTRIES = 200;
@@ -65,13 +65,28 @@ function summarizePayload(
   return payload;
 }
 
-export function useDebugLog() {
+/**
+ * 管理前端调试日志面板状态和日志条目缓存。
+ *
+ * @param enabled 是否启用调试日志采集；关闭时会清空并阻止面板打开。
+ */
+export function useDebugLog(enabled = false) {
   const [debugOpen, setDebugOpenState] = useState(false);
   const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([]);
   const [hasDebugAlerts, setHasDebugAlerts] = useState(false);
   const [debugPinned, setDebugPinned] = useState(false);
   const debugOpenRef = useRef(debugOpen);
   debugOpenRef.current = debugOpen;
+
+  useEffect(() => {
+    if (enabled) {
+      return;
+    }
+    setDebugOpenState(false);
+    setDebugEntries([]);
+    setHasDebugAlerts(false);
+    setDebugPinned(false);
+  }, [enabled]);
 
   const isAlertEntry = useCallback((entry: DebugEntry) => {
     if (entry.source === "error" || entry.source === "stderr") {
@@ -90,6 +105,9 @@ export function useDebugLog() {
 
   const addDebugEntry = useCallback(
     (entry: DebugEntry) => {
+      if (!enabled) {
+        return;
+      }
       const isAlert = isAlertEntry(entry);
       if (!debugOpenRef.current && !isAlert) {
         return;
@@ -100,7 +118,7 @@ export function useDebugLog() {
       const compactEntry = { ...entry, payload: summarizePayload(entry.payload) };
       setDebugEntries((prev) => [...prev, compactEntry].slice(-MAX_DEBUG_ENTRIES));
     },
-    [isAlertEntry],
+    [enabled, isAlertEntry],
   );
 
   const handleCopyDebug = useCallback(async () => {
@@ -132,16 +150,20 @@ export function useDebugLog() {
     (next: boolean | ((prev: boolean) => boolean)) => {
       setDebugOpenState((prev) => {
         const resolved = typeof next === "function" ? next(prev) : next;
+        if (!enabled) {
+          setDebugPinned(false);
+          return false;
+        }
         if (resolved) {
           setDebugPinned(true);
         }
         return resolved;
       });
     },
-    [],
+    [enabled],
   );
 
-  const showDebugButton = hasDebugAlerts || debugOpen || debugPinned;
+  const showDebugButton = enabled && (hasDebugAlerts || debugOpen || debugPinned);
 
   return {
     debugOpen,

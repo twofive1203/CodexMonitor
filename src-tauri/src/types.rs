@@ -596,6 +596,8 @@ pub(crate) struct AppSettings {
         rename = "toggleDebugPanelShortcut"
     )]
     pub(crate) toggle_debug_panel_shortcut: Option<String>,
+    #[serde(default, rename = "debugLogEnabled")]
+    pub(crate) debug_log_enabled: bool,
     #[serde(
         default = "default_toggle_terminal_shortcut",
         rename = "toggleTerminalShortcut"
@@ -1328,6 +1330,7 @@ impl Default for AppSettings {
             toggle_projects_sidebar_shortcut: default_toggle_projects_sidebar_shortcut(),
             toggle_git_sidebar_shortcut: default_toggle_git_sidebar_shortcut(),
             toggle_debug_panel_shortcut: default_toggle_debug_panel_shortcut(),
+            debug_log_enabled: false,
             toggle_terminal_shortcut: default_toggle_terminal_shortcut(),
             cycle_agent_next_shortcut: default_cycle_agent_next_shortcut(),
             cycle_agent_prev_shortcut: default_cycle_agent_prev_shortcut(),
@@ -1476,6 +1479,7 @@ mod tests {
             settings.toggle_debug_panel_shortcut.as_deref(),
             Some(expected_toggle_debug.as_str())
         );
+        assert!(!settings.debug_log_enabled);
         assert_eq!(
             settings.toggle_terminal_shortcut.as_deref(),
             Some(expected_toggle_terminal.as_str())

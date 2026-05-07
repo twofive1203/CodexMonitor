@@ -89,6 +89,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
+    expect(result.current.settings.debugLogEnabled).toBe(false);
     expect(result.current.settings.interruptShortcut).toBeTruthy();
   });
 

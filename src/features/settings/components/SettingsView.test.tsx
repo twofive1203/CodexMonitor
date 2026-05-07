@@ -110,6 +110,7 @@ const baseSettings: AppSettings = {
   toggleGitSidebarShortcut: null,
   branchSwitcherShortcut: null,
   toggleDebugPanelShortcut: null,
+  debugLogEnabled: false,
   toggleTerminalShortcut: null,
   cycleAgentNextShortcut: null,
   cycleAgentPrevShortcut: null,

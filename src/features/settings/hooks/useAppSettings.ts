@@ -190,6 +190,7 @@ function buildDefaultSettings(): AppSettings {
     toggleGitSidebarShortcut: isMac ? "cmd+shift+g" : "ctrl+shift+g",
     branchSwitcherShortcut: isMac ? "cmd+b" : "ctrl+b",
     toggleDebugPanelShortcut: isMac ? "cmd+shift+d" : "ctrl+shift+d",
+    debugLogEnabled: false,
     toggleTerminalShortcut: isMac ? "cmd+shift+t" : "ctrl+shift+t",
     cycleAgentNextShortcut: isMac ? "cmd+ctrl+down" : "ctrl+alt+down",
     cycleAgentPrevShortcut: isMac ? "cmd+ctrl+up" : "ctrl+alt+up",
@@ -321,6 +322,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : settings.steerEnabled
         ? "steer"
         : "queue",
+    debugLogEnabled: Boolean(settings.debugLogEnabled),
     composerFollowUpHintEnabled:
       typeof settings.composerFollowUpHintEnabled === "boolean"
         ? settings.composerFollowUpHintEnabled

@@ -6,12 +6,14 @@ import { usePanelShortcuts } from "../../layout/hooks/usePanelShortcuts";
 
 export function useLayoutController({
   activeWorkspaceId,
+  debugLogEnabled,
   setActiveTab,
   setDebugOpen,
   toggleDebugPanelShortcut,
   toggleTerminalShortcut,
 }: {
   activeWorkspaceId: string | null;
+  debugLogEnabled: boolean;
   setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   setDebugOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   toggleDebugPanelShortcut: string | null;
@@ -55,6 +57,7 @@ export function useLayoutController({
     openTerminal,
     closeTerminal,
   } = usePanelVisibility({
+    debugLogEnabled,
     isCompact,
     activeWorkspaceId,
     setActiveTab,
