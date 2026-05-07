@@ -131,6 +131,32 @@
   margin-bottom: 18px;
 }
 
+.settings-server-area-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 0 8px;
+  border-top: 1px solid var(--cm-border-soft);
+}
+
+.settings-server-area-heading:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.settings-server-area-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-stronger);
+}
+
+.settings-server-area-description {
+  max-width: 720px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .settings-field-label {
   font-size: 12px;
   font-weight: 600;

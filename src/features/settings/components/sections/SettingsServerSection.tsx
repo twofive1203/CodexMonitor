@@ -92,6 +92,124 @@ type SettingsServerSectionProps = {
   onMobileConnectTest: () => void;
 };
 
+type RemoteTokenControlProps = {
+  token: string;
+  disabled: boolean;
+  blockedReason: string | null;
+  onTokenChange: Dispatch<SetStateAction<string>>;
+  onCommitToken: () => Promise<void>;
+  onGenerateToken: () => Promise<void>;
+};
+
+/**
+ * 将指定值写入系统剪贴板。
+ * @param value 需要复制的文本；为空时直接忽略。
+ */
+const copyValueToClipboard = (value: string | null) => {
+  if (!value) {
+    return;
+  }
+  const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
+  if (!clipboard) {
+    return;
+  }
+  void clipboard.writeText(value).catch(() => {
+    // Ignore clipboard failures and keep the settings UI responsive.
+  });
+};
+
+/**
+ * 渲染远程令牌输入、复制、显隐和生成控件。
+ * @param props 远程令牌草稿、提交回调、生成回调和禁用原因。
+ */
+function RemoteTokenControl({
+  token,
+  disabled,
+  blockedReason,
+  onTokenChange,
+  onCommitToken,
+  onGenerateToken,
+}: RemoteTokenControlProps) {
+  const [showRemoteToken, setShowRemoteToken] = useState(false);
+
+  return (
+    <>
+      <div className="settings-remote-token-group">
+        <input
+          type={showRemoteToken ? "text" : "password"}
+          className="settings-input settings-input--compact settings-remote-token-input"
+          value={token}
+          placeholder="令牌（必填）"
+          onChange={(event) => onTokenChange(event.target.value)}
+          onBlur={() => {
+            void onCommitToken();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              void onCommitToken();
+            }
+          }}
+          aria-label="远程后端令牌"
+        />
+        <div className="settings-remote-token-actions">
+          <button
+            type="button"
+            className="ghost icon-button settings-remote-token-copy"
+            aria-label="复制远程后端令牌"
+            title="复制远程后端令牌"
+            onClick={() => copyValueToClipboard(token.trim())}
+            disabled={!token.trim()}
+          >
+            <Copy aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="ghost icon-button settings-remote-token-visibility"
+            aria-label={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+            title={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
+            onClick={() => setShowRemoteToken((current) => !current)}
+          >
+            {showRemoteToken ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+          </button>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="button settings-button-compact settings-remote-token-generate"
+        onClick={() => {
+          void onGenerateToken();
+        }}
+        disabled={disabled || blockedReason !== null}
+        title={blockedReason ?? "生成新的随机远程令牌"}
+        aria-label="生成随机远程令牌"
+      >
+        <RefreshCw aria-hidden />
+        生成令牌
+      </button>
+    </>
+  );
+}
+
+/**
+ * 渲染远程服务设置页内的分区标题。
+ * @param props 分区标题和说明文案。
+ */
+function SettingsServerAreaHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="settings-server-area-heading">
+      <div className="settings-server-area-title">{title}</div>
+      <div className="settings-server-area-description">{description}</div>
+    </div>
+  );
+}
+
 export function SettingsServerSection({
   appSettings,
   onUpdateAppSettings,
@@ -163,7 +281,6 @@ export function SettingsServerSection({
   const [addRemoteOpen, setAddRemoteOpen] = useState(false);
   const [addRemoteBusy, setAddRemoteBusy] = useState(false);
   const [addRemoteError, setAddRemoteError] = useState<string | null>(null);
-  const [showRemoteToken, setShowRemoteToken] = useState(false);
   const [addRemoteNameDraft, setAddRemoteNameDraft] = useState("");
   const [addRemoteHostDraft, setAddRemoteHostDraft] = useState("");
   const [addRemoteTokenDraft, setAddRemoteTokenDraft] = useState("");
@@ -230,23 +347,6 @@ export function SettingsServerSection({
     return "网页服务当前已停止。";
   })();
 
-  /**
-   * 将指定值写入系统剪贴板。
-   * @param value 需要复制的文本；为空时直接忽略。
-   */
-  const handleCopyValue = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-    const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
-    if (!clipboard) {
-      return;
-    }
-    void clipboard.writeText(value).catch(() => {
-      // Ignore clipboard failures and keep the settings UI responsive.
-    });
-  };
-
   const openAddRemoteModal = () => {
     setAddRemoteError(null);
     setAddRemoteNameDraft(nextRemoteNameSuggestion);
@@ -296,6 +396,11 @@ export function SettingsServerSection({
     >
 
       {!isMobileSimplified && (
+        <>
+        <SettingsServerAreaHeading
+          title="本机服务"
+          description="选择桌面端请求走本地进程还是远程守护进程，并控制应用退出后的守护进程生命周期。"
+        />
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="backend-mode">
             后端模式
@@ -318,11 +423,16 @@ export function SettingsServerSection({
             本地模式会在进程内处理桌面请求；远程模式会让桌面请求走与移动端相同的 TCP 传输链路。
           </div>
         </div>
+        </>
       )}
 
       <>
         {isMobileSimplified && (
           <>
+            <SettingsServerAreaHeading
+              title="远程连接"
+              description="管理移动端保存的远程桌面配置，并测试当前配置是否可连接。"
+            />
             <div className="settings-field">
               <div className="settings-field-label">已保存的远程配置</div>
               <div className="settings-mobile-remotes" role="list" aria-label="已保存的远程配置">
@@ -459,6 +569,10 @@ export function SettingsServerSection({
 
         {!isMobileSimplified && (
           <>
+              <SettingsServerAreaHeading
+                title="移动端访问"
+                description="开启浏览器访问入口，配置监听地址、端口和推荐访问链接。"
+              />
               <SettingsToggleRow
                 title="网页访问"
                 subtitle="开启后会复用当前守护进程，在桌面端暴露浏览器访问入口。关闭时会停止当前受管网页服务。"
@@ -603,7 +717,7 @@ export function SettingsServerSection({
                       <button
                         type="button"
                         className="button settings-button-compact"
-                        onClick={() => handleCopyValue(webAccessStatus?.localUrl ?? webAccessLocalUrl)}
+                        onClick={() => copyValueToClipboard(webAccessStatus?.localUrl ?? webAccessLocalUrl)}
                         disabled={!webAccessStatus?.localUrl && !webAccessLocalUrl}
                       >
                         复制地址
@@ -630,7 +744,7 @@ export function SettingsServerSection({
                       <button
                         type="button"
                         className="button settings-button-compact"
-                        onClick={() => handleCopyValue(webAccessRemoteUrl)}
+                        onClick={() => copyValueToClipboard(webAccessRemoteUrl)}
                         disabled={!webAccessRemoteUrl}
                       >
                         复制地址
@@ -645,6 +759,12 @@ export function SettingsServerSection({
           </>
         )}
 
+        {!isMobileSimplified && (
+          <SettingsServerAreaHeading
+            title="远程连接"
+            description="维护桌面端和移动端共用的 TCP 主机、令牌和当前激活的远程后端。"
+          />
+        )}
         <div className="settings-field">
           <div className="settings-field-label">远程后端</div>
           <div className="settings-field-row settings-remote-backend-row">
@@ -664,59 +784,14 @@ export function SettingsServerSection({
               }}
               aria-label="远程后端主机"
             />
-            <div className="settings-remote-token-group">
-              <input
-                type={showRemoteToken ? "text" : "password"}
-                className="settings-input settings-input--compact settings-remote-token-input"
-                value={remoteTokenDraft}
-                placeholder="令牌（必填）"
-                onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
-                onBlur={() => {
-                  void onCommitRemoteToken();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void onCommitRemoteToken();
-                  }
-                }}
-                aria-label="远程后端令牌"
-              />
-              <div className="settings-remote-token-actions">
-                <button
-                  type="button"
-                  className="ghost icon-button settings-remote-token-copy"
-                  aria-label="复制远程后端令牌"
-                  title="复制远程后端令牌"
-                  onClick={() => handleCopyValue(remoteTokenDraft.trim())}
-                  disabled={!remoteTokenDraft.trim()}
-                >
-                  <Copy aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="ghost icon-button settings-remote-token-visibility"
-                  aria-label={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
-                  title={showRemoteToken ? "隐藏远程后端令牌" : "显示远程后端令牌"}
-                  onClick={() => setShowRemoteToken((current) => !current)}
-                >
-                  {showRemoteToken ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="button settings-button-compact settings-remote-token-generate"
-              onClick={() => {
-                void onGenerateRemoteToken();
-              }}
-              disabled={remoteTokenGenerationBlockedReason !== null}
-              title={remoteTokenGenerationBlockedReason ?? "生成新的随机远程令牌"}
-              aria-label="生成随机远程令牌"
-            >
-              <RefreshCw aria-hidden />
-              生成令牌
-            </button>
+            <RemoteTokenControl
+              token={remoteTokenDraft}
+              disabled={false}
+              blockedReason={remoteTokenGenerationBlockedReason}
+              onTokenChange={onSetRemoteTokenDraft}
+              onCommitToken={onCommitRemoteToken}
+              onGenerateToken={onGenerateRemoteToken}
+            />
           </div>
           {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
           <div className="settings-help">
@@ -755,6 +830,10 @@ export function SettingsServerSection({
 
         {!isMobileSimplified && (
           <div className="settings-field">
+            <SettingsServerAreaHeading
+              title="诊断"
+              description="启动或刷新移动端守护进程，并查看 Tailscale 推荐主机与兜底命令。"
+            />
             <div className="settings-field-label">移动端访问守护进程</div>
             <div className="settings-field-row">
               <button
