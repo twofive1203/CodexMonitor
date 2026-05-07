@@ -25,6 +25,11 @@ Primary app-server event source of truth (methods + typed parsing helpers):
 Primary event router:
 - `src/features/app/hooks/useAppServerEvents.ts`
 
+Event routing table and parsers:
+- `src/features/app/hooks/appServerEventRouting/routes.ts`
+- `src/features/app/hooks/appServerEventRouting/parsers.ts`
+- `src/features/app/hooks/appServerEventRouting/types.ts`
+
 Event handler composition:
 - `src/features/threads/hooks/useThreadEventHandlers.ts`
 
@@ -56,6 +61,16 @@ These are the current Codex v2 `ServerNotification` methods that CodexMonitor
 supports in `src/utils/appServerEvents.ts` (`SUPPORTED_APP_SERVER_METHODS`) and
 then either routes in `useAppServerEvents.ts` or handles in feature-specific
 subscriptions.
+
+Routing status:
+- `useAppServerEvents.ts` is only the subscription adapter.
+- In-hook routed methods come from `APP_SERVER_EVENT_ROUTE_TABLE` in
+  `src/features/app/hooks/appServerEventRouting/routes.ts`.
+- `METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS` is derived from that route table,
+  and `src/utils/appServerEvents.test.ts` verifies it stays aligned with
+  `SUPPORTED_APP_SERVER_METHODS` minus feature-specific subscriptions.
+- Approval requests still route by `requestApproval` suffix before supported
+  notification checks, so newly named approval request methods remain compatible.
 
 - `account/login/completed`
 - `account/rateLimits/updated`
@@ -293,9 +308,13 @@ Use this when the method list is unchanged but behavior looks off.
 
 - Not all missing events must be surfaced in the conversation view; some may
   be better as toasts, settings warnings, or debug-only entries.
+- Current local update note (2026-05-03): iteration 3 split event parsing and
+  dispatch into `appServerEventRouting/*`. `../Codex` was not present in this
+  workspace, so the upstream hash in this title was not refreshed during this
+  local routing refactor.
 - For conversation view changes, prefer:
   - Add method/type support in `src/utils/appServerEvents.ts`
-  - Route in `useAppServerEvents.ts`
+  - Route in `src/features/app/hooks/appServerEventRouting/routes.ts`
   - Handle in `useThreadTurnEvents.ts` or `useThreadItemEvents.ts`
   - Update state in `useThreadsReducer.ts`
   - Render in `Messages.tsx`
