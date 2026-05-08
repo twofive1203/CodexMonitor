@@ -15,9 +15,9 @@ import type {
   ComposerEditorSettings,
   CustomPromptOption,
   DictationTranscript,
+  ServiceTier,
   FollowUpMessageBehavior,
   QueuedMessage,
-  ServiceTier,
   ThreadTokenUsage,
 } from "../../../types";
 import { getAgentProviderLabel } from "../../../utils/agentProvider";
@@ -38,6 +38,7 @@ import {
   normalizePastedText,
 } from "../../../utils/composerText";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
+import { useComposerCollaborationShortcut } from "../hooks/useComposerCollaborationShortcut";
 import { useComposerDraftEffects } from "../hooks/useComposerDraftEffects";
 import { useComposerKeyDown } from "../hooks/useComposerKeyDown";
 import { useComposerSuggestionStyle } from "../hooks/useComposerSuggestionStyle";
@@ -65,21 +66,22 @@ type ComposerProps = {
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
   composerFollowUpHintEnabled: boolean;
-  collaborationModes: { id: string; label: string }[];
-  selectedCollaborationModeId: string | null;
+  composerCollaborationShortcut?: string | null;
+  collaborationModes?: { id: string; label: string }[];
+  selectedCollaborationModeId?: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
-  models: { id: string; displayName: string; model: string }[];
-  selectedModelId: string | null;
+  models?: { id: string; displayName: string; model: string }[];
+  selectedModelId?: string | null;
   onSelectModel: (id: string) => void;
-  reasoningOptions: string[];
-  selectedEffort: string | null;
+  reasoningOptions?: string[];
+  selectedEffort?: string | null;
   onSelectEffort: (effort: string) => void;
-  selectedServiceTier: ServiceTier | null;
-  reasoningSupported: boolean;
+  selectedServiceTier?: ServiceTier | null;
+  reasoningSupported?: boolean;
   codexArgsOptions?: CodexArgsOption[];
   selectedCodexArgsOverride?: string | null;
   onSelectCodexArgsOverride?: (value: string | null) => void;
-  accessMode: "read-only" | "current" | "full-access";
+  accessMode?: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
   claudeCommands?: ClaudeCommandOption[];
@@ -177,21 +179,22 @@ export const Composer = memo(function Composer({
   steerAvailable,
   followUpMessageBehavior,
   composerFollowUpHintEnabled,
-  collaborationModes,
-  selectedCollaborationModeId,
+  composerCollaborationShortcut = "shift+tab",
+  collaborationModes = [],
+  selectedCollaborationModeId = null,
   onSelectCollaborationMode,
-  models,
-  selectedModelId,
+  models = [],
+  selectedModelId = null,
   onSelectModel,
-  reasoningOptions,
-  selectedEffort,
+  reasoningOptions = [],
+  selectedEffort = null,
   onSelectEffort,
-  selectedServiceTier,
-  reasoningSupported,
+  selectedServiceTier = null,
+  reasoningSupported = true,
   codexArgsOptions = [],
   selectedCodexArgsOverride = null,
   onSelectCodexArgsOverride,
-  accessMode,
+  accessMode = "current",
   onSelectAccessMode,
   skills,
   claudeCommands = [],
@@ -255,7 +258,9 @@ export const Composer = memo(function Composer({
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
-  const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
+  const [appMentionBindings, setAppMentionBindings] = useState<
+    AppMentionBinding[]
+  >([]);
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
@@ -338,7 +343,11 @@ export const Composer = memo(function Composer({
     setText: setComposerText,
     setSelectionStart,
     onItemApplied: (item, context) => {
-      if (context.triggerChar !== "$" || item.group !== "Apps" || !item.mentionPath) {
+      if (
+        context.triggerChar !== "$" ||
+        item.group !== "Apps" ||
+        !item.mentionPath
+      ) {
         return;
       }
       const slug = context.insertedText.trim().toLowerCase();
@@ -402,36 +411,42 @@ export const Composer = memo(function Composer({
     [handleHistoryTextChange, handleTextChange],
   );
 
-  const handleSend = useCallback((submitIntent: ComposerSendIntent = "default") => {
-    if (disabled) {
-      return;
-    }
-    const trimmed = text.trim();
-    if (!trimmed && attachedImages.length === 0) {
-      return;
-    }
-    if (trimmed) {
-      recordHistory(trimmed);
-    }
-    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
-    if (resolvedMentions.length > 0) {
-      onSend(trimmed, attachedImages, resolvedMentions, submitIntent);
-    } else {
-      onSend(trimmed, attachedImages, undefined, submitIntent);
-    }
-    resetHistoryNavigation();
-    setComposerText("");
-    setAppMentionBindings([]);
-  }, [
-    appMentionBindings,
-    attachedImages,
-    disabled,
-    onSend,
-    recordHistory,
-    resetHistoryNavigation,
-    setComposerText,
-    text,
-  ]);
+  const handleSend = useCallback(
+    (submitIntent: ComposerSendIntent = "default") => {
+      if (disabled) {
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed && attachedImages.length === 0) {
+        return;
+      }
+      if (trimmed) {
+        recordHistory(trimmed);
+      }
+      const resolvedMentions = resolveBoundAppMentions(
+        trimmed,
+        appMentionBindings,
+      );
+      if (resolvedMentions.length > 0) {
+        onSend(trimmed, attachedImages, resolvedMentions, submitIntent);
+      } else {
+        onSend(trimmed, attachedImages, undefined, submitIntent);
+      }
+      resetHistoryNavigation();
+      setComposerText("");
+      setAppMentionBindings([]);
+    },
+    [
+      appMentionBindings,
+      attachedImages,
+      disabled,
+      onSend,
+      recordHistory,
+      resetHistoryNavigation,
+      setComposerText,
+      text,
+    ],
+  );
 
   useComposerDraftEffects({
     draftText,
@@ -585,7 +600,13 @@ export const Composer = memo(function Composer({
     textareaRef,
     tryExpandFence,
   });
-
+  useComposerCollaborationShortcut({
+    textareaRef,
+    shortcut: composerCollaborationShortcut,
+    collaborationModes,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode,
+  });
 
   return (
     <footer className={`composer${disabled ? " is-disabled" : ""}`}>
@@ -596,18 +617,24 @@ export const Composer = memo(function Composer({
         onDeleteQueued={onDeleteQueued}
       />
       {isProcessing && composerFollowUpHintEnabled && (
-        <div className="composer-followup-hint" role="status" aria-live="polite">
+        <div
+          className="composer-followup-hint"
+          role="status"
+          aria-live="polite"
+        >
           <div className="composer-followup-title">后续消息行为</div>
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
               <>
-                默认：排队（引导不可用）。按 Enter 或 {followUpShortcutLabel} 都会把这条消息加入队列。
+                默认：排队（引导不可用）。按 Enter 或 {followUpShortcutLabel}{" "}
+                都会把这条消息加入队列。
               </>
             ) : (
               <>
                 默认：
-                {effectiveFollowUpBehavior === "steer" ? "引导" : "排队"}。按{" "}
-                {followUpShortcutLabel}
+                {effectiveFollowUpBehavior === "steer"
+                  ? "引导"
+                  : "排队"}。按 {followUpShortcutLabel}
                 可将这条消息设为
                 {oppositeFollowUpIntent === "steer" ? "引导" : "排队"}。
               </>
@@ -616,7 +643,11 @@ export const Composer = memo(function Composer({
         </div>
       )}
       {contextActions.length > 0 ? (
-        <div className="composer-context-actions" role="toolbar" aria-label="审查工具">
+        <div
+          className="composer-context-actions"
+          role="toolbar"
+          aria-label="审查工具"
+        >
           {contextActions.map((action) => (
             <button
               key={action.id}
@@ -686,7 +717,9 @@ export const Composer = memo(function Composer({
         onReviewPromptSelectCommit={onReviewPromptSelectCommit}
         onReviewPromptSelectCommitAtIndex={onReviewPromptSelectCommitAtIndex}
         onReviewPromptConfirmCommit={onReviewPromptConfirmCommit}
-        onReviewPromptUpdateCustomInstructions={onReviewPromptUpdateCustomInstructions}
+        onReviewPromptUpdateCustomInstructions={
+          onReviewPromptUpdateCustomInstructions
+        }
         onReviewPromptConfirmCustom={onReviewPromptConfirmCustom}
       />
       <ComposerMetaBar

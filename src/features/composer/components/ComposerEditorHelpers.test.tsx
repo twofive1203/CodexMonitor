@@ -32,18 +32,9 @@ function ComposerHarness({ initialText = "", editorSettings }: HarnessProps) {
       steerAvailable={false}
       followUpMessageBehavior="queue"
       composerFollowUpHintEnabled={true}
-      collaborationModes={[]}
-      selectedCollaborationModeId={null}
       onSelectCollaborationMode={() => {}}
-      models={[]}
-      selectedModelId={null}
       onSelectModel={() => {}}
-      reasoningOptions={[]}
-      selectedEffort={null}
       onSelectEffort={() => {}}
-      selectedServiceTier={null}
-      reasoningSupported={false}
-      accessMode="current"
       onSelectAccessMode={() => {}}
       skills={[]}
       apps={[]}

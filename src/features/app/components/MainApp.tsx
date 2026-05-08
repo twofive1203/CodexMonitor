@@ -13,8 +13,6 @@ import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
 import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
 import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
 import { useLayoutController } from "@app/hooks/useLayoutController";
-import { useComposerShortcuts } from "@/features/composer/hooks/useComposerShortcuts";
-import { useComposerMenuActions } from "@/features/composer/hooks/useComposerMenuActions";
 import { useComposerEditorState } from "@/features/composer/hooks/useComposerEditorState";
 import { useMainAppComposerWorkspaceState } from "@app/hooks/useMainAppComposerWorkspaceState";
 import { useMainAppGitState } from "@app/hooks/useMainAppGitState";
@@ -107,7 +105,9 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
-  const debugEntrySink = appSettings.debugLogEnabled ? addDebugEntry : undefined;
+  const debugEntrySink = appSettings.debugLogEnabled
+    ? addDebugEntry
+    : undefined;
   const {
     threadListSortKey,
     setThreadListSortKey,
@@ -256,7 +256,7 @@ export default function MainApp() {
     reasoningSupported,
     reasoningOptions,
     selectedEffort,
-    setSelectedEffort
+    setSelectedEffort,
   } = useModels({
     activeWorkspace,
     onDebug: debugEntrySink,
@@ -278,14 +278,16 @@ export default function MainApp() {
     onDebug: debugEntrySink,
   });
 
-  const [selectedCodexArgsOverride, setSelectedCodexArgsOverride] = useState<string | null>(
-    null,
-  );
+  const [selectedCodexArgsOverride, setSelectedCodexArgsOverride] = useState<
+    string | null
+  >(null);
   const [selectedServiceTier, setSelectedServiceTier] = useState<
     ServiceTier | null | undefined
   >(undefined);
   useEffect(() => {
-    setSelectedCodexArgsOverride(normalizeCodexArgsInput(preferredCodexArgsOverride));
+    setSelectedCodexArgsOverride(
+      normalizeCodexArgsInput(preferredCodexArgsOverride),
+    );
   }, [preferredCodexArgsOverride, threadCodexSelectionKey]);
   useEffect(() => {
     setSelectedServiceTier(preferredServiceTier);
@@ -312,57 +314,11 @@ export default function MainApp() {
     persistThreadCodexParams,
   });
   const commitMessageModelId = useMemo(
-    () => effectiveCommitMessageModelId(models, appSettings.commitMessageModelId),
+    () =>
+      effectiveCommitMessageModelId(models, appSettings.commitMessageModelId),
     [models, appSettings.commitMessageModelId],
   );
 
-  const composerShortcuts = {
-    modelShortcut: appSettings.composerModelShortcut,
-    accessShortcut: appSettings.composerAccessShortcut,
-    reasoningShortcut: appSettings.composerReasoningShortcut,
-    collaborationShortcut: appSettings.collaborationModesEnabled
-      ? appSettings.composerCollaborationShortcut
-      : null,
-    models,
-    collaborationModes,
-    selectedModelId,
-    onSelectModel: handleSelectModel,
-    selectedCollaborationModeId,
-    onSelectCollaborationMode: handleSelectCollaborationMode,
-    accessMode,
-    onSelectAccessMode: handleSelectAccessMode,
-    reasoningOptions,
-    selectedEffort,
-    onSelectEffort: handleSelectEffort,
-    selectedServiceTier: selectedServiceTier ?? null,
-    reasoningSupported,
-  };
-
-  useComposerShortcuts({
-    textareaRef: composerInputRef,
-    ...composerShortcuts,
-  });
-
-  useComposerShortcuts({
-    textareaRef: workspaceHomeTextareaRef,
-    ...composerShortcuts,
-  });
-
-  useComposerMenuActions({
-    models,
-    selectedModelId,
-    onSelectModel: handleSelectModel,
-    collaborationModes,
-    selectedCollaborationModeId,
-    onSelectCollaborationMode: handleSelectCollaborationMode,
-    accessMode,
-    onSelectAccessMode: handleSelectAccessMode,
-    reasoningOptions,
-    selectedEffort,
-    onSelectEffort: handleSelectEffort,
-    reasoningSupported,
-    onFocusComposer: () => composerInputRef.current?.focus(),
-  });
   const { skills } = useSkills({ activeWorkspace, onDebug: debugEntrySink });
   const { commands: claudeCommands } = useClaudeCommands({
     activeWorkspace,
@@ -498,7 +454,8 @@ export default function MainApp() {
     ensureWorkspaceRuntimeCodexArgs,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
-    threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
+    threadTitleAutogenerationEnabled:
+      appSettings.threadTitleAutogenerationEnabled,
     chatHistoryScrollbackItems: appSettingsLoading
       ? null
       : appSettings.chatHistoryScrollbackItems,
@@ -553,7 +510,8 @@ export default function MainApp() {
     setActiveTab,
     appSettings: {
       preloadGitDiffs: appSettings.preloadGitDiffs,
-      gitDiffIgnoreWhitespaceChanges: appSettings.gitDiffIgnoreWhitespaceChanges,
+      gitDiffIgnoreWhitespaceChanges:
+        appSettings.gitDiffIgnoreWhitespaceChanges,
       splitChatDiffView: appSettings.splitChatDiffView,
       reviewDeliveryMode: appSettings.reviewDeliveryMode,
     },
@@ -610,8 +568,10 @@ export default function MainApp() {
     runPullRequestReview,
   } = gitState;
   queueGitStatusRefreshRef.current = queueGitStatusRefresh;
-  const { isExpanded: composerEditorExpanded, toggleExpanded: toggleComposerEditorExpanded } =
-    useComposerEditorState();
+  const {
+    isExpanded: composerEditorExpanded,
+    toggleExpanded: toggleComposerEditorExpanded,
+  } = useComposerEditorState();
 
   const composerEditorSettings = useMemo<ComposerEditorSettings>(
     () => ({
@@ -964,13 +924,9 @@ export default function MainApp() {
   });
 
   const activeRateLimits = activeWorkspaceId
-    ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
+    ? (rateLimitsByWorkspace[activeWorkspaceId] ?? null)
     : null;
-  const {
-    homeAccountWorkspace,
-    homeAccount,
-    homeRateLimits,
-  } = useHomeAccount({
+  const { homeAccountWorkspace, homeAccount, homeRateLimits } = useHomeAccount({
     showHome,
     usageWorkspaceId,
     workspaces,
@@ -982,17 +938,17 @@ export default function MainApp() {
     refreshAccountRateLimits,
   });
   const activeTokenUsage = activeThreadId
-    ? tokenUsageByThread[activeThreadId] ?? null
+    ? (tokenUsageByThread[activeThreadId] ?? null)
     : null;
   useTraySessionUsage({
     accountRateLimits: activeRateLimits,
     showRemaining: appSettings.usageShowRemaining,
   });
   const activePlan = activeThreadId
-    ? planByThread[activeThreadId] ?? null
+    ? (planByThread[activeThreadId] ?? null)
     : null;
   const hasActivePlan = Boolean(
-    activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
+    activePlan && (activePlan.steps.length > 0 || activePlan.explanation),
   );
   const composerWorkspaceState = useMainAppComposerWorkspaceState({
     view: {
@@ -1188,7 +1144,12 @@ export default function MainApp() {
         (entry) => entry.sha === selectedCommitSha,
       ) ?? null
     );
-  }, [gitLogAheadEntries, gitLogBehindEntries, gitLogEntries, selectedCommitSha]);
+  }, [
+    gitLogAheadEntries,
+    gitLogBehindEntries,
+    gitLogEntries,
+    selectedCommitSha,
+  ]);
 
   const {
     handleSelectPullRequest,
@@ -1375,7 +1336,9 @@ export default function MainApp() {
   const hasGitRootOverride =
     typeof gitRootOverride === "string" && gitRootOverride.trim().length > 0;
   const showGitInitBanner =
-    Boolean(activeWorkspace) && !hasGitRootOverride && isMissingRepo(gitStatus.error);
+    Boolean(activeWorkspace) &&
+    !hasGitRootOverride &&
+    isMissingRepo(gitStatus.error);
   const displayNodes = useMainAppDisplayNodes({
     showCompactCodexThreadActions,
     handleMobileThreadRefresh,
@@ -1473,6 +1436,7 @@ export default function MainApp() {
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,
       followUpMessageBehavior: appSettings.followUpMessageBehavior,
       composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
+      composerCollaborationShortcut: appSettings.composerCollaborationShortcut,
       dictationEnabled:
         runtimeCapabilities.dictation && appSettings.dictationEnabled,
       splitChatDiffView: appSettings.splitChatDiffView,
@@ -1542,7 +1506,6 @@ export default function MainApp() {
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
     gitState,
-    selectedServiceTier: selectedServiceTier ?? null,
     composerWorkspaceState,
     promptActions,
     worktreeState,
@@ -1577,7 +1540,7 @@ export default function MainApp() {
       handleSelectPullRequest,
     },
     dictationUi: {
-      onOpenDictationSettings: () => modalActions.openSettings('dictation'),
+      onOpenDictationSettings: () => modalActions.openSettings("dictation"),
       dictationTranscript,
       dictationError,
       dictationHint,
@@ -1606,9 +1569,11 @@ export default function MainApp() {
     reasoningOptions,
     selectedEffort,
     onSelectEffort: handleSelectEffort,
+    selectedServiceTier: selectedServiceTier ?? null,
     reasoningSupported,
     codexArgsOptions,
-    selectedCodexArgsOverride: codexArgsOptions.length > 0 ? selectedCodexArgsOverride : null,
+    selectedCodexArgsOverride:
+      codexArgsOptions.length > 0 ? selectedCodexArgsOverride : null,
     onSelectCodexArgsOverride:
       codexArgsOptions.length > 0 ? handleSelectCodexArgsOverride : undefined,
     accessMode,
@@ -1671,7 +1636,7 @@ export default function MainApp() {
     tabletTab,
     showMobilePollingFetchStatus,
     appModalsAboutOpen:
-      appModalsProps.settingsOpen && appModalsProps.settingsSection === 'about',
+      appModalsProps.settingsOpen && appModalsProps.settingsSection === "about",
     updaterState,
     startUpdate,
     dismissUpdate,
@@ -1707,18 +1672,15 @@ export default function MainApp() {
     compactEmptyTerminalNode,
     compactGitBackNode,
   } = useMainAppLayoutNodes(layoutSurfaces);
-  const compactLogNode =
-    runtimeCapabilities.terminal
-      ? activeWorkspace
-        ? terminalFullNode
-        : compactEmptyTerminalNode
-      : debugPanelFullNode;
+  const compactLogNode = runtimeCapabilities.terminal
+    ? activeWorkspace
+      ? terminalFullNode
+      : compactEmptyTerminalNode
+    : debugPanelFullNode;
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
   const compactThreadConnectionState: "live" | "polling" | "disconnected" =
-    !activeWorkspace?.connected
-      ? "disconnected"
-      : remoteThreadConnectionState;
+    !activeWorkspace?.connected ? "disconnected" : remoteThreadConnectionState;
   const mainAppShellProps = useMainAppShellProps({
     shell: {
       appClassName,

@@ -160,35 +160,12 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let cycle_model_item = MenuItemBuilder::with_id("composer_cycle_model", "切换模型")
-        .accelerator("CmdOrCtrl+Shift+M")
-        .build(handle)?;
-    let cycle_access_item = MenuItemBuilder::with_id("composer_cycle_access", "切换访问模式")
-        .accelerator("CmdOrCtrl+Shift+A")
-        .build(handle)?;
-    let cycle_reasoning_item = MenuItemBuilder::with_id("composer_cycle_reasoning", "切换思考模式")
-        .accelerator("CmdOrCtrl+Shift+R")
-        .build(handle)?;
     let cycle_collaboration_item =
         MenuItemBuilder::with_id("composer_cycle_collaboration", "切换协作模式")
             .accelerator("Shift+Tab")
             .build(handle)?;
-    registry.register("composer_cycle_model", &cycle_model_item);
-    registry.register("composer_cycle_access", &cycle_access_item);
-    registry.register("composer_cycle_reasoning", &cycle_reasoning_item);
     registry.register("composer_cycle_collaboration", &cycle_collaboration_item);
-
-    let composer_menu = Submenu::with_items(
-        handle,
-        "输入栏",
-        true,
-        &[
-            &cycle_model_item,
-            &cycle_access_item,
-            &cycle_reasoning_item,
-            &cycle_collaboration_item,
-        ],
-    )?;
+    let composer_menu = Submenu::with_items(handle, "输入栏", true, &[&cycle_collaboration_item])?;
 
     let toggle_projects_sidebar_item =
         MenuItemBuilder::with_id("view_toggle_projects_sidebar", "切换项目侧栏").build(handle)?;
@@ -368,9 +345,6 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "view_prev_agent" => emit_menu_event(app, "menu-prev-agent"),
         "view_next_workspace" => emit_menu_event(app, "menu-next-workspace"),
         "view_prev_workspace" => emit_menu_event(app, "menu-prev-workspace"),
-        "composer_cycle_model" => emit_menu_event(app, "menu-composer-cycle-model"),
-        "composer_cycle_access" => emit_menu_event(app, "menu-composer-cycle-access"),
-        "composer_cycle_reasoning" => emit_menu_event(app, "menu-composer-cycle-reasoning"),
         "composer_cycle_collaboration" => emit_menu_event(app, "menu-composer-cycle-collaboration"),
         "window_minimize" => {
             if let Some(window) = app.get_webview_window("main") {

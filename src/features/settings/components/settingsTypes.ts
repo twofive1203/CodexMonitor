@@ -34,9 +34,6 @@ export type CodexSection =
   | (typeof SETTINGS_EXTRA_SECTION_IDS)[number];
 
 export type ShortcutSettingKey =
-  | "composerModelShortcut"
-  | "composerAccessShortcut"
-  | "composerReasoningShortcut"
   | "composerCollaborationShortcut"
   | "interruptShortcut"
   | "newAgentShortcut"
@@ -54,9 +51,6 @@ export type ShortcutSettingKey =
   | "cycleWorkspacePrevShortcut";
 
 export type ShortcutDraftKey =
-  | "model"
-  | "access"
-  | "reasoning"
   | "collaboration"
   | "interrupt"
   | "newAgent"

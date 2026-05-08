@@ -20,9 +20,6 @@ export type RuntimeEventName =
   | "menu-prev-agent"
   | "menu-next-workspace"
   | "menu-prev-workspace"
-  | "menu-composer-cycle-model"
-  | "menu-composer-cycle-access"
-  | "menu-composer-cycle-reasoning"
   | "menu-composer-cycle-collaboration";
 
 export type RuntimeSubscribeOptions = {

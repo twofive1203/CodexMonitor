@@ -1,5 +1,9 @@
 import type { RefObject } from "react";
-import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
+import type {
+  AppSettings,
+  ComposerEditorSettings,
+  WorkspaceInfo,
+} from "@/types";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
 import { useProviderCapabilities } from "@/features/providers/hooks/useProviderCapabilities";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
@@ -19,8 +23,12 @@ import {
 } from "@utils/agentProvider";
 
 type SidebarProps = LayoutNodesOptions["primary"]["sidebarProps"];
-type ComposerProps = NonNullable<LayoutNodesOptions["primary"]["composerProps"]>;
-type MainHeaderProps = NonNullable<LayoutNodesOptions["primary"]["mainHeaderProps"]>;
+type ComposerProps = NonNullable<
+  LayoutNodesOptions["primary"]["composerProps"]
+>;
+type MainHeaderProps = NonNullable<
+  LayoutNodesOptions["primary"]["mainHeaderProps"]
+>;
 type GitDiffPanelProps = LayoutNodesOptions["git"]["gitDiffPanelProps"];
 
 type UseMainAppLayoutSurfacesArgs = {
@@ -35,13 +43,18 @@ type UseMainAppLayoutSurfacesArgs = {
     | "experimentalAppsEnabled"
     | "followUpMessageBehavior"
     | "composerFollowUpHintEnabled"
+    | "composerCollaborationShortcut"
     | "dictationEnabled"
     | "splitChatDiffView"
     | "gitDiffIgnoreWhitespaceChanges"
   >;
   runtimeCapabilities: RuntimeCapabilities;
   workspaces: WorkspaceInfo[];
-  groupedWorkspaces: Array<{ id: string | null; name: string; workspaces: WorkspaceInfo[] }>;
+  groupedWorkspaces: Array<{
+    id: string | null;
+    name: string;
+    workspaces: WorkspaceInfo[];
+  }>;
   workspaceGroupsCount: number;
   deletingWorktreeIds: Set<string>;
   newAgentDraftWorkspaceId: string | null;
@@ -107,7 +120,11 @@ type UseMainAppLayoutSurfacesArgs = {
   displayNodes: ReturnType<typeof useMainAppDisplayNodes>;
   threadPinning: Pick<
     SidebarProps,
-    "pinThread" | "unpinThread" | "isThreadPinned" | "getPinTimestamp" | "getThreadArgsBadge"
+    | "pinThread"
+    | "unpinThread"
+    | "isThreadPinned"
+    | "getPinTimestamp"
+    | "getThreadArgsBadge"
   >;
   workspaceDrop: {
     workspaceDropTargetRef: SidebarProps["workspaceDropTargetRef"];
@@ -128,7 +145,9 @@ type UseMainAppLayoutSurfacesArgs = {
   };
   pullRequestComposer: {
     composerSendLabel: string | null | undefined;
-    handleSelectPullRequest: NonNullable<GitDiffPanelProps["onSelectPullRequest"]>;
+    handleSelectPullRequest: NonNullable<
+      GitDiffPanelProps["onSelectPullRequest"]
+    >;
   };
   dictationUi: {
     onOpenDictationSettings: ComposerProps["onOpenDictationSettings"];
@@ -191,7 +210,9 @@ type UseMainAppLayoutSurfacesArgs = {
   dictationLevel: number;
   onToggleDictation: () => void;
   onCancelDictation: (() => void) | undefined;
-  clearDictationTranscript: NonNullable<ComposerProps["onDictationTranscriptHandled"]>;
+  clearDictationTranscript: NonNullable<
+    ComposerProps["onDictationTranscriptHandled"]
+  >;
   clearDictationError: () => void;
   clearDictationHint: () => void;
   composerContextActions: ComposerProps["contextActions"];
@@ -450,6 +471,10 @@ export function useMainAppLayoutSurfaces({
   const activeProviderLabel = activeWorkspace
     ? getAgentProviderLabel(getWorkspaceProvider(activeWorkspace))
     : null;
+  const composerModels = models ?? [];
+  const composerCollaborationModes = collaborationModes ?? [];
+  const composerReasoningOptions = reasoningOptions ?? [];
+  const composerCodexArgsOptions = codexArgsOptions ?? [];
   const homeSupportsLogin =
     resolvedHomeProviderCapabilities?.supportsLogin ?? false;
   const homeSupportsRateLimits =
@@ -562,25 +587,26 @@ export function useMainAppLayoutSurfaces({
           : undefined,
         isThinking: composerWorkspaceState.isProcessing,
         isLoadingMessages: activeThreadId
-          ? threadResumeLoadingById[activeThreadId] ?? false
+          ? (threadResumeLoadingById[activeThreadId] ?? false)
           : false,
         processingStartedAt: activeThreadId
-          ? threadStatusById[activeThreadId]?.processingStartedAt ?? null
+          ? (threadStatusById[activeThreadId]?.processingStartedAt ?? null)
           : null,
         lastDurationMs: activeThreadId
-          ? threadStatusById[activeThreadId]?.lastDurationMs ?? null
+          ? (threadStatusById[activeThreadId]?.lastDurationMs ?? null)
           : null,
         showPollingFetchStatus: showMobilePollingFetchStatus,
         pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
       },
-          composerProps: composerWorkspaceState.showComposer
+      composerProps: composerWorkspaceState.showComposer
         ? {
             provider: activeWorkspace?.provider ?? "codex",
             onSend: handleComposerSendWithDraftStart,
             onStop: interruptTurn,
             canStop: composerWorkspaceState.canInterrupt,
             disabled: composerWorkspaceState.isReviewing,
-            onFileAutocompleteActiveChange: composerWorkspaceState.setFileAutocompleteActive,
+            onFileAutocompleteActiveChange:
+              composerWorkspaceState.setFileAutocompleteActive,
             contextUsage: activeTokenUsage,
             queuedMessages: composerWorkspaceState.activeQueue,
             queuePausedReason: composerWorkspaceState.queuePausedReason,
@@ -588,7 +614,10 @@ export function useMainAppLayoutSurfaces({
             steerAvailable:
               composerWorkspaceState.steerAvailable && activeSupportsSteer,
             followUpMessageBehavior: appSettings.followUpMessageBehavior,
-            composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
+            composerFollowUpHintEnabled:
+              appSettings.composerFollowUpHintEnabled,
+            composerCollaborationShortcut:
+              appSettings.composerCollaborationShortcut,
             isProcessing: composerWorkspaceState.isProcessing,
             draftText: composerWorkspaceState.activeDraft,
             onDraftChange: composerWorkspaceState.handleDraftChange,
@@ -611,19 +640,19 @@ export function useMainAppLayoutSurfaces({
             onEditQueued: composerWorkspaceState.handleEditQueued,
             onDeleteQueued: composerWorkspaceState.handleDeleteQueued,
             collaborationModes: activeSupportsCollaborationModes
-              ? collaborationModes
+              ? composerCollaborationModes
               : [],
             selectedCollaborationModeId,
             onSelectCollaborationMode,
-            models,
+            models: composerModels,
             selectedModelId,
             onSelectModel,
-            reasoningOptions,
+            reasoningOptions: composerReasoningOptions,
             selectedEffort,
             onSelectEffort,
             selectedServiceTier,
             reasoningSupported,
-            codexArgsOptions,
+            codexArgsOptions: composerCodexArgsOptions,
             selectedCodexArgsOverride,
             onSelectCodexArgsOverride,
             accessMode,
@@ -731,7 +760,9 @@ export function useMainAppLayoutSurfaces({
             worktreeRename: worktreeState.worktreeRename ?? undefined,
             disableBranchMenu: worktreeState.isWorktreeWorkspace,
             parentPath: worktreeState.activeParentWorkspace?.path ?? null,
-            worktreePath: worktreeState.isWorktreeWorkspace ? activeWorkspace.path : null,
+            worktreePath: worktreeState.isWorktreeWorkspace
+              ? activeWorkspace.path
+              : null,
             openTargets: appSettings.openAppTargets,
             openAppIconById,
             selectedOpenAppId: appSettings.selectedOpenAppId,
@@ -742,7 +773,7 @@ export function useMainAppLayoutSurfaces({
             gitError: gitState.gitStatus.error ?? null,
             accountInfo: activeSupportsLogin ? activeAccount : null,
             accountSupported: activeSupportsLogin,
-            modelCount: models.length,
+            modelCount: composerModels.length,
             skillCount: activeSupportsSkills ? skills.length : 0,
             appCount: activeSupportsApps ? apps.length : 0,
             onCheckoutBranch: gitState.handleCheckoutBranch,
@@ -866,9 +897,10 @@ export function useMainAppLayoutSurfaces({
           ? gitState.worktreeApplySuccess
           : false,
         nativeContextMenuEnabled: desktopShellEnabled,
-        onApplyWorktreeChanges: !webGitReadOnly && worktreeState.isWorktreeWorkspace
-          ? gitState.handleApplyWorktreeChanges
-          : undefined,
+        onApplyWorktreeChanges:
+          !webGitReadOnly && worktreeState.isWorktreeWorkspace
+            ? gitState.handleApplyWorktreeChanges
+            : undefined,
         branchName: gitState.gitStatus.branchName || "未知",
         totalAdditions: gitState.gitStatus.totalAdditions,
         totalDeletions: gitState.gitStatus.totalDeletions,
@@ -922,14 +954,22 @@ export function useMainAppLayoutSurfaces({
         onClearGitRoot: () => {
           void gitState.handleSetGitRoot(null);
         },
-        onPickGitRoot: runtimeCapabilities.fileDialogs ? gitState.handlePickGitRoot : undefined,
+        onPickGitRoot: runtimeCapabilities.fileDialogs
+          ? gitState.handlePickGitRoot
+          : undefined,
         onInitGitRepo: webGitReadOnly ? undefined : openInitGitRepoPrompt,
         initGitRepoLoading: gitState.initGitRepoLoading,
-        onStageAllChanges: webGitReadOnly ? undefined : gitState.handleStageGitAll,
+        onStageAllChanges: webGitReadOnly
+          ? undefined
+          : gitState.handleStageGitAll,
         onStageFile: webGitReadOnly ? undefined : gitState.handleStageGitFile,
-        onUnstageFile: webGitReadOnly ? undefined : gitState.handleUnstageGitFile,
+        onUnstageFile: webGitReadOnly
+          ? undefined
+          : gitState.handleUnstageGitFile,
         onRevertFile: webGitReadOnly ? undefined : gitState.handleRevertGitFile,
-        onRevertAllChanges: webGitReadOnly ? undefined : gitState.handleRevertAllGitChanges,
+        onRevertAllChanges: webGitReadOnly
+          ? undefined
+          : gitState.handleRevertAllGitChanges,
         onReviewUncommittedChanges: activeSupportsReview
           ? (workspaceId) =>
               startUncommittedReview(workspaceId ?? activeWorkspace?.id ?? null)
@@ -937,11 +977,19 @@ export function useMainAppLayoutSurfaces({
         commitMessage: gitState.commitMessage,
         commitMessageLoading: gitState.commitMessageLoading,
         commitMessageError: gitState.commitMessageError,
-        onCommitMessageChange: webGitReadOnly ? undefined : gitState.handleCommitMessageChange,
-        onGenerateCommitMessage: webGitReadOnly ? undefined : gitState.handleGenerateCommitMessage,
+        onCommitMessageChange: webGitReadOnly
+          ? undefined
+          : gitState.handleCommitMessageChange,
+        onGenerateCommitMessage: webGitReadOnly
+          ? undefined
+          : gitState.handleGenerateCommitMessage,
         onCommit: webGitReadOnly ? undefined : gitState.handleCommit,
-        onCommitAndPush: webGitReadOnly ? undefined : gitState.handleCommitAndPush,
-        onCommitAndSync: webGitReadOnly ? undefined : gitState.handleCommitAndSync,
+        onCommitAndPush: webGitReadOnly
+          ? undefined
+          : gitState.handleCommitAndPush,
+        onCommitAndSync: webGitReadOnly
+          ? undefined
+          : gitState.handleCommitAndSync,
         onPull: webGitReadOnly ? undefined : gitState.handlePull,
         onFetch: webGitReadOnly ? undefined : gitState.handleFetch,
         onPush: webGitReadOnly ? undefined : gitState.handlePush,
@@ -965,8 +1013,10 @@ export function useMainAppLayoutSurfaces({
         isLoading: gitState.activeDiffLoading,
         error: gitState.activeDiffError,
         ignoreWhitespaceChanges:
-          appSettings.gitDiffIgnoreWhitespaceChanges && gitState.diffSource !== "pr",
-        pullRequest: gitState.diffSource === "pr" ? gitState.selectedPullRequest : null,
+          appSettings.gitDiffIgnoreWhitespaceChanges &&
+          gitState.diffSource !== "pr",
+        pullRequest:
+          gitState.diffSource === "pr" ? gitState.selectedPullRequest : null,
         pullRequestComments:
           gitState.diffSource === "pr" ? gitState.gitPullRequestComments : [],
         pullRequestCommentsLoading: gitState.gitPullRequestCommentsLoading,
@@ -981,7 +1031,8 @@ export function useMainAppLayoutSurfaces({
         pullRequestReviewThreadId: gitState.lastPullRequestReviewThreadId,
         onCheckoutPullRequest: webGitReadOnly
           ? undefined
-          : (pullRequest) => gitState.handleCheckoutPullRequest(pullRequest.number),
+          : (pullRequest) =>
+              gitState.handleCheckoutPullRequest(pullRequest.number),
         canRevert: !webGitReadOnly && gitState.diffSource === "local",
         onRevertFile: webGitReadOnly ? undefined : gitState.handleRevertGitFile,
         onActivePathChange: gitState.handleActiveDiffPath,
@@ -1027,7 +1078,8 @@ export function useMainAppLayoutSurfaces({
           gitState.setCenterMode("chat");
         },
         onShowSelectedDiff: () => {
-          const fallbackPath = gitState.selectedDiffPath ?? gitState.activeDiffs[0]?.path;
+          const fallbackPath =
+            gitState.selectedDiffPath ?? gitState.activeDiffs[0]?.path;
 
           if (!fallbackPath) {
             return;

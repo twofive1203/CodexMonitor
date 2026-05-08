@@ -113,26 +113,8 @@ export function SettingsShortcutsSection({
       },
       {
         title: "编辑器",
-        subtitle: "循环切换模型、访问权限、推理和协作模式。",
+        subtitle: "控制当前运行和协作模式。",
         items: [
-          {
-            label: "切换模型",
-            draftKey: "model",
-            settingKey: "composerModelShortcut",
-            help: `聚焦输入框后按下新的快捷键。默认：${formatShortcut("cmd+shift+m")}`,
-          },
-          {
-            label: "切换访问模式",
-            draftKey: "access",
-            settingKey: "composerAccessShortcut",
-            help: `默认：${formatShortcut("cmd+shift+a")}`,
-          },
-          {
-            label: "切换推理模式",
-            draftKey: "reasoning",
-            settingKey: "composerReasoningShortcut",
-            help: `默认：${formatShortcut("cmd+shift+r")}`,
-          },
           {
             label: "切换协作模式",
             draftKey: "collaboration",

@@ -97,10 +97,7 @@ const baseSettings: AppSettings = {
   keepDaemonRunningAfterAppClose: false,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",
-  composerModelShortcut: null,
-  composerAccessShortcut: null,
-  composerReasoningShortcut: null,
-  composerCollaborationShortcut: null,
+  composerCollaborationShortcut: "shift+tab",
   interruptShortcut: null,
   newAgentShortcut: null,
   newWorktreeAgentShortcut: null,
@@ -2020,6 +2017,72 @@ describe("SettingsView mobile layout", () => {
 });
 
 describe("SettingsView Shortcuts", () => {
+  it("only records Shift+Tab for the collaboration shortcut", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const rendered = render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="未分组"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="shortcuts"
+      />,
+    );
+
+    const interruptField = screen
+      .getByText("停止当前运行")
+      .closest(".settings-field") as HTMLElement | null;
+    if (!interruptField) {
+      throw new Error("Expected interrupt shortcut field");
+    }
+    fireEvent.keyDown(within(interruptField).getByRole("textbox"), {
+      key: "Tab",
+      shiftKey: true,
+    });
+
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
+
+    const collaborationField = screen
+      .getByText("切换协作模式")
+      .closest(".settings-field") as HTMLElement | null;
+    if (!collaborationField) {
+      throw new Error("Expected collaboration shortcut field");
+    }
+    fireEvent.keyDown(within(collaborationField).getByRole("textbox"), {
+      key: "Tab",
+      shiftKey: true,
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ composerCollaborationShortcut: "shift+tab" }),
+      );
+    });
+    rendered.unmount();
+  });
+
   it("closes on Cmd+W", async () => {
     const onClose = vi.fn();
     render(
@@ -2188,7 +2251,7 @@ describe("SettingsView Shortcuts", () => {
 
     const searchInput = screen.getByLabelText("搜索快捷键");
     expect(screen.getByText("切换终端面板")).toBeTruthy();
-    expect(screen.getByText("切换模型")).toBeTruthy();
+    expect(screen.getByText("停止当前运行")).toBeTruthy();
 
     await act(async () => {
       fireEvent.change(searchInput, { target: { value: "导航" } });
@@ -2207,10 +2270,10 @@ describe("SettingsView Shortcuts", () => {
     });
 
     await act(async () => {
-      fireEvent.change(searchInput, { target: { value: "聚焦输入框" } });
+      fireEvent.change(searchInput, { target: { value: "控制当前运行" } });
     });
     await waitFor(() => {
-      expect(screen.getByText("切换模型")).toBeTruthy();
+      expect(screen.getByText("停止当前运行")).toBeTruthy();
       expect(screen.queryByText("切换终端面板")).toBeNull();
     });
 

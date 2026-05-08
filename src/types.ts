@@ -276,9 +276,6 @@ export type AppSettings = {
   keepDaemonRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";
-  composerModelShortcut: string | null;
-  composerAccessShortcut: string | null;
-  composerReasoningShortcut: string | null;
   composerCollaborationShortcut: string | null;
   interruptShortcut: string | null;
   newAgentShortcut: string | null;

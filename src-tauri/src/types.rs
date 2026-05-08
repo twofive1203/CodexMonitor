@@ -543,27 +543,12 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) review_delivery_mode: String,
     #[serde(
-        default = "default_composer_model_shortcut",
-        rename = "composerModelShortcut"
-    )]
-    pub(crate) composer_model_shortcut: Option<String>,
-    #[serde(
-        default = "default_composer_access_shortcut",
-        rename = "composerAccessShortcut"
-    )]
-    pub(crate) composer_access_shortcut: Option<String>,
-    #[serde(
-        default = "default_composer_reasoning_shortcut",
-        rename = "composerReasoningShortcut"
-    )]
-    pub(crate) composer_reasoning_shortcut: Option<String>,
-    #[serde(default = "default_interrupt_shortcut", rename = "interruptShortcut")]
-    pub(crate) interrupt_shortcut: Option<String>,
-    #[serde(
         default = "default_composer_collaboration_shortcut",
         rename = "composerCollaborationShortcut"
     )]
     pub(crate) composer_collaboration_shortcut: Option<String>,
+    #[serde(default = "default_interrupt_shortcut", rename = "interruptShortcut")]
+    pub(crate) interrupt_shortcut: Option<String>,
     #[serde(default = "default_new_agent_shortcut", rename = "newAgentShortcut")]
     pub(crate) new_agent_shortcut: Option<String>,
     #[serde(
@@ -904,33 +889,6 @@ fn default_code_font_family() -> String {
 
 fn default_code_font_size() -> u8 {
     11
-}
-
-fn default_composer_model_shortcut() -> Option<String> {
-    let value = if cfg!(target_os = "macos") {
-        "cmd+shift+m"
-    } else {
-        "ctrl+shift+m"
-    };
-    Some(value.to_string())
-}
-
-fn default_composer_access_shortcut() -> Option<String> {
-    let value = if cfg!(target_os = "macos") {
-        "cmd+shift+a"
-    } else {
-        "ctrl+shift+a"
-    };
-    Some(value.to_string())
-}
-
-fn default_composer_reasoning_shortcut() -> Option<String> {
-    let value = if cfg!(target_os = "macos") {
-        "cmd+shift+r"
-    } else {
-        "ctrl+shift+r"
-    };
-    Some(value.to_string())
 }
 
 fn default_interrupt_shortcut() -> Option<String> {
@@ -1318,11 +1276,8 @@ impl Default for AppSettings {
             keep_daemon_running_after_app_close: false,
             default_access_mode: "current".to_string(),
             review_delivery_mode: default_review_delivery_mode(),
-            composer_model_shortcut: default_composer_model_shortcut(),
-            composer_access_shortcut: default_composer_access_shortcut(),
-            composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
-            interrupt_shortcut: default_interrupt_shortcut(),
             composer_collaboration_shortcut: default_composer_collaboration_shortcut(),
+            interrupt_shortcut: default_interrupt_shortcut(),
             new_agent_shortcut: default_new_agent_shortcut(),
             new_worktree_agent_shortcut: default_new_worktree_agent_shortcut(),
             new_clone_agent_shortcut: default_new_clone_agent_shortcut(),
@@ -1437,32 +1392,17 @@ mod tests {
         } else {
             "ctrl"
         };
-        let expected_model = format!("{expected_primary}+shift+m");
-        let expected_access = format!("{expected_primary}+shift+a");
-        let expected_reasoning = format!("{expected_primary}+shift+r");
         let expected_toggle_debug = format!("{expected_primary}+shift+d");
         let expected_toggle_terminal = format!("{expected_primary}+shift+t");
-        assert_eq!(
-            settings.composer_model_shortcut.as_deref(),
-            Some(expected_model.as_str())
-        );
-        assert_eq!(
-            settings.composer_access_shortcut.as_deref(),
-            Some(expected_access.as_str())
-        );
-        assert_eq!(
-            settings.composer_reasoning_shortcut.as_deref(),
-            Some(expected_reasoning.as_str())
-        );
-        assert_eq!(
-            settings.composer_collaboration_shortcut.as_deref(),
-            Some("shift+tab")
-        );
         let expected_interrupt = if cfg!(target_os = "macos") {
             "ctrl+c"
         } else {
             "ctrl+shift+c"
         };
+        assert_eq!(
+            settings.composer_collaboration_shortcut.as_deref(),
+            Some("shift+tab")
+        );
         assert_eq!(
             settings.interrupt_shortcut.as_deref(),
             Some(expected_interrupt)

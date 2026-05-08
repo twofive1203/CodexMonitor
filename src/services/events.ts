@@ -108,13 +108,6 @@ const menuNextAgentHub = createEventHub<void>("menu-next-agent");
 const menuPrevAgentHub = createEventHub<void>("menu-prev-agent");
 const menuNextWorkspaceHub = createEventHub<void>("menu-next-workspace");
 const menuPrevWorkspaceHub = createEventHub<void>("menu-prev-workspace");
-const menuCycleModelHub = createEventHub<void>("menu-composer-cycle-model");
-const menuCycleAccessHub = createEventHub<void>("menu-composer-cycle-access");
-const menuCycleReasoningHub = createEventHub<void>("menu-composer-cycle-reasoning");
-const menuCycleCollaborationHub = createEventHub<void>("menu-composer-cycle-collaboration");
-const menuComposerCycleModelHub = createEventHub<void>("menu-composer-cycle-model");
-const menuComposerCycleAccessHub = createEventHub<void>("menu-composer-cycle-access");
-const menuComposerCycleReasoningHub = createEventHub<void>("menu-composer-cycle-reasoning");
 const menuComposerCycleCollaborationHub = createEventHub<void>(
   "menu-composer-cycle-collaboration",
 );
@@ -294,69 +287,6 @@ export function subscribeMenuPrevWorkspace(
   options?: RuntimeSubscribeOptions,
 ): Unsubscribe {
   return menuPrevWorkspaceHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuCycleModel(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuCycleModelHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuCycleAccessMode(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuCycleAccessHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuCycleReasoning(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuCycleReasoningHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuCycleCollaborationMode(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuCycleCollaborationHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuComposerCycleModel(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuComposerCycleModelHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuComposerCycleAccess(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuComposerCycleAccessHub.subscribe(() => {
-    onEvent();
-  }, options);
-}
-
-export function subscribeMenuComposerCycleReasoning(
-  onEvent: () => void,
-  options?: RuntimeSubscribeOptions,
-): Unsubscribe {
-  return menuComposerCycleReasoningHub.subscribe(() => {
     onEvent();
   }, options);
 }

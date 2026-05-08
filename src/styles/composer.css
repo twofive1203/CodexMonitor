@@ -513,7 +513,6 @@
   animation: composer-action-spin var(--ds-spinner-dur) linear infinite;
 }
 
-
 .composer.is-disabled {
   opacity: 0.7;
 }
@@ -684,67 +683,6 @@
   flex-wrap: wrap;
 }
 
-.composer-run-config {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.composer-run-config-toggle {
-  width: 100%;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--cm-border-default);
-  border-radius: 8px;
-  background: var(--cm-surface-panel-strong);
-  color: var(--text-strong);
-  font-size: 12px;
-  text-align: left;
-}
-
-.composer-run-config-toggle:hover,
-.composer-run-config-toggle:focus-visible {
-  transform: none;
-  box-shadow: none;
-  border-color: var(--cm-border-hover);
-  background: var(--cm-surface-panel-hover);
-}
-
-.composer-run-config-label {
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.composer-run-config-badge {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--message-link-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--message-link-color) 18%, transparent);
-  flex-shrink: 0;
-}
-
-.composer-run-config-summary {
-  min-width: 0;
-  flex: 1;
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.composer-run-config-caret {
-  color: var(--text-muted);
-  transition: transform 140ms ease;
-  flex-shrink: 0;
-}
-
-.composer-run-config.is-open .composer-run-config-caret {
-  transform: rotate(180deg);
-}
-
 .composer-context {
   margin-left: auto;
   display: grid;
@@ -788,7 +726,9 @@
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   border: 1px solid var(--border-subtle);
 }
 
@@ -802,7 +742,6 @@
   font-size: 6px;
   color: var(--text-quiet);
 }
-
 
 .composer-select-wrap {
   position: relative;
@@ -876,8 +815,10 @@
   line-height: 1;
 }
 
-.composer-plan-toggle:has(.composer-plan-toggle-input:checked) .composer-plan-toggle-icon,
-.composer-plan-toggle:has(.composer-plan-toggle-input:checked) .composer-plan-toggle-label {
+.composer-plan-toggle:has(.composer-plan-toggle-input:checked)
+  .composer-plan-toggle-icon,
+.composer-plan-toggle:has(.composer-plan-toggle-input:checked)
+  .composer-plan-toggle-label {
   color: var(--text-strong);
 }
 
@@ -885,8 +826,10 @@
   cursor: not-allowed;
 }
 
-.composer-plan-toggle:has(.composer-plan-toggle-input:disabled) .composer-plan-toggle-icon,
-.composer-plan-toggle:has(.composer-plan-toggle-input:disabled) .composer-plan-toggle-label {
+.composer-plan-toggle:has(.composer-plan-toggle-input:disabled)
+  .composer-plan-toggle-icon,
+.composer-plan-toggle:has(.composer-plan-toggle-input:disabled)
+  .composer-plan-toggle-label {
   opacity: 0.6;
 }
 
@@ -925,7 +868,11 @@
   height: 16px;
   border-radius: 999px;
   color: var(--accent-warning-strong, #b45309);
-  background: color-mix(in srgb, var(--accent-warning-strong, #b45309) 16%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--accent-warning-strong, #b45309) 16%,
+    transparent
+  );
 }
 
 .composer-select {
@@ -1008,7 +955,9 @@
     align-self: flex-start;
   }
 
-  .app.layout-phone .composer-input.is-phone-tall .composer-action--mobile-menu {
+  .app.layout-phone
+    .composer-input.is-phone-tall
+    .composer-action--mobile-menu {
     align-self: flex-end;
   }
 

@@ -40,7 +40,9 @@ type HarnessProps = {
   isProcessing?: boolean;
   followUpMessageBehavior?: FollowUpMessageBehavior;
   steerAvailable?: boolean;
-  selectedServiceTier?: "fast" | "flex" | null;
+  collaborationModes?: { id: string; label: string }[];
+  selectedCollaborationModeId?: string | null;
+  onSelectCollaborationMode?: (id: string | null) => void;
 };
 
 function ComposerHarness({
@@ -49,7 +51,9 @@ function ComposerHarness({
   isProcessing = false,
   followUpMessageBehavior = "queue",
   steerAvailable = false,
-  selectedServiceTier = null,
+  collaborationModes = [],
+  selectedCollaborationModeId = null,
+  onSelectCollaborationMode = () => {},
 }: HarnessProps) {
   const [draftText, setDraftText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -64,18 +68,11 @@ function ComposerHarness({
       steerAvailable={steerAvailable}
       followUpMessageBehavior={followUpMessageBehavior}
       composerFollowUpHintEnabled={true}
-      collaborationModes={[]}
-      selectedCollaborationModeId={null}
-      onSelectCollaborationMode={() => {}}
-      models={[]}
-      selectedModelId={null}
+      collaborationModes={collaborationModes}
+      selectedCollaborationModeId={selectedCollaborationModeId}
+      onSelectCollaborationMode={onSelectCollaborationMode}
       onSelectModel={() => {}}
-      reasoningOptions={[]}
-      selectedEffort={null}
       onSelectEffort={() => {}}
-      selectedServiceTier={selectedServiceTier}
-      reasoningSupported={false}
-      accessMode="current"
       onSelectAccessMode={() => {}}
       skills={[]}
       apps={apps}
@@ -118,13 +115,6 @@ describe("Composer send triggers", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith("from button", [], undefined, "default");
-  });
-
-  it("shows the fast-mode indicator when enabled", () => {
-    const onSend = vi.fn();
-    render(<ComposerHarness onSend={onSend} selectedServiceTier="fast" />);
-
-    expect(screen.getByLabelText("快速模式已开启")).toBeTruthy();
   });
 
   it("blurs the textarea after Enter send on mobile", () => {
@@ -279,5 +269,29 @@ describe("Composer send triggers", () => {
     fireEvent.keyDown(textarea, { key: "Tab" });
 
     expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("cycles collaboration mode on Shift+Tab without sending", () => {
+    const onSend = vi.fn();
+    const onSelectCollaborationMode = vi.fn();
+    render(
+      <ComposerHarness
+        onSend={onSend}
+        collaborationModes={[
+          { id: "default", label: "Default" },
+          { id: "plan", label: "Plan" },
+        ]}
+        selectedCollaborationModeId="default"
+        onSelectCollaborationMode={onSelectCollaborationMode}
+      />,
+    );
+
+    const textarea = screen.getByRole("textbox");
+    textarea.focus();
+    fireEvent.change(textarea, { target: { value: "tab no send" } });
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+
+    expect(onSend).not.toHaveBeenCalled();
+    expect(onSelectCollaborationMode).toHaveBeenCalledWith("plan");
   });
 });

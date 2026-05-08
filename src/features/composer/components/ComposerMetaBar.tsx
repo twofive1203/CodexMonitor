@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import { BrainCog, ChevronDown, SlidersHorizontal, Zap } from "lucide-react";
+import type { CSSProperties } from "react";
+import { BrainCog, SlidersHorizontal, Zap } from "lucide-react";
 import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
 
@@ -46,12 +46,8 @@ export function ComposerMetaBar({
 }: ComposerMetaBarProps) {
   const selectedModel =
     models.find((model) => model.id === selectedModelId) ?? null;
-  const selectedCollaborationMode =
-    collaborationModes.find((mode) => mode.id === selectedCollaborationModeId) ??
-    null;
   const selectedModelLabel =
     selectedModel?.displayName || selectedModel?.model || "No models";
-  const [runConfigOpen, setRunConfigOpen] = useState(false);
   const modelSelectStyle = {
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
@@ -63,8 +59,7 @@ export function ComposerMetaBar({
     contextWindow && contextWindow > 0 && usedTokens > 0
       ? Math.max(
           0,
-          100 -
-            Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
+          100 - Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
         )
       : null;
   const planMode =
@@ -77,64 +72,12 @@ export function ComposerMetaBar({
       (mode) => mode.id === "default" || mode.id === "plan",
     );
   const planSelected = selectedCollaborationModeId === (planMode?.id ?? "");
-  const runConfigChanged =
-    accessMode !== "current" ||
-    selectedServiceTier === "fast" ||
-    Boolean(selectedCodexArgsOverride) ||
-    Boolean(selectedEffort) ||
-    Boolean(
-      selectedCollaborationModeId &&
-        selectedCollaborationModeId !== "default" &&
-        selectedCollaborationModeId !== defaultMode?.id,
-    );
-  const runConfigSummary = [
-    selectedModelLabel,
-    accessMode === "read-only"
-      ? "只读"
-      : accessMode === "full-access"
-        ? "完全访问"
-        : "按需申请",
-    selectedEffort,
-    selectedServiceTier === "fast" ? "快速" : null,
-    selectedCollaborationMode?.label,
-    selectedCodexArgsOverride ? "参数配置" : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <div className="composer-bar">
-      <div className={`composer-run-config${runConfigOpen ? " is-open" : ""}`}>
-        <button
-          type="button"
-          className="composer-run-config-toggle"
-          onClick={() => setRunConfigOpen((current) => !current)}
-          aria-expanded={runConfigOpen}
-          aria-label="运行配置"
-        >
-          <SlidersHorizontal size={14} aria-hidden />
-          <span className="composer-run-config-label">运行配置</span>
-          {runConfigChanged && (
-            <span className="composer-run-config-badge" aria-label="运行配置已变更" />
-          )}
-          {selectedServiceTier === "fast" && (
-            <span
-              className="composer-fast-indicator composer-fast-indicator--summary"
-              role="status"
-              aria-label="快速模式已开启"
-              title="快速模式已开启"
-            >
-              <Zap size={12} strokeWidth={1.8} />
-            </span>
-          )}
-          <span className="composer-run-config-summary">{runConfigSummary}</span>
-          <ChevronDown className="composer-run-config-caret" size={14} aria-hidden />
-        </button>
-      </div>
-      {runConfigOpen && (
       <div className="composer-meta">
-        {collaborationModes.length > 0 && (
-          canUsePlanToggle ? (
+        {collaborationModes.length > 0 &&
+          (canUsePlanToggle ? (
             <div className="composer-select-wrap composer-plan-toggle-wrap">
               <label className="composer-plan-toggle" aria-label="计划模式">
                 <input
@@ -145,7 +88,7 @@ export function ComposerMetaBar({
                   onChange={(event) =>
                     onSelectCollaborationMode(
                       event.target.checked
-                        ? planMode?.id ?? "plan"
+                        ? (planMode?.id ?? "plan")
                         : (defaultMode?.id ?? null),
                     )
                   }
@@ -168,17 +111,17 @@ export function ComposerMetaBar({
             </div>
           ) : (
             <div className="composer-select-wrap">
-            <span className="composer-icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none">
-                <path
-                  d="m6.5 7.5 1 1 2-2M6.5 12.5l1 1 2-2M6.5 17.5l1 1 2-2M11 7.5h7M11 12.5h7M11 17.5h7"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
+              <span className="composer-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m6.5 7.5 1 1 2-2M6.5 12.5l1 1 2-2M6.5 17.5l1 1 2-2M11 7.5h7M11 12.5h7M11 17.5h7"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
               <select
                 className="composer-select composer-select--model composer-select--collab"
                 aria-label="协作模式"
@@ -195,8 +138,7 @@ export function ComposerMetaBar({
                 ))}
               </select>
             </div>
-          )
-        )}
+          ))}
         <div className="composer-select-wrap composer-select-wrap--model">
           <span className="composer-icon composer-icon--model" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
@@ -328,7 +270,6 @@ export function ComposerMetaBar({
           </select>
         </div>
       </div>
-      )}
       <div className="composer-context">
         <div
           className="composer-context-ring"

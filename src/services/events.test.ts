@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
 import {
   subscribeAppServerEvents,
-  subscribeMenuCycleCollaborationMode,
-  subscribeMenuCycleModel,
   subscribeMenuNewAgent,
   subscribeTerminalOutput,
 } from "./events";
@@ -62,42 +60,6 @@ describe("events subscriptions", () => {
     resolveListener(unlisten);
     await Promise.resolve();
     expect(unlisten).toHaveBeenCalledTimes(1);
-  });
-
-  it("delivers menu events to subscribers", async () => {
-    let listener: () => void = () => {};
-    const unlisten = vi.fn();
-
-    subscribeMock.mockImplementation((_event, handler) => {
-      listener = handler as () => void;
-      return Promise.resolve(unlisten);
-    });
-
-    const onEvent = vi.fn();
-    const cleanup = subscribeMenuCycleModel(onEvent);
-
-    listener();
-    expect(onEvent).toHaveBeenCalledTimes(1);
-
-    cleanup();
-  });
-
-  it("delivers collaboration cycle menu events to subscribers", async () => {
-    let listener: () => void = () => {};
-    const unlisten = vi.fn();
-
-    subscribeMock.mockImplementation((_event, handler) => {
-      listener = handler as () => void;
-      return Promise.resolve(unlisten);
-    });
-
-    const onEvent = vi.fn();
-    const cleanup = subscribeMenuCycleCollaborationMode(onEvent);
-
-    listener();
-    expect(onEvent).toHaveBeenCalledTimes(1);
-
-    cleanup();
   });
 
   it("reports listen errors through options", async () => {
