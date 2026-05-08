@@ -37,7 +37,9 @@
     "pretauri:build:win": "npm run sync:material-icons && npm run build:daemon:release",
     "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json",
     "pretauri:build:win:local": "npm run sync:material-icons && npm run build:daemon:release",
-    "tauri:build:win:local": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.local.conf.json"
+    "tauri:build:win:local": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.local.conf.json",
+    "pretauri:build:win:local:nsis": "npm run sync:material-icons && npm run build:daemon:release",
+    "tauri:build:win:local:nsis": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.local.conf.json --bundles nsis"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.81",
