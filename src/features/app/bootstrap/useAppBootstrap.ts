@@ -10,14 +10,16 @@ export function useAppBootstrap() {
   useCodeCssVars(appSettingsState.appSettings);
 
   const dictationState = useDictationController(appSettingsState.appSettings);
-  const debugState = useDebugLog(appSettingsState.appSettings.debugLogEnabled);
+  const debugLogEnabled = appSettingsState.appSettings.debugLogEnabled;
+  const debugState = useDebugLog(debugLogEnabled);
+  const debugEntrySink = debugLogEnabled ? debugState.addDebugEntry : undefined;
 
   const shouldReduceTransparency =
     appSettingsState.reduceTransparency || isMobilePlatform();
 
   useLiquidGlassEffect({
     reduceTransparency: shouldReduceTransparency,
-    onDebug: debugState.addDebugEntry,
+    onDebug: debugEntrySink,
   });
 
   return {

@@ -7,7 +7,7 @@ import { isMobilePlatform } from "../../../utils/platformPaths";
 
 type WorkspaceControllerOptions = {
   appSettings: AppSettings;
-  addDebugEntry: (entry: DebugEntry) => void;
+  addDebugEntry?: (entry: DebugEntry) => void;
   queueSaveSettings: (next: AppSettings) => Promise<AppSettings>;
 };
 

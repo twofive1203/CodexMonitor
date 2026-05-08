@@ -16,7 +16,7 @@ type UseTerminalOrchestrationParams = {
     id: string,
     settings: WorkspaceSettings,
   ) => Promise<WorkspaceInfo>;
-  addDebugEntry: (entry: DebugEntry) => void;
+  addDebugEntry?: (entry: DebugEntry) => void;
 };
 
 /**

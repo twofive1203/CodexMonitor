@@ -4,7 +4,7 @@ import type { ConversationItem, DebugEntry } from "@/types";
 
 type CopyThreadOptions = {
   activeItems: ConversationItem[];
-  onDebug: (entry: DebugEntry) => void;
+  onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useCopyThread({ activeItems, onDebug }: CopyThreadOptions) {
@@ -19,7 +19,7 @@ export function useCopyThread({ activeItems, onDebug }: CopyThreadOptions) {
     try {
       await navigator.clipboard.writeText(transcript);
     } catch (error) {
-      onDebug({
+      onDebug?.({
         id: `${Date.now()}-client-copy-thread-error`,
         timestamp: Date.now(),
         source: "error",

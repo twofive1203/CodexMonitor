@@ -32,7 +32,7 @@ type UseMainAppGitStateOptions = {
     splitChatDiffView: boolean;
     reviewDeliveryMode: "inline" | "detached";
   };
-  addDebugEntry: (entry: DebugEntry) => void;
+  addDebugEntry?: (entry: DebugEntry) => void;
   updateWorkspaceSettings: Parameters<typeof useGitRootSelection>[0]["updateWorkspaceSettings"];
   commitMessageModelId: string | null;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;

@@ -37,7 +37,7 @@ type UseNotificationOrchestrationParams = {
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   handleOpenThreadLink: (threadId: string, workspaceId?: string | null) => void;
   setActiveTab: (tab: MainTab) => void;
-  addDebugEntry: (entry: DebugEntry) => void;
+  addDebugEntry?: (entry: DebugEntry) => void;
 };
 
 /**

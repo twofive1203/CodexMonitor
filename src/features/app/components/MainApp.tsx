@@ -107,6 +107,7 @@ export default function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
+  const debugEntrySink = appSettings.debugLogEnabled ? addDebugEntry : undefined;
   const {
     threadListSortKey,
     setThreadListSortKey,
@@ -164,7 +165,7 @@ export default function MainApp() {
   } = useWorkspaceRuntimeOrchestration({
     appSettings,
     appSettingsLoading,
-    addDebugEntry,
+    addDebugEntry: debugEntrySink,
     queueSaveSettings,
   });
   const {
@@ -258,7 +259,7 @@ export default function MainApp() {
     setSelectedEffort
   } = useModels({
     activeWorkspace,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
     preferredModelId,
     preferredEffort,
     selectionKey: threadCodexSelectionKey,
@@ -274,7 +275,7 @@ export default function MainApp() {
     enabled: appSettings.collaborationModesEnabled,
     preferredModeId: preferredCollabModeId,
     selectionKey: threadCodexSelectionKey,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
   });
 
   const [selectedCodexArgsOverride, setSelectedCodexArgsOverride] = useState<string | null>(
@@ -362,10 +363,10 @@ export default function MainApp() {
     reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
-  const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
+  const { skills } = useSkills({ activeWorkspace, onDebug: debugEntrySink });
   const { commands: claudeCommands } = useClaudeCommands({
     activeWorkspace,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
   });
   const {
     prompts,
@@ -375,7 +376,7 @@ export default function MainApp() {
     movePrompt,
     getWorkspacePromptsDir,
     getGlobalPromptsDir,
-  } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
+  } = useCustomPrompts({ activeWorkspace, onDebug: debugEntrySink });
   const resolvedModel = selectedModel?.model ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
 
@@ -487,7 +488,7 @@ export default function MainApp() {
     threadListSortKey,
     setThreadListSortKey,
     onWorkspaceConnected: markWorkspaceConnected,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
     model: resolvedModel,
     effort: resolvedEffort,
     serviceTier: selectedServiceTier,
@@ -538,7 +539,7 @@ export default function MainApp() {
     connectWorkspace,
     handleOpenThreadLink: handleOpenThreadLinkForNotification,
     setActiveTab,
-    addDebugEntry,
+    addDebugEntry: debugEntrySink,
   });
   const gitState = useMainAppGitState({
     activeWorkspace,
@@ -556,7 +557,7 @@ export default function MainApp() {
       splitChatDiffView: appSettings.splitChatDiffView,
       reviewDeliveryMode: appSettings.reviewDeliveryMode,
     },
-    addDebugEntry,
+    addDebugEntry: debugEntrySink,
     updateWorkspaceSettings,
     commitMessageModelId,
     connectWorkspace,
@@ -639,7 +640,7 @@ export default function MainApp() {
     activeWorkspace,
     activeThreadId,
     enabled: appSettings.experimentalAppsEnabled,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
   });
 
   useThreadCodexSyncOrchestration({
@@ -712,7 +713,7 @@ export default function MainApp() {
 
   const { handleCopyThread } = useCopyThread({
     activeItems,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
   });
 
   const {
@@ -763,7 +764,7 @@ export default function MainApp() {
     closeTerminalPanel,
     handleToggleTerminal,
     updateWorkspaceSettings,
-    addDebugEntry,
+    addDebugEntry: debugEntrySink,
   });
 
   const { exitDiffView, selectWorkspace, selectHome } = useWorkspaceSelection({
@@ -865,7 +866,7 @@ export default function MainApp() {
       persistProjectCopiesFolder,
       onCompactActivate: isCompact ? () => setActiveTab("codex") : undefined,
       onWorkspacePromptError: (message, kind) => {
-        addDebugEntry({
+        debugEntrySink?.({
           id: `${Date.now()}-client-add-${kind}-error`,
           timestamp: Date.now(),
           source: "error",
@@ -1051,7 +1052,7 @@ export default function MainApp() {
       startStatus,
       addWorktreeAgent,
       handleWorktreeCreated,
-      addDebugEntry,
+      addDebugEntry: debugEntrySink,
     },
   });
   const {
@@ -1166,7 +1167,7 @@ export default function MainApp() {
       openWorktreePrompt: modalActions.openWorktreePrompt,
       openClonePrompt: modalActions.openClonePrompt,
       composerInputRef,
-      onDebug: addDebugEntry,
+      onDebug: debugEntrySink,
     },
   });
 
@@ -1354,7 +1355,7 @@ export default function MainApp() {
       onCollapseRightPanel: collapseRightPanel,
     },
     appSettings,
-    onDebug: addDebugEntry,
+    onDebug: debugEntrySink,
   });
   useArchiveShortcut({
     isEnabled: isThreadOpen,

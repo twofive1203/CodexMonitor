@@ -25,7 +25,7 @@ type Params = {
   openWorktreePrompt: (workspace: WorkspaceInfo) => void;
   openClonePrompt: (workspace: WorkspaceInfo) => void;
   composerInputRef: RefObject<HTMLTextAreaElement | null>;
-  onDebug: (entry: DebugEntry) => void;
+  onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useWorkspaceActions({
@@ -62,7 +62,7 @@ export function useWorkspaceActions({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      onDebug({
+      onDebug?.({
         id: `${Date.now()}-client-add-workspace-error`,
         timestamp: Date.now(),
         source: "error",
@@ -82,7 +82,7 @@ export function useWorkspaceActions({
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        onDebug({
+        onDebug?.({
           id: `${Date.now()}-client-add-workspace-error`,
           timestamp: Date.now(),
           source: "error",
@@ -104,7 +104,7 @@ export function useWorkspaceActions({
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        onDebug({
+        onDebug?.({
           id: `${Date.now()}-client-add-workspace-error`,
           timestamp: Date.now(),
           source: "error",
@@ -137,7 +137,7 @@ export function useWorkspaceActions({
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        onDebug({
+        onDebug?.({
           id: `${Date.now()}-client-add-workspace-from-url-error`,
           timestamp: Date.now(),
           source: "error",

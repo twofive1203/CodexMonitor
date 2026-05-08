@@ -7,7 +7,7 @@ import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
 type UseWorkspaceRuntimeOrchestrationParams = {
   appSettings: AppSettings;
   appSettingsLoading: boolean;
-  addDebugEntry: (entry: DebugEntry) => void;
+  addDebugEntry?: (entry: DebugEntry) => void;
   queueSaveSettings: (next: AppSettings) => Promise<AppSettings>;
 };
 

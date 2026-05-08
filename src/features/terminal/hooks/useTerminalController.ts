@@ -10,7 +10,7 @@ type UseTerminalControllerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   terminalOpen: boolean;
   onCloseTerminalPanel?: () => void;
-  onDebug: (entry: DebugEntry) => void;
+  onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useTerminalController({
@@ -44,7 +44,7 @@ export function useTerminalController({
         if (shouldIgnoreTerminalCloseError(error)) {
           return;
         }
-        onDebug(buildErrorDebugEntry("terminal close error", error));
+        onDebug?.(buildErrorDebugEntry("terminal close error", error));
       }
     },
     [onDebug, shouldIgnoreTerminalCloseError],
@@ -132,7 +132,7 @@ export function useTerminalController({
         await closeTerminalSession(workspaceId, terminalId);
       } catch (error) {
         if (!shouldIgnoreTerminalCloseError(error)) {
-          onDebug(buildErrorDebugEntry("terminal close error", error));
+          onDebug?.(buildErrorDebugEntry("terminal close error", error));
           throw error;
         }
       }

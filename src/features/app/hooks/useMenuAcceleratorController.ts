@@ -4,7 +4,7 @@ import type { AppSettings, DebugEntry } from "../../../types";
 
 type Params = {
   appSettings: AppSettings;
-  onDebug: (entry: DebugEntry) => void;
+  onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useMenuAcceleratorController({ appSettings, onDebug }: Params) {
@@ -95,7 +95,7 @@ export function useMenuAcceleratorController({ appSettings, onDebug }: Params) {
 
   const handleMenuAcceleratorError = useCallback(
     (error: unknown) => {
-      onDebug({
+      onDebug?.({
         id: `${Date.now()}-client-menu-accelerator-error`,
         timestamp: Date.now(),
         source: "error",

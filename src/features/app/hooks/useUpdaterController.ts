@@ -18,7 +18,7 @@ type Params = {
   isSubagentThread?: (workspaceId: string, threadId: string) => boolean;
   getWorkspaceName?: (workspaceId: string) => string | undefined;
   onThreadNotificationSent?: (workspaceId: string, threadId: string) => void;
-  onDebug: (entry: DebugEntry) => void;
+  onDebug?: (entry: DebugEntry) => void;
   successSoundUrl: string;
   errorSoundUrl: string;
 };
@@ -55,7 +55,7 @@ export function useUpdaterController({
     (handler: () => void) =>
       subscribeUpdaterCheck(handler, {
         onError: (error) => {
-          onDebug({
+          onDebug?.({
             id: `${Date.now()}-client-updater-menu-error`,
             timestamp: Date.now(),
             source: "error",
@@ -107,7 +107,7 @@ export function useUpdaterController({
       "测试通知",
       "这是一条来自 CodexMonitor 的测试通知。",
     ).catch((error) => {
-      onDebug({
+      onDebug?.({
         id: `${Date.now()}-client-notification-test-error`,
         timestamp: Date.now(),
         source: "error",

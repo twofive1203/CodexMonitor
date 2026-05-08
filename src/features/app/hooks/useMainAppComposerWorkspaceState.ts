@@ -87,7 +87,7 @@ type UseMainAppComposerWorkspaceStateArgs = {
     startFast: Parameters<typeof useComposerController>[0]["startFast"];
     startStatus: Parameters<typeof useComposerController>[0]["startStatus"];
     handleWorktreeCreated?: Parameters<typeof useWorkspaceHome>[0]["onWorktreeCreated"];
-    addDebugEntry: (entry: DebugEntry) => void;
+    addDebugEntry?: (entry: DebugEntry) => void;
   };
 };
 
