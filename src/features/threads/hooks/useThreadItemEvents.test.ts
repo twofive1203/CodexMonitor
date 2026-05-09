@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildConversationItem } from "@utils/threadItems";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 
@@ -65,6 +65,10 @@ describe("useThreadItemEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(buildConversationItem).mockReturnValue(convertedItem);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("dispatches item updates and marks review mode on item start", () => {
@@ -213,7 +217,8 @@ describe("useThreadItemEvents", () => {
     );
   });
 
-  it("marks processing and appends agent deltas", () => {
+  it("marks processing and appends agent deltas after a short batch window", () => {
+    vi.useFakeTimers();
     const { result, dispatch, markProcessing } = makeOptions();
 
     act(() => {
@@ -231,6 +236,14 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
     });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "appendAgentDelta" }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(80);
+    });
+
     expect(dispatch).toHaveBeenCalledWith({
       type: "appendAgentDelta",
       workspaceId: "ws-1",
@@ -239,6 +252,68 @@ describe("useThreadItemEvents", () => {
       delta: "Hello",
       hasCustomName: false,
     });
+  });
+
+  it("coalesces adjacent agent deltas for the same item", () => {
+    vi.useFakeTimers();
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "Hel",
+      });
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "lo",
+      });
+      vi.advanceTimersByTime(80);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "Hello",
+      hasCustomName: false,
+    });
+    expect(
+      dispatch.mock.calls.filter(([action]) => action.type === "appendAgentDelta"),
+    ).toHaveLength(1);
+  });
+
+  it("flushes pending agent deltas before message completion", () => {
+    vi.useFakeTimers();
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "partial",
+      });
+      result.current.onAgentMessageCompleted({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        text: "partial done",
+      });
+    });
+
+    const appendCallIndex = dispatch.mock.calls.findIndex(
+      ([action]) => action.type === "appendAgentDelta",
+    );
+    const completeCallIndex = dispatch.mock.calls.findIndex(
+      ([action]) => action.type === "completeAgentMessage",
+    );
+    expect(appendCallIndex).toBeGreaterThanOrEqual(0);
+    expect(completeCallIndex).toBeGreaterThan(appendCallIndex);
   });
 
   it("completes agent messages and updates thread activity", () => {
@@ -293,12 +368,22 @@ describe("useThreadItemEvents", () => {
   });
 
   it("dispatches reasoning summary boundaries", () => {
+    vi.useFakeTimers();
     const { result, dispatch } = makeOptions();
 
     act(() => {
+      result.current.onReasoningSummaryDelta("ws-1", "thread-1", "reasoning-1", "First");
       result.current.onReasoningSummaryBoundary("ws-1", "thread-1", "reasoning-1");
     });
 
+    const summaryCallIndex = dispatch.mock.calls.findIndex(
+      ([action]) => action.type === "appendReasoningSummary",
+    );
+    const boundaryCallIndex = dispatch.mock.calls.findIndex(
+      ([action]) => action.type === "appendReasoningSummaryBoundary",
+    );
+    expect(summaryCallIndex).toBeGreaterThanOrEqual(0);
+    expect(boundaryCallIndex).toBeGreaterThan(summaryCallIndex);
     expect(dispatch).toHaveBeenCalledWith({
       type: "appendReasoningSummaryBoundary",
       threadId: "thread-1",
@@ -307,10 +392,12 @@ describe("useThreadItemEvents", () => {
   });
 
   it("dispatches plan deltas", () => {
+    vi.useFakeTimers();
     const { result, dispatch } = makeOptions();
 
     act(() => {
       result.current.onPlanDelta("ws-1", "thread-1", "plan-1", "- Step 1");
+      vi.advanceTimersByTime(80);
     });
 
     expect(dispatch).toHaveBeenCalledWith({

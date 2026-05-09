@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch } from "react";
 import { buildConversationItem } from "@utils/threadItems";
 import type { CollabAgentRef } from "@/types";
@@ -37,6 +37,38 @@ type UseThreadItemEventsOptions = {
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
+const STREAM_DELTA_FLUSH_DELAY_MS = 80;
+const STREAM_DELTA_EAGER_FLUSH_CHARS = 12_000;
+
+type StreamDeltaAction =
+  | Extract<ThreadAction, { type: "appendAgentDelta" }>
+  | Extract<ThreadAction, { type: "appendReasoningSummary" }>
+  | Extract<ThreadAction, { type: "appendReasoningContent" }>
+  | Extract<ThreadAction, { type: "appendPlanDelta" }>
+  | Extract<ThreadAction, { type: "appendToolOutput" }>;
+
+/**
+ * 方法说明：生成流式增量缓存键，确保同一条目同一类增量按顺序合并。
+ * 入参说明：action 为待缓存的线程流式增量动作。
+ */
+function getStreamDeltaBatchKey(action: StreamDeltaAction) {
+  return `${action.type}\u0000${action.threadId}\u0000${action.itemId}`;
+}
+
+/**
+ * 方法说明：合并同一条目的流式增量，保留最新元数据并拼接文本。
+ * 入参说明：previous 为已有缓存动作，next 为新到达动作。
+ */
+function mergeStreamDeltaAction(
+  previous: StreamDeltaAction,
+  next: StreamDeltaAction,
+): StreamDeltaAction {
+  return {
+    ...next,
+    delta: `${previous.delta}${next.delta}`,
+  } as StreamDeltaAction;
+}
+
 export function useThreadItemEvents({
   activeThreadId,
   dispatch,
@@ -50,6 +82,51 @@ export function useThreadItemEvents({
   onUserMessageCreated,
   onReviewExited,
 }: UseThreadItemEventsOptions) {
+  const pendingStreamDeltasRef = useRef<Map<string, StreamDeltaAction>>(new Map());
+  const streamDeltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushStreamDeltas = useCallback(() => {
+    if (streamDeltaTimerRef.current) {
+      clearTimeout(streamDeltaTimerRef.current);
+      streamDeltaTimerRef.current = null;
+    }
+    const pending = pendingStreamDeltasRef.current;
+    if (pending.size === 0) {
+      return;
+    }
+    pendingStreamDeltasRef.current = new Map();
+    pending.forEach((action) => {
+      dispatch(action);
+    });
+  }, [dispatch]);
+
+  const scheduleStreamDeltaFlush = useCallback(() => {
+    if (streamDeltaTimerRef.current) {
+      return;
+    }
+    streamDeltaTimerRef.current = setTimeout(() => {
+      flushStreamDeltas();
+    }, STREAM_DELTA_FLUSH_DELAY_MS);
+  }, [flushStreamDeltas]);
+
+  const enqueueStreamDelta = useCallback(
+    (action: StreamDeltaAction) => {
+      const key = getStreamDeltaBatchKey(action);
+      const pending = pendingStreamDeltasRef.current;
+      const previous = pending.get(key);
+      const nextAction = previous ? mergeStreamDeltaAction(previous, action) : action;
+      pending.set(key, nextAction);
+      if (nextAction.delta.length >= STREAM_DELTA_EAGER_FLUSH_CHARS) {
+        flushStreamDeltas();
+        return;
+      }
+      scheduleStreamDeltaFlush();
+    },
+    [flushStreamDeltas, scheduleStreamDeltaFlush],
+  );
+
+  useEffect(() => flushStreamDeltas, [flushStreamDeltas]);
+
   const handleItemUpdate = useCallback(
     (
       workspaceId: string,
@@ -61,6 +138,7 @@ export function useThreadItemEvents({
       if (shouldMarkProcessing) {
         markProcessing(threadId, true);
       }
+      flushStreamDeltas();
       applyCollabThreadLinks(workspaceId, threadId, item);
       const itemType = String(item?.type ?? "");
       if (itemType === "enteredReviewMode") {
@@ -95,6 +173,7 @@ export function useThreadItemEvents({
     [
       applyCollabThreadLinks,
       dispatch,
+      flushStreamDeltas,
       getCustomName,
       markProcessing,
       markReviewing,
@@ -108,10 +187,10 @@ export function useThreadItemEvents({
   const handleToolOutputDelta = useCallback(
     (threadId: string, itemId: string, delta: string) => {
       markProcessing(threadId, true);
-      dispatch({ type: "appendToolOutput", threadId, itemId, delta });
+      enqueueStreamDelta({ type: "appendToolOutput", threadId, itemId, delta });
       safeMessageActivity();
     },
-    [dispatch, markProcessing, safeMessageActivity],
+    [enqueueStreamDelta, markProcessing, safeMessageActivity],
   );
 
   const handleTerminalInteraction = useCallback(
@@ -141,7 +220,7 @@ export function useThreadItemEvents({
       dispatch({ type: "ensureThread", workspaceId, threadId });
       markProcessing(threadId, true);
       const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
-      dispatch({
+      enqueueStreamDelta({
         type: "appendAgentDelta",
         workspaceId,
         threadId,
@@ -150,7 +229,7 @@ export function useThreadItemEvents({
         hasCustomName,
       });
     },
-    [dispatch, getCustomName, markProcessing],
+    [dispatch, enqueueStreamDelta, getCustomName, markProcessing],
   );
 
   const onAgentMessageCompleted = useCallback(
@@ -167,6 +246,7 @@ export function useThreadItemEvents({
     }) => {
       const timestamp = Date.now();
       dispatch({ type: "ensureThread", workspaceId, threadId });
+      flushStreamDeltas();
       const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
       dispatch({
         type: "completeAgentMessage",
@@ -197,6 +277,7 @@ export function useThreadItemEvents({
     [
       activeThreadId,
       dispatch,
+      flushStreamDeltas,
       getCustomName,
       recordThreadActivity,
       safeMessageActivity,
@@ -219,30 +300,31 @@ export function useThreadItemEvents({
 
   const onReasoningSummaryDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendReasoningSummary", threadId, itemId, delta });
+      enqueueStreamDelta({ type: "appendReasoningSummary", threadId, itemId, delta });
     },
-    [dispatch],
+    [enqueueStreamDelta],
   );
 
   const onReasoningSummaryBoundary = useCallback(
     (_workspaceId: string, threadId: string, itemId: string) => {
+      flushStreamDeltas();
       dispatch({ type: "appendReasoningSummaryBoundary", threadId, itemId });
     },
-    [dispatch],
+    [dispatch, flushStreamDeltas],
   );
 
   const onReasoningTextDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendReasoningContent", threadId, itemId, delta });
+      enqueueStreamDelta({ type: "appendReasoningContent", threadId, itemId, delta });
     },
-    [dispatch],
+    [enqueueStreamDelta],
   );
 
   const onPlanDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendPlanDelta", threadId, itemId, delta });
+      enqueueStreamDelta({ type: "appendPlanDelta", threadId, itemId, delta });
     },
-    [dispatch],
+    [enqueueStreamDelta],
   );
 
   const onCommandOutputDelta = useCallback(

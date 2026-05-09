@@ -14,6 +14,44 @@ function statusEquals(previous: ThreadStatus, nextStatus: ThreadStatus) {
   );
 }
 
+/**
+ * 移除指定线程的本地状态键，避免线程删除后轻量缓存长期累积。
+ *
+ * @param state 当前线程状态快照。
+ * @param threadId 需要清理的线程 ID。
+ * @returns 已清理指定线程本地状态键的新状态片段。
+ */
+function removeThreadLocalState(state: ThreadState, threadId: string) {
+  const { [threadId]: _items, ...itemsByThread } = state.itemsByThread;
+  const { [threadId]: _status, ...threadStatusById } = state.threadStatusById;
+  const { [threadId]: _resumeLoading, ...threadResumeLoadingById } =
+    state.threadResumeLoadingById;
+  const { [threadId]: _turn, ...activeTurnIdByThread } =
+    state.activeTurnIdByThread;
+  const { [threadId]: _diff, ...turnDiffByThread } = state.turnDiffByThread;
+  const { [threadId]: _plan, ...planByThread } = state.planByThread;
+  const { [threadId]: _parent, ...threadParentById } = state.threadParentById;
+  const { [threadId]: _maxItems, ...maxItemsPerThreadByThread } =
+    state.maxItemsPerThreadByThread;
+  const { [threadId]: _tokenUsage, ...tokenUsageByThread } =
+    state.tokenUsageByThread;
+  const { [threadId]: _lastAgentMessage, ...lastAgentMessageByThread } =
+    state.lastAgentMessageByThread;
+
+  return {
+    itemsByThread,
+    maxItemsPerThreadByThread,
+    threadStatusById,
+    threadResumeLoadingById,
+    activeTurnIdByThread,
+    turnDiffByThread,
+    planByThread,
+    threadParentById,
+    tokenUsageByThread,
+    lastAgentMessageByThread,
+  };
+}
+
 export function reduceThreadLifecycle(
   state: ThreadState,
   action: ThreadAction,
@@ -125,27 +163,14 @@ export function reduceThreadLifecycle(
         state.activeThreadIdByWorkspace[action.workspaceId] === action.threadId
           ? filtered[0]?.id ?? null
           : state.activeThreadIdByWorkspace[action.workspaceId] ?? null;
-      const { [action.threadId]: _, ...restItems } = state.itemsByThread;
-      const { [action.threadId]: __, ...restStatus } = state.threadStatusById;
-      const { [action.threadId]: ___, ...restTurns } = state.activeTurnIdByThread;
-      const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
-      const { [action.threadId]: _____, ...restPlans } = state.planByThread;
-      const { [action.threadId]: ______, ...restParents } = state.threadParentById;
-      const { [action.threadId]: _______, ...restThreadMaxItems } =
-        state.maxItemsPerThreadByThread;
+      const localState = removeThreadLocalState(state, action.threadId);
       return {
         ...state,
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
           [action.workspaceId]: filtered,
         },
-        itemsByThread: restItems,
-        maxItemsPerThreadByThread: restThreadMaxItems,
-        threadStatusById: restStatus,
-        activeTurnIdByThread: restTurns,
-        turnDiffByThread: restDiffs,
-        planByThread: restPlans,
-        threadParentById: restParents,
+        ...localState,
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
           [action.workspaceId]: nextActive,
@@ -169,7 +194,27 @@ export function reduceThreadLifecycle(
         state.planByThread,
         action.threadId,
       );
-      if (!hasItems && !hasTurn && !hasDiff && !hasPlan) {
+      const hasTokenUsage = Object.prototype.hasOwnProperty.call(
+        state.tokenUsageByThread,
+        action.threadId,
+      );
+      const hasLastAgentMessage = Object.prototype.hasOwnProperty.call(
+        state.lastAgentMessageByThread,
+        action.threadId,
+      );
+      const hasThreadMaxItems = Object.prototype.hasOwnProperty.call(
+        state.maxItemsPerThreadByThread,
+        action.threadId,
+      );
+      if (
+        !hasItems &&
+        !hasTurn &&
+        !hasDiff &&
+        !hasPlan &&
+        !hasTokenUsage &&
+        !hasLastAgentMessage &&
+        !hasThreadMaxItems
+      ) {
         return state;
       }
 
@@ -177,13 +222,22 @@ export function reduceThreadLifecycle(
       const { [action.threadId]: _turn, ...restTurns } = state.activeTurnIdByThread;
       const { [action.threadId]: _diff, ...restDiffs } = state.turnDiffByThread;
       const { [action.threadId]: _plan, ...restPlans } = state.planByThread;
+      const { [action.threadId]: _tokenUsage, ...restTokenUsage } =
+        state.tokenUsageByThread;
+      const { [action.threadId]: _lastAgentMessage, ...restLastAgentMessage } =
+        state.lastAgentMessageByThread;
+      const { [action.threadId]: _maxItems, ...restThreadMaxItems } =
+        state.maxItemsPerThreadByThread;
 
       return {
         ...state,
         itemsByThread: restItems,
+        maxItemsPerThreadByThread: restThreadMaxItems,
         activeTurnIdByThread: restTurns,
         turnDiffByThread: restDiffs,
         planByThread: restPlans,
+        tokenUsageByThread: restTokenUsage,
+        lastAgentMessageByThread: restLastAgentMessage,
       };
     }
     case "setThreadParent": {
@@ -251,7 +305,18 @@ export function reduceThreadLifecycle(
         },
       };
     }
-    case "setActiveTurnId":
+    case "setActiveTurnId": {
+      if (action.turnId === null) {
+        if (!Object.prototype.hasOwnProperty.call(state.activeTurnIdByThread, action.threadId)) {
+          return state;
+        }
+        const { [action.threadId]: _turn, ...restTurns } =
+          state.activeTurnIdByThread;
+        return {
+          ...state,
+          activeTurnIdByThread: restTurns,
+        };
+      }
       return {
         ...state,
         activeTurnIdByThread: {
@@ -259,6 +324,7 @@ export function reduceThreadLifecycle(
           [action.threadId]: action.turnId,
         },
       };
+    }
     case "markReviewing": {
       const previous = state.threadStatusById[action.threadId];
       const nextStatus: ThreadStatus = {
@@ -500,7 +566,23 @@ export function reduceThreadLifecycle(
           [action.workspaceId]: action.isLoading,
         },
       };
-    case "setThreadResumeLoading":
+    case "setThreadResumeLoading": {
+      if (!action.isLoading) {
+        if (
+          !Object.prototype.hasOwnProperty.call(
+            state.threadResumeLoadingById,
+            action.threadId,
+          )
+        ) {
+          return state;
+        }
+        const { [action.threadId]: _resumeLoading, ...restResumeLoading } =
+          state.threadResumeLoadingById;
+        return {
+          ...state,
+          threadResumeLoadingById: restResumeLoading,
+        };
+      }
       return {
         ...state,
         threadResumeLoadingById: {
@@ -508,6 +590,7 @@ export function reduceThreadLifecycle(
           [action.threadId]: action.isLoading,
         },
       };
+    }
     case "setThreadListPaging":
       return {
         ...state,

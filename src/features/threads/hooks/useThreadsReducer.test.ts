@@ -70,6 +70,32 @@ describe("threadReducer", () => {
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Assistant note");
   });
 
+  it("truncates oversized streaming assistant messages during append", () => {
+    const first = threadReducer(initialState, {
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "a".repeat(19_990),
+      hasCustomName: true,
+    });
+    const next = threadReducer(first, {
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "b".repeat(1_000),
+      hasCustomName: true,
+    });
+
+    const item = next.itemsByThread["thread-1"]?.[0];
+    expect(item?.kind).toBe("message");
+    if (item?.kind === "message") {
+      expect(item.text).toHaveLength(20_000);
+      expect(item.text.endsWith("...")).toBe(true);
+    }
+  });
+
   it("updates thread timestamp when newer activity arrives", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
@@ -436,6 +462,28 @@ describe("threadReducer", () => {
     }
   });
 
+  it("truncates oversized streaming reasoning content during append", () => {
+    const first = threadReducer(initialState, {
+      type: "appendReasoningContent",
+      threadId: "thread-1",
+      itemId: "reasoning-1",
+      delta: "r".repeat(19_995),
+    });
+    const next = threadReducer(first, {
+      type: "appendReasoningContent",
+      threadId: "thread-1",
+      itemId: "reasoning-1",
+      delta: "z".repeat(500),
+    });
+
+    const item = next.itemsByThread["thread-1"]?.[0];
+    expect(item?.kind).toBe("reasoning");
+    if (item?.kind === "reasoning") {
+      expect(item.content).toHaveLength(20_000);
+      expect(item.content.endsWith("...")).toBe(true);
+    }
+  });
+
   it("inserts a reasoning summary boundary between sections", () => {
     const withSummary = threadReducer(initialState, {
       type: "appendReasoningSummary",
@@ -480,6 +528,35 @@ describe("threadReducer", () => {
       delta: "delta",
     });
     expect(next).toBe(base);
+  });
+
+  it("truncates oversized streaming command output during append", () => {
+    const tool: ConversationItem = {
+      id: "tool-1",
+      kind: "tool",
+      toolType: "commandExecution",
+      title: "命令",
+      detail: "",
+      output: "x".repeat(199_990),
+    };
+    const base: ThreadState = {
+      ...initialState,
+      itemsByThread: { "thread-1": [tool] },
+    };
+
+    const next = threadReducer(base, {
+      type: "appendToolOutput",
+      threadId: "thread-1",
+      itemId: "tool-1",
+      delta: "y".repeat(1_000),
+    });
+
+    const item = next.itemsByThread["thread-1"]?.[0];
+    expect(item?.kind).toBe("tool");
+    if (item?.kind === "tool") {
+      expect(item.output).toHaveLength(200_000);
+      expect(item.output?.endsWith("...")).toBe(true);
+    }
   });
 
   it("adds and removes user input requests by workspace and id", () => {
@@ -571,6 +648,84 @@ describe("threadReducer", () => {
     });
 
     expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+  });
+
+  it("clears all per-thread caches when a thread is removed", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [
+          { id: "thread-1", name: "Agent 1", updatedAt: 1 },
+          { id: "thread-2", name: "Agent 2", updatedAt: 2 },
+        ],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-1" },
+      itemsByThread: { "thread-1": [] },
+      maxItemsPerThreadByThread: { "thread-1": 500 },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: false,
+          hasUnread: true,
+          isReviewing: false,
+          processingStartedAt: null,
+          lastDurationMs: 10,
+        },
+      },
+      threadResumeLoadingById: { "thread-1": true },
+      activeTurnIdByThread: { "thread-1": "turn-1" },
+      turnDiffByThread: { "thread-1": "diff --git a/a.ts b/a.ts" },
+      planByThread: {
+        "thread-1": {
+          turnId: "turn-1",
+          explanation: "plan",
+          steps: [],
+        },
+      },
+      threadParentById: { "thread-1": "parent-thread" },
+      tokenUsageByThread: {
+        "thread-1": {
+          total: {
+            totalTokens: 30,
+            inputTokens: 10,
+            cachedInputTokens: 2,
+            outputTokens: 20,
+            reasoningOutputTokens: 3,
+          },
+          last: {
+            totalTokens: 5,
+            inputTokens: 2,
+            cachedInputTokens: 1,
+            outputTokens: 3,
+            reasoningOutputTokens: 1,
+          },
+          modelContextWindow: null,
+        },
+      },
+      lastAgentMessageByThread: {
+        "thread-1": {
+          text: "latest",
+          timestamp: 123,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "removeThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+
+    expect(next.itemsByThread["thread-1"]).toBeUndefined();
+    expect(next.maxItemsPerThreadByThread["thread-1"]).toBeUndefined();
+    expect(next.threadStatusById["thread-1"]).toBeUndefined();
+    expect(next.threadResumeLoadingById["thread-1"]).toBeUndefined();
+    expect(next.activeTurnIdByThread["thread-1"]).toBeUndefined();
+    expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+    expect(next.planByThread["thread-1"]).toBeUndefined();
+    expect(next.threadParentById["thread-1"]).toBeUndefined();
+    expect(next.tokenUsageByThread["thread-1"]).toBeUndefined();
+    expect(next.lastAgentMessageByThread["thread-1"]).toBeUndefined();
+    expect(next.activeThreadIdByWorkspace["ws-1"]).toBe("thread-2");
   });
 
   it("hides background threads and keeps them hidden on future syncs", () => {
@@ -823,6 +978,32 @@ describe("threadReducer", () => {
           steps: [],
         },
       },
+      maxItemsPerThreadByThread: { "thread-1": 500 },
+      tokenUsageByThread: {
+        "thread-1": {
+          total: {
+            totalTokens: 30,
+            inputTokens: 10,
+            cachedInputTokens: 2,
+            outputTokens: 20,
+            reasoningOutputTokens: 3,
+          },
+          last: {
+            totalTokens: 5,
+            inputTokens: 2,
+            cachedInputTokens: 1,
+            outputTokens: 3,
+            reasoningOutputTokens: 1,
+          },
+          modelContextWindow: null,
+        },
+      },
+      lastAgentMessageByThread: {
+        "thread-1": {
+          text: "latest",
+          timestamp: 123,
+        },
+      },
     };
 
     const next = threadReducer(base, {
@@ -835,6 +1016,31 @@ describe("threadReducer", () => {
     expect(next.activeTurnIdByThread["thread-1"]).toBeUndefined();
     expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
     expect(next.planByThread["thread-1"]).toBeUndefined();
+    expect(next.maxItemsPerThreadByThread["thread-1"]).toBeUndefined();
+    expect(next.tokenUsageByThread["thread-1"]).toBeUndefined();
+    expect(next.lastAgentMessageByThread["thread-1"]).toBeUndefined();
+  });
+
+  it("removes inactive loading and active turn keys instead of storing falsey values", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadResumeLoadingById: { "thread-1": true },
+      activeTurnIdByThread: { "thread-1": "turn-1" },
+    };
+
+    const notLoading = threadReducer(base, {
+      type: "setThreadResumeLoading",
+      threadId: "thread-1",
+      isLoading: false,
+    });
+    expect(notLoading.threadResumeLoadingById["thread-1"]).toBeUndefined();
+
+    const noActiveTurn = threadReducer(notLoading, {
+      type: "setActiveTurnId",
+      threadId: "thread-1",
+      turnId: null,
+    });
+    expect(noActiveTurn.activeTurnIdByThread["thread-1"]).toBeUndefined();
   });
 
 });

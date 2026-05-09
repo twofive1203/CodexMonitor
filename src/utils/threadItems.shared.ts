@@ -9,8 +9,8 @@ export type ExploreEntry =
   Extract<ConversationItem, { kind: "explore" }>["entries"][number];
 export type ExploreItem = Extract<ConversationItem, { kind: "explore" }>;
 
-const MAX_ITEM_TEXT = 20000;
-const MAX_LARGE_TOOL_TEXT = 200000;
+export const MAX_ITEM_TEXT = 20000;
+export const MAX_LARGE_TOOL_TEXT = 200000;
 const LARGE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
 
 export const DEFAULT_MAX_ITEMS_PER_THREAD = CHAT_SCROLLBACK_DEFAULT;

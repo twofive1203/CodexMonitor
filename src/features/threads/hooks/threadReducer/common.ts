@@ -85,29 +85,44 @@ export function maybeRenameThreadFromAgent({
     : threadsByWorkspace;
 }
 
-export function mergeStreamingText(existing: string, delta: string) {
+/**
+ * 合并流式文本增量，并按需限制结果长度。
+ *
+ * @param existing 当前已经保存的文本。
+ * @param delta 本次收到的增量或完整文本片段。
+ * @param maxLength 合并后允许保留的最大字符数，未传入时不额外裁剪。
+ * @returns 合并后的文本；超出上限时保留前缀并追加省略号。
+ */
+export function mergeStreamingText(existing: string, delta: string, maxLength?: number) {
+  const limitText = (text: string) => {
+    if (!maxLength || text.length <= maxLength) {
+      return text;
+    }
+    const sliceLength = Math.max(0, maxLength - 3);
+    return `${text.slice(0, sliceLength)}...`;
+  };
   if (!delta) {
-    return existing;
+    return limitText(existing);
   }
   if (!existing) {
-    return delta;
+    return limitText(delta);
   }
   if (delta === existing) {
-    return existing;
+    return limitText(existing);
   }
   if (delta.startsWith(existing)) {
-    return delta;
+    return limitText(delta);
   }
   if (existing.startsWith(delta)) {
-    return existing;
+    return limitText(existing);
   }
   const maxOverlap = Math.min(existing.length, delta.length);
   for (let length = maxOverlap; length > 0; length -= 1) {
     if (existing.endsWith(delta.slice(0, length))) {
-      return `${existing}${delta.slice(length)}`;
+      return limitText(`${existing}${delta.slice(length)}`);
     }
   }
-  return `${existing}${delta}`;
+  return limitText(`${existing}${delta}`);
 }
 
 export function addSummaryBoundary(existing: string) {

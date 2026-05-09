@@ -1,5 +1,6 @@
 import type { ConversationItem } from "@/types";
 import { normalizeItem, prepareThreadItems, upsertItem } from "@utils/threadItems";
+import { MAX_ITEM_TEXT, MAX_LARGE_TOOL_TEXT } from "@utils/threadItems.shared";
 import {
   getThreadMaxItemsPerThread,
   type ThreadAction,
@@ -65,7 +66,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         const existing = list[index];
         list[index] = {
           ...existing,
-          text: mergeStreamingText(existing.text, action.delta),
+          text: mergeStreamingText(existing.text, action.delta, MAX_ITEM_TEXT),
         };
       } else {
         list.push({
@@ -230,6 +231,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         summary: mergeStreamingText(
           "summary" in base ? base.summary : "",
           action.delta,
+          MAX_ITEM_TEXT,
         ),
       } as ConversationItem;
       const next = index >= 0 ? [...list] : [...list, updated];
@@ -289,6 +291,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         content: mergeStreamingText(
           "content" in base ? base.content : "",
           action.delta,
+          MAX_ITEM_TEXT,
         ),
       } as ConversationItem;
       const next = index >= 0 ? [...list] : [...list, updated];
@@ -326,7 +329,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         title: "计划",
         detail: "正在生成计划...",
         status: "in_progress",
-        output: mergeStreamingText(existingOutput, action.delta),
+        output: mergeStreamingText(existingOutput, action.delta, MAX_ITEM_TEXT),
       } as ConversationItem;
       const next = index >= 0 ? [...list] : [...list, updated];
       if (index >= 0) {
@@ -349,7 +352,13 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
       const existing = list[index];
       const updated: ConversationItem = {
         ...existing,
-        output: mergeStreamingText(existing.output ?? "", action.delta),
+        output: mergeStreamingText(
+          existing.output ?? "",
+          action.delta,
+          existing.toolType === "commandExecution" || existing.toolType === "fileChange"
+            ? MAX_LARGE_TOOL_TEXT
+            : MAX_ITEM_TEXT,
+        ),
       } as ConversationItem;
       const next = [...list];
       next[index] = updated;
