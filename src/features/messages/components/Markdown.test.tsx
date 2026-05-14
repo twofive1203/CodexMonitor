@@ -1,17 +1,31 @@
 // @vitest-environment jsdom
-import { cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Markdown } from "./Markdown";
 
+const { mermaidInitializeMock, mermaidRenderMock } = vi.hoisted(() => ({
+  mermaidInitializeMock: vi.fn(),
+  mermaidRenderMock: vi.fn(),
+}));
+
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
+}));
+
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: mermaidInitializeMock,
+    render: mermaidRenderMock,
+  },
 }));
 
 describe("Markdown file-like href behavior", () => {
   afterEach(() => {
     vi.mocked(openUrl).mockReset();
+    mermaidInitializeMock.mockClear();
+    mermaidRenderMock.mockReset();
     cleanup();
   });
 
@@ -91,6 +105,112 @@ describe("Markdown file-like href behavior", () => {
     expect(pre).toBeTruthy();
     expect(code).toBeTruthy();
     expect(code?.textContent).toContain("const selected = value;");
+  });
+
+  it("renders mermaid fenced code blocks as diagrams", async () => {
+    mermaidRenderMock.mockResolvedValueOnce({
+      svg: '<svg data-testid="mermaid-svg" viewBox="0 0 10 10"><text>diagram</text></svg>',
+    });
+
+    const { container } = render(
+      <Markdown
+        value={"```mermaid\nflowchart LR\n  A --> B\n```"}
+        className="markdown"
+        codeBlockStyle="message"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mermaidRenderMock).toHaveBeenCalledWith(
+        expect.stringMatching(/^message-mermaid-\d+$/),
+        "flowchart LR\n  A --> B",
+      );
+    });
+    expect(container.querySelector(".markdown-mermaid-svg svg")).toBeTruthy();
+    expect(container.querySelector(".markdown-codeblock-body")).toBeNull();
+  });
+
+  it("keeps rendered mermaid diagrams mounted across identical rerenders", async () => {
+    mermaidRenderMock.mockResolvedValue({
+      svg: '<svg data-testid="mermaid-svg" viewBox="0 0 10 10"><text>diagram</text></svg>',
+    });
+    const value = "```mermaid\nflowchart LR\n  A --> C\n```";
+
+    const { container, rerender } = render(
+      <Markdown
+        value={value}
+        className="markdown"
+        codeBlockStyle="message"
+        onOpenFileLink={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".markdown-mermaid-svg svg")).toBeTruthy();
+    });
+    rerender(
+      <Markdown
+        value={value}
+        className="markdown"
+        codeBlockStyle="message"
+        onOpenFileLink={vi.fn()}
+      />,
+    );
+
+    expect(mermaidRenderMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".markdown-mermaid-svg svg")).toBeTruthy();
+  });
+
+  it("reuses cached mermaid SVG after a message remounts", async () => {
+    mermaidRenderMock.mockResolvedValue({
+      svg: '<svg data-testid="mermaid-svg" viewBox="0 0 10 10"><text>diagram</text></svg>',
+    });
+    const value = "```mermaid\nflowchart LR\n  A --> D\n```";
+
+    const { container, unmount } = render(
+      <Markdown
+        value={value}
+        className="markdown"
+        codeBlockStyle="message"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".markdown-mermaid-svg svg")).toBeTruthy();
+    });
+    unmount();
+
+    const remounted = render(
+      <Markdown
+        value={value}
+        className="markdown"
+        codeBlockStyle="message"
+      />,
+    );
+
+    expect(mermaidRenderMock).toHaveBeenCalledTimes(1);
+    expect(remounted.container.querySelector(".markdown-mermaid-placeholder")).toBeNull();
+    expect(remounted.container.querySelector(".markdown-mermaid-svg svg")).toBeTruthy();
+  });
+
+  it("falls back to mermaid source when diagram rendering fails", async () => {
+    mermaidRenderMock.mockRejectedValueOnce(new Error("Parse error"));
+
+    const { container } = render(
+      <Markdown
+        value={"```mermaid\nflowchart LR\n  A -->\n```"}
+        className="markdown"
+        codeBlockStyle="message"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Mermaid 图渲染失败")).toBeTruthy();
+    });
+    expect(screen.getByText("Parse error")).toBeTruthy();
+    expect(container.querySelector(".markdown-codeblock-body")?.textContent).toContain(
+      "flowchart LR",
+    );
   });
 
   it("marks inline code with a dedicated class for selection-safe styling", () => {

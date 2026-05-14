@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type MouseEvent,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -33,6 +41,19 @@ type CodeBlockProps = {
   copyUseModifier: boolean;
 };
 
+type MermaidBlockProps = {
+  className?: string;
+  value: string;
+  copyUseModifier: boolean;
+};
+
+type MermaidRenderState =
+  | { status: "loading" }
+  | { status: "ready"; svg: string }
+  | { status: "error"; message: string };
+
+type MermaidApi = typeof import("mermaid").default;
+
 type PreProps = {
   node?: {
     tagName?: string;
@@ -53,6 +74,11 @@ type LinkBlockProps = {
 
 type LinkDragGuard = ReturnType<typeof useLinkDragGuard>;
 
+let mermaidInitialized = false;
+let mermaidRenderId = 0;
+const mermaidSvgCache = new Map<string, string>();
+const mermaidSvgPendingCache = new Map<string, Promise<string>>();
+
 function extractLanguageTag(className?: string) {
   if (!className) {
     return null;
@@ -62,6 +88,16 @@ function extractLanguageTag(className?: string) {
     return null;
   }
   return match[1];
+}
+
+/**
+ * 判断代码块语言是否应按 Mermaid 图渲染。
+ *
+ * @param languageTag 代码块语言标签。
+ * @returns 匹配 Mermaid 语言时返回 true。
+ */
+function isMermaidLanguageTag(languageTag: string | null) {
+  return languageTag?.toLowerCase() === "mermaid";
 }
 
 function extractCodeFromPre(node?: PreProps["node"]) {
@@ -193,6 +229,153 @@ function stripTrailingMemoryCitation(value: string) {
 }
 
 /**
+ * 初始化 Mermaid 的浏览器渲染配置。
+ *
+ * @param mermaid Mermaid 默认导出的 API 对象。
+ */
+function initializeMermaid(mermaid: MermaidApi) {
+  if (mermaidInitialized) {
+    return;
+  }
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    suppressErrorRendering: true,
+    theme: "base",
+    htmlLabels: true,
+    themeVariables: {
+      darkMode: true,
+      background: "transparent",
+      mainBkg: "#20242d",
+      primaryColor: "#273241",
+      primaryBorderColor: "#526070",
+      primaryTextColor: "#f4f7fb",
+      lineColor: "#8aa2b6",
+      textColor: "#f4f7fb",
+      secondaryColor: "#1f3d3a",
+      tertiaryColor: "#2b2f3a",
+    },
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  });
+  mermaidInitialized = true;
+}
+
+/**
+ * 将 Mermaid 源码渲染成 SVG 字符串。
+ *
+ * @param source Mermaid 图源码。
+ * @param renderId 本次渲染使用的唯一 DOM id。
+ * @returns Mermaid 生成的 SVG 字符串。
+ */
+async function renderMermaidSvg(source: string, renderId: string) {
+  const mermaidModule = await import("mermaid");
+  const mermaid = mermaidModule.default;
+  initializeMermaid(mermaid);
+  const { svg } = await mermaid.render(renderId, source);
+  return svg;
+}
+
+/**
+ * 带缓存地渲染 Mermaid，避免父级刷新时重复进入加载态。
+ *
+ * @param source Mermaid 图源码。
+ * @param renderId 本次渲染使用的唯一 DOM id。
+ * @returns Mermaid 生成的 SVG 字符串。
+ */
+async function renderCachedMermaidSvg(source: string, renderId: string) {
+  const cachedSvg = mermaidSvgCache.get(source);
+  if (cachedSvg) {
+    return cachedSvg;
+  }
+
+  const pendingSvg = mermaidSvgPendingCache.get(source);
+  if (pendingSvg) {
+    return pendingSvg;
+  }
+
+  const pendingRender = renderMermaidSvg(source, renderId)
+    .then((svg) => {
+      mermaidSvgCache.set(source, svg);
+      mermaidSvgPendingCache.delete(source);
+      return svg;
+    })
+    .catch((error: unknown) => {
+      mermaidSvgPendingCache.delete(source);
+      throw error;
+    });
+  mermaidSvgPendingCache.set(source, pendingRender);
+  return pendingRender;
+}
+
+/**
+ * 保存最新值，同时保持 ref 对象身份稳定。
+ *
+ * @param value 需要暴露给稳定回调读取的最新值。
+ * @returns 指向最新值的稳定 ref。
+ */
+function useLatestRef<T>(value: T) {
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  return valueRef;
+}
+
+/**
+ * 管理复制状态，并在指定时间后自动复位。
+ *
+ * @param timeoutMs 复制成功状态保留的毫秒数。
+ * @returns 复制状态和写入剪贴板的方法。
+ */
+function useClipboardCopy(timeoutMs = 1200) {
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false);
+      }, timeoutMs);
+    } catch {
+      // No-op: clipboard errors can occur in restricted contexts.
+    }
+  };
+
+  return {
+    copied,
+    copyText,
+  };
+}
+
+/**
+ * 将未知错误转换为可读文本。
+ *
+ * @param error 捕获到的未知错误。
+ * @returns 用于展示的错误说明。
+ */
+function formatMermaidError(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return "Mermaid 图渲染失败";
+}
+
+/**
  * 记录链接按下位置，用于区分普通点击和拖动划选文本。
  *
  * @returns 链接鼠标按下处理器，以及判断点击是否应被视为拖动的函数。
@@ -200,7 +383,7 @@ function stripTrailingMemoryCitation(value: string) {
 function useLinkDragGuard() {
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  const handleMouseDown = (event: MouseEvent<Element>) => {
+  const handleMouseDown = useCallback((event: MouseEvent<Element>) => {
     if (event.button !== 0) {
       pointerStartRef.current = null;
       return;
@@ -209,9 +392,9 @@ function useLinkDragGuard() {
       x: event.clientX,
       y: event.clientY,
     };
-  };
+  }, []);
 
-  const isDragClick = (event: MouseEvent<Element>) => {
+  const isDragClick = useCallback((event: MouseEvent<Element>) => {
     const start = pointerStartRef.current;
     pointerStartRef.current = null;
     if (!start) {
@@ -220,12 +403,15 @@ function useLinkDragGuard() {
     const movementX = Math.abs(event.clientX - start.x);
     const movementY = Math.abs(event.clientY - start.y);
     return movementX > 3 || movementY > 3;
-  };
+  }, []);
 
-  return {
-    handleMouseDown,
-    isDragClick,
-  };
+  return useMemo(
+    () => ({
+      handleMouseDown,
+      isDragClick,
+    }),
+    [handleMouseDown, isDragClick],
+  );
 }
 
 export function isStandaloneMarkdownTable(value: string) {
@@ -396,35 +582,15 @@ function FileReferenceLink({
 }
 
 function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
-  const copyTimeoutRef = useRef<number | null>(null);
+  const { copied, copyText } = useClipboardCopy();
   const languageTag = extractLanguageTag(className);
   const languageLabel = languageTag ?? "代码";
   const fencedValue = `\`\`\`${languageTag ?? ""}\n${value}\n\`\`\``;
 
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
-    try {
-      const shouldFence = copyUseModifier ? event.altKey : true;
-      const nextValue = shouldFence ? fencedValue : value;
-      await navigator.clipboard.writeText(nextValue);
-      setCopied(true);
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-      copyTimeoutRef.current = window.setTimeout(() => {
-        setCopied(false);
-      }, 1200);
-    } catch {
-      // No-op: clipboard errors can occur in restricted contexts.
-    }
+    const shouldFence = copyUseModifier ? event.altKey : true;
+    const nextValue = shouldFence ? fencedValue : value;
+    await copyText(nextValue);
   };
 
   return (
@@ -452,6 +618,98 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   );
 }
 
+/**
+ * 渲染 Mermaid 代码块，失败时展示错误和原始源码。
+ *
+ * @param props Mermaid 代码块渲染参数。
+ * @returns Mermaid 图组件。
+ */
+function MermaidBlock({ className, value, copyUseModifier }: MermaidBlockProps) {
+  const { copied, copyText } = useClipboardCopy();
+  const [state, setState] = useState<MermaidRenderState>(() => {
+    const cachedSvg = mermaidSvgCache.get(value);
+    return cachedSvg ? { status: "ready", svg: cachedSvg } : { status: "loading" };
+  });
+  const [renderId] = useState(() => {
+    mermaidRenderId += 1;
+    return `message-mermaid-${mermaidRenderId}`;
+  });
+  const fencedValue = `\`\`\`mermaid\n${value}\n\`\`\``;
+
+  useEffect(() => {
+    let active = true;
+    const cachedSvg = mermaidSvgCache.get(value);
+    if (cachedSvg) {
+      setState({ status: "ready", svg: cachedSvg });
+      return () => {
+        active = false;
+      };
+    }
+    setState((current) => (current.status === "ready" ? current : { status: "loading" }));
+    renderCachedMermaidSvg(value, renderId)
+      .then((svg) => {
+        if (active) {
+          setState({ status: "ready", svg });
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setState({ status: "error", message: formatMermaidError(error) });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [renderId, value]);
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    const shouldFence = copyUseModifier ? event.altKey : true;
+    const nextValue = shouldFence ? fencedValue : value;
+    await copyText(nextValue);
+  };
+
+  return (
+    <div className="markdown-mermaid">
+      <div className="markdown-codeblock-header markdown-mermaid-header">
+        <span className="markdown-codeblock-language">MERMAID</span>
+        <button
+          type="button"
+          className={`ghost markdown-codeblock-copy${copied ? " is-copied" : ""}`}
+          onClick={handleCopy}
+          aria-label="复制 Mermaid 源码"
+          title={copied ? "已复制" : "复制"}
+        >
+          {copied ? "已复制" : "复制"}
+        </button>
+      </div>
+      <div className="markdown-mermaid-body">
+        {state.status === "loading" ? (
+          <div className="markdown-mermaid-placeholder">正在渲染 Mermaid 图...</div>
+        ) : null}
+        {state.status === "ready" ? (
+          <div
+            className="markdown-mermaid-svg"
+            aria-label="Mermaid 图"
+            dangerouslySetInnerHTML={{ __html: state.svg }}
+          />
+        ) : null}
+        {state.status === "error" ? (
+          <div className="markdown-mermaid-error">
+            <div className="markdown-mermaid-error-title">Mermaid 图渲染失败</div>
+            <div className="markdown-mermaid-error-message">{state.message}</div>
+            <CodeBlock
+              className={className}
+              value={value}
+              copyUseModifier={copyUseModifier}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PreBlock({ node, children, copyUseModifier, linkDragGuard }: PreProps) {
   const { className, value } = extractCodeFromPre(node);
   if (!className && !value && children) {
@@ -460,6 +718,16 @@ function PreBlock({ node, children, copyUseModifier, linkDragGuard }: PreProps) 
   const urlLines = extractUrlLines(value);
   if (urlLines) {
     return <LinkBlock urls={urlLines} linkDragGuard={linkDragGuard} />;
+  }
+  const languageTag = extractLanguageTag(className);
+  if (isMermaidLanguageTag(languageTag)) {
+    return (
+      <MermaidBlock
+        className={className}
+        value={value}
+        copyUseModifier={copyUseModifier}
+      />
+    );
   }
   const isSingleLine = !value.includes("\n");
   if (isSingleLine) {
@@ -495,60 +763,161 @@ export function Markdown({
   onOpenThreadLink,
 }: MarkdownProps) {
   const linkDragGuard = useLinkDragGuard();
-  const normalizedValue = codeBlock
-    ? value
-    : normalizeStructuredReviewTables(normalizeListIndentation(value));
-  const content = codeBlock
-    ? `\`\`\`\n${normalizedValue}\n\`\`\``
-    : normalizedValue;
-  const handleFileLinkClick = (event: React.MouseEvent, path: ParsedFileLocation) => {
+  const onOpenFileLinkRef = useLatestRef(onOpenFileLink);
+  const onOpenFileLinkMenuRef = useLatestRef(onOpenFileLinkMenu);
+  const onOpenThreadLinkRef = useLatestRef(onOpenThreadLink);
+  const hasOpenFileLinkMenu = Boolean(onOpenFileLinkMenu);
+  const resolvedHrefFilePathCache = useRef(new Map<string, ParsedFileLocation | null>());
+  const normalizedValue = useMemo(
+    () =>
+      codeBlock
+        ? value
+        : normalizeStructuredReviewTables(normalizeListIndentation(value)),
+    [codeBlock, value],
+  );
+  const content = useMemo(
+    () => (codeBlock ? `\`\`\`\n${normalizedValue}\n\`\`\`` : normalizedValue),
+    [codeBlock, normalizedValue],
+  );
+
+  useEffect(() => {
+    resolvedHrefFilePathCache.current.clear();
+  }, [workspacePath]);
+
+  const handleFileLinkClick = useCallback((event: React.MouseEvent, path: ParsedFileLocation) => {
     event.preventDefault();
     event.stopPropagation();
     if (linkDragGuard.isDragClick(event)) {
       return;
     }
-    onOpenFileLink?.(path);
-  };
-  const handleLocalLinkClick = (event: React.MouseEvent) => {
+    onOpenFileLinkRef.current?.(path);
+  }, [linkDragGuard, onOpenFileLinkRef]);
+  const handleLocalLinkClick = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     linkDragGuard.isDragClick(event);
-  };
-  const handleFileLinkContextMenu = (
+  }, [linkDragGuard]);
+  const handleFileLinkContextMenu = useCallback((
     event: React.MouseEvent,
     path: ParsedFileLocation,
   ) => {
     event.preventDefault();
     event.stopPropagation();
-    onOpenFileLinkMenu?.(event, path);
-  };
-  const resolvedHrefFilePathCache = new Map<string, ParsedFileLocation | null>();
-  const resolveHrefFilePath = (url: string) => {
-    if (resolvedHrefFilePathCache.has(url)) {
-      return resolvedHrefFilePathCache.get(url) ?? null;
+    onOpenFileLinkMenuRef.current?.(event, path);
+  }, [onOpenFileLinkMenuRef]);
+  const resolveHrefFilePath = useCallback((url: string) => {
+    if (resolvedHrefFilePathCache.current.has(url)) {
+      return resolvedHrefFilePathCache.current.get(url) ?? null;
     }
     const resolvedPath = resolveMessageFileHref(url, workspacePath);
     if (!resolvedPath) {
-      resolvedHrefFilePathCache.set(url, null);
+      resolvedHrefFilePathCache.current.set(url, null);
       return null;
     }
-    resolvedHrefFilePathCache.set(url, resolvedPath);
+    resolvedHrefFilePathCache.current.set(url, resolvedPath);
     return resolvedPath;
-  };
-  const components: Components = {
-    table: ({ children }) => (
-      <div className="markdown-table-wrap">
-        <table className="markdown-table">{children}</table>
-      </div>
-    ),
-    a: ({ href, children }) => {
-      const url = (href ?? "").trim();
-      const threadId = url.startsWith("thread://")
-        ? url.slice("thread://".length).trim()
-        : url.startsWith("/thread/")
-          ? url.slice("/thread/".length).trim()
-          : "";
-      if (threadId) {
+  }, [workspacePath]);
+  const components: Components = useMemo(() => {
+    const markdownComponents: Components = {
+      table: ({ children }) => (
+        <div className="markdown-table-wrap">
+          <table className="markdown-table">{children}</table>
+        </div>
+      ),
+      a: ({ href, children }) => {
+        const url = (href ?? "").trim();
+        const threadId = url.startsWith("thread://")
+          ? url.slice("thread://".length).trim()
+          : url.startsWith("/thread/")
+            ? url.slice("/thread/".length).trim()
+            : "";
+        if (threadId) {
+          return (
+            <a
+              href={href}
+              onMouseDown={linkDragGuard.handleMouseDown}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (linkDragGuard.isDragClick(event)) {
+                  return;
+                }
+                onOpenThreadLinkRef.current?.(threadId);
+              }}
+            >
+              {children}
+            </a>
+          );
+        }
+        if (isFileLinkUrl(url)) {
+          const path = parseFileLinkUrl(url);
+          if (!path) {
+            return (
+              <a
+                href={href}
+                onMouseDown={linkDragGuard.handleMouseDown}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  linkDragGuard.isDragClick(event);
+                }}
+              >
+                {children}
+              </a>
+            );
+          }
+          return (
+            <FileReferenceLink
+              href={href ?? toFileLink(path)}
+              rawPath={path}
+              showFilePath={showFilePath}
+              workspacePath={workspacePath}
+              onClick={handleFileLinkClick}
+              onContextMenu={handleFileLinkContextMenu}
+              linkDragGuard={linkDragGuard}
+            />
+          );
+        }
+        const hrefFilePath = resolveHrefFilePath(url);
+        if (hrefFilePath) {
+          const formattedHrefFilePath = formatParsedFileLocation(hrefFilePath);
+          const clickHandler = (event: React.MouseEvent) =>
+            handleFileLinkClick(event, hrefFilePath);
+          const contextMenuHandler = hasOpenFileLinkMenu
+            ? (event: React.MouseEvent) => handleFileLinkContextMenu(event, hrefFilePath)
+            : undefined;
+          return (
+            <a
+              href={href ?? toFileLink(hrefFilePath)}
+              title={formattedHrefFilePath}
+              onMouseDown={linkDragGuard.handleMouseDown}
+              onClick={clickHandler}
+              onContextMenu={contextMenuHandler}
+            >
+              {children}
+            </a>
+          );
+        }
+        const isExternal =
+          url.startsWith("http://") ||
+          url.startsWith("https://") ||
+          url.startsWith("mailto:");
+
+        if (!isExternal) {
+          if (url.startsWith("#")) {
+            return <a href={href} onMouseDown={linkDragGuard.handleMouseDown}>{children}</a>;
+          }
+          return (
+            <a
+              href={href}
+              onMouseDown={linkDragGuard.handleMouseDown}
+              onClick={handleLocalLinkClick}
+            >
+              {children}
+            </a>
+          );
+        }
+
         return (
           <a
             href={href}
@@ -559,34 +928,27 @@ export function Markdown({
               if (linkDragGuard.isDragClick(event)) {
                 return;
               }
-              onOpenThreadLink?.(threadId);
+              void openUrl(url);
             }}
           >
             {children}
           </a>
         );
-      }
-      if (isFileLinkUrl(url)) {
-        const path = parseFileLinkUrl(url);
-        if (!path) {
-          return (
-            <a
-              href={href}
-              onMouseDown={linkDragGuard.handleMouseDown}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                linkDragGuard.isDragClick(event);
-              }}
-            >
-              {children}
-            </a>
-          );
+      },
+      code: ({ className: codeClassName, children }) => {
+        if (codeClassName) {
+          return <code className={codeClassName}>{children}</code>;
         }
+        const text = String(children ?? "").trim();
+        const fileTarget = parseInlineFileTarget(text);
+        if (!fileTarget) {
+          return <code className="markdown-inline-code">{children}</code>;
+        }
+        const href = toFileLink(fileTarget);
         return (
           <FileReferenceLink
-            href={href ?? toFileLink(path)}
-            rawPath={path}
+            href={href}
+            rawPath={fileTarget}
             showFilePath={showFilePath}
             workspacePath={workspacePath}
             onClick={handleFileLinkClick}
@@ -594,99 +956,36 @@ export function Markdown({
             linkDragGuard={linkDragGuard}
           />
         );
-      }
-      const hrefFilePath = resolveHrefFilePath(url);
-      if (hrefFilePath) {
-        const formattedHrefFilePath = formatParsedFileLocation(hrefFilePath);
-        const clickHandler = (event: React.MouseEvent) =>
-          handleFileLinkClick(event, hrefFilePath);
-        const contextMenuHandler = onOpenFileLinkMenu
-          ? (event: React.MouseEvent) => handleFileLinkContextMenu(event, hrefFilePath)
-          : undefined;
-        return (
-          <a
-            href={href ?? toFileLink(hrefFilePath)}
-            title={formattedHrefFilePath}
-            onMouseDown={linkDragGuard.handleMouseDown}
-            onClick={clickHandler}
-            onContextMenu={contextMenuHandler}
-          >
-            {children}
-          </a>
-        );
-      }
-      const isExternal =
-        url.startsWith("http://") ||
-        url.startsWith("https://") ||
-        url.startsWith("mailto:");
+      },
+    };
 
-      if (!isExternal) {
-        if (url.startsWith("#")) {
-          return <a href={href} onMouseDown={linkDragGuard.handleMouseDown}>{children}</a>;
-        }
-        return (
-          <a
-            href={href}
-            onMouseDown={linkDragGuard.handleMouseDown}
-            onClick={handleLocalLinkClick}
-          >
-            {children}
-          </a>
-        );
-      }
-
-      return (
-        <a
-          href={href}
-          onMouseDown={linkDragGuard.handleMouseDown}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (linkDragGuard.isDragClick(event)) {
-              return;
-            }
-            void openUrl(url);
-          }}
+    if (codeBlockStyle === "message") {
+      markdownComponents.pre = ({ node, children }) => (
+        <PreBlock
+          node={node as PreProps["node"]}
+          copyUseModifier={codeBlockCopyUseModifier}
+          linkDragGuard={linkDragGuard}
         >
           {children}
-        </a>
+        </PreBlock>
       );
-    },
-    code: ({ className: codeClassName, children }) => {
-      if (codeClassName) {
-        return <code className={codeClassName}>{children}</code>;
-      }
-      const text = String(children ?? "").trim();
-      const fileTarget = parseInlineFileTarget(text);
-      if (!fileTarget) {
-        return <code className="markdown-inline-code">{children}</code>;
-      }
-      const href = toFileLink(fileTarget);
-      return (
-        <FileReferenceLink
-          href={href}
-          rawPath={fileTarget}
-          showFilePath={showFilePath}
-          workspacePath={workspacePath}
-          onClick={handleFileLinkClick}
-          onContextMenu={handleFileLinkContextMenu}
-          linkDragGuard={linkDragGuard}
-        />
-      );
-    },
-  };
+    }
 
-  if (codeBlockStyle === "message") {
-    components.pre = ({ node, children }) => (
-      <PreBlock
-        node={node as PreProps["node"]}
-        copyUseModifier={codeBlockCopyUseModifier}
-        linkDragGuard={linkDragGuard}
-      >
-        {children}
-      </PreBlock>
-    );
-  }
+    return markdownComponents;
+  }, [
+    codeBlockCopyUseModifier,
+    codeBlockStyle,
+    handleFileLinkClick,
+    handleFileLinkContextMenu,
+    handleLocalLinkClick,
+    hasOpenFileLinkMenu,
+    linkDragGuard,
+    onOpenFileLinkMenuRef,
+    onOpenThreadLinkRef,
+    resolveHrefFilePath,
+    showFilePath,
+    workspacePath,
+  ]);
 
   return (
     <div className={className}>
